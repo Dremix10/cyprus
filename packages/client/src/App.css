@@ -1,0 +1,686 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+:root {
+  --bg: #1a1a2e;
+  --surface: #16213e;
+  --surface-light: #0f3460;
+  --primary: #e94560;
+  --primary-hover: #ff6b81;
+  --secondary: #533483;
+  --text: #eee;
+  --text-muted: #999;
+  --success: #2ecc71;
+  --warning: #f39c12;
+  --team-a: #3498db;
+  --team-b: #e74c3c;
+  --card-bg: #fff;
+  --card-text: #333;
+}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  min-height: 100vh;
+}
+
+.app {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* ─── Inputs & Buttons ──────────────────── */
+
+.input {
+  width: 100%;
+  padding: 0.75rem 1rem;
+  background: var(--surface);
+  border: 1px solid var(--surface-light);
+  border-radius: 8px;
+  color: var(--text);
+  font-size: 1rem;
+  outline: none;
+  transition: border-color 0.2s;
+}
+
+.input:focus {
+  border-color: var(--primary);
+}
+
+.btn {
+  padding: 0.75rem 1.5rem;
+  border: none;
+  border-radius: 8px;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s, transform 0.1s;
+}
+
+.btn:active {
+  transform: scale(0.97);
+}
+
+.btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.btn-primary {
+  background: var(--primary);
+  color: white;
+}
+
+.btn-primary:hover:not(:disabled) {
+  background: var(--primary-hover);
+}
+
+.btn-secondary {
+  background: var(--secondary);
+  color: white;
+}
+
+.btn-small {
+  padding: 0.4rem 0.8rem;
+  font-size: 0.85rem;
+  background: var(--surface-light);
+  color: var(--text);
+}
+
+.btn-tichu {
+  background: var(--warning);
+  color: #333;
+}
+
+.btn-group {
+  display: flex;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: center;
+}
+
+/* ─── Lobby ─────────────────────────────── */
+
+.lobby {
+  text-align: center;
+  padding: 2rem;
+  max-width: 360px;
+  width: 100%;
+}
+
+.lobby h1 {
+  font-size: 2.5rem;
+  color: var(--primary);
+  margin-bottom: 0.25rem;
+}
+
+.subtitle {
+  color: var(--text-muted);
+  margin-bottom: 2rem;
+}
+
+.lobby-form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.divider {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  color: var(--text-muted);
+  margin: 0.25rem 0;
+}
+
+.divider::before,
+.divider::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--surface-light);
+}
+
+/* ─── Waiting Room ──────────────────────── */
+
+.waiting-room {
+  padding: 2rem;
+  max-width: 500px;
+  width: 100%;
+}
+
+.room-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.5rem;
+}
+
+.room-header h2 {
+  font-size: 1.5rem;
+}
+
+.room-code-hint {
+  color: var(--text-muted);
+  margin-bottom: 1.5rem;
+}
+
+.seats-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.75rem;
+  margin-bottom: 1.5rem;
+}
+
+.seat {
+  background: var(--surface);
+  border: 2px solid var(--surface-light);
+  border-radius: 12px;
+  padding: 1rem;
+  text-align: center;
+  transition: border-color 0.2s;
+}
+
+.seat:nth-child(1),
+.seat:nth-child(3) {
+  border-color: var(--team-a);
+}
+
+.seat:nth-child(2),
+.seat:nth-child(4) {
+  border-color: var(--team-b);
+}
+
+.seat-empty {
+  cursor: pointer;
+}
+
+.seat-empty:hover {
+  background: var(--surface-light);
+}
+
+.seat-me {
+  box-shadow: 0 0 0 2px var(--primary);
+}
+
+.seat-label {
+  font-weight: 600;
+  font-size: 0.85rem;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.seat-team {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  margin-bottom: 0.5rem;
+}
+
+.seat-player {
+  font-size: 1.1rem;
+}
+
+.player-name {
+  font-weight: 600;
+}
+
+.empty-seat {
+  color: var(--text-muted);
+  font-style: italic;
+}
+
+.disconnected {
+  color: var(--warning);
+  font-size: 0.8rem;
+}
+
+.waiting-actions {
+  text-align: center;
+}
+
+/* ─── Game Board ────────────────────────── */
+
+.game-board {
+  width: 100%;
+  max-width: 900px;
+  padding: 1rem;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.game-info {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.5rem 1rem;
+  background: var(--surface);
+  border-radius: 8px;
+  margin-bottom: 1rem;
+  font-size: 0.9rem;
+}
+
+.phase-label {
+  color: var(--text-muted);
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.phase-view {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+  justify-content: center;
+}
+
+/* ─── Cards ─────────────────────────────── */
+
+.card {
+  width: 60px;
+  height: 84px;
+  background: var(--card-bg);
+  border-radius: 6px;
+  border: 2px solid #ddd;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  cursor: pointer;
+  user-select: none;
+  transition: transform 0.15s, box-shadow 0.15s;
+  font-weight: 700;
+}
+
+.card:hover {
+  transform: translateY(-6px);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.3);
+}
+
+.card-selected {
+  transform: translateY(-12px) !important;
+  border-color: var(--primary) !important;
+  box-shadow: 0 8px 20px rgba(233, 69, 96, 0.4) !important;
+}
+
+.card-sm {
+  width: 42px;
+  height: 58px;
+  font-size: 0.7rem;
+}
+
+.card-sm:hover {
+  transform: none;
+}
+
+.card-corner {
+  position: absolute;
+  top: 3px;
+  left: 5px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  line-height: 1;
+}
+
+.card-rank {
+  font-size: 0.9rem;
+}
+
+.card-sm .card-rank {
+  font-size: 0.65rem;
+}
+
+.card-suit {
+  font-size: 0.75rem;
+}
+
+.card-sm .card-suit {
+  font-size: 0.55rem;
+}
+
+.card-center {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.card-suit-lg {
+  font-size: 1.5rem;
+}
+
+.card-sm .card-suit-lg {
+  font-size: 1rem;
+}
+
+.card-back {
+  background: linear-gradient(135deg, #c0392b, #8e44ad);
+  border-color: #7f1d2c;
+  cursor: default;
+}
+
+.card-back:hover {
+  transform: none;
+  box-shadow: none;
+}
+
+/* ─── Player Hand (fan layout) ──────────── */
+
+.player-hand {
+  display: flex;
+  justify-content: center;
+  padding: 0.5rem 1rem;
+  min-height: 100px;
+}
+
+.hand-card-wrapper {
+  margin-left: -12px;
+  transition: transform 0.15s;
+}
+
+.hand-card-wrapper:first-child {
+  margin-left: 0;
+}
+
+/* ─── Playing Layout ────────────────────── */
+
+.playing-layout {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  align-items: center;
+}
+
+.layout-top {
+  display: flex;
+  justify-content: center;
+}
+
+.layout-middle {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  width: 100%;
+  justify-content: center;
+}
+
+/* ─── Opponent Panels ───────────────────── */
+
+.opponent-panel {
+  background: var(--surface);
+  border-radius: 10px;
+  padding: 0.75rem 1rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.3rem;
+  min-width: 90px;
+  border: 2px solid transparent;
+  transition: border-color 0.2s;
+}
+
+.opponent-active {
+  border-color: var(--warning);
+}
+
+.opponent-info {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.opponent-name {
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+.opponent-card-count {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.card-count-num {
+  font-size: 1.4rem;
+  font-weight: 700;
+}
+
+.card-count-label {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+}
+
+.out-text {
+  font-size: 0.85rem;
+  color: var(--success);
+  font-weight: 600;
+}
+
+.tichu-badge {
+  background: var(--warning);
+  color: #333;
+  padding: 0.1rem 0.4rem;
+  border-radius: 4px;
+  font-size: 0.65rem;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.out-badge {
+  background: var(--success);
+  color: #333;
+  padding: 0.1rem 0.4rem;
+  border-radius: 4px;
+  font-size: 0.65rem;
+  font-weight: 700;
+}
+
+/* ─── Trick Area ────────────────────────── */
+
+.trick-area {
+  background: var(--surface);
+  border: 1px solid var(--surface-light);
+  border-radius: 12px;
+  padding: 1.25rem;
+  min-height: 120px;
+  min-width: 300px;
+  max-width: 500px;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+}
+
+.trick-cards {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.trick-play {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.trick-player {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  min-width: 60px;
+  text-align: right;
+}
+
+.trick-combo {
+  display: flex;
+  gap: 2px;
+}
+
+.no-trick {
+  color: var(--text-muted);
+  font-style: italic;
+}
+
+/* ─── Turn Indicator ────────────────────── */
+
+.turn-indicator {
+  text-align: center;
+  font-size: 0.9rem;
+}
+
+.your-turn {
+  color: var(--success);
+  font-weight: 700;
+}
+
+/* ─── Scores ────────────────────────────── */
+
+.scores {
+  background: var(--surface);
+  padding: 1rem 2rem;
+  border-radius: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.score-row {
+  display: flex;
+  gap: 1.5rem;
+  align-items: center;
+}
+
+.score-team {
+  font-weight: 600;
+  min-width: 70px;
+}
+
+.score-round {
+  color: var(--text-muted);
+}
+
+.score-total {
+  font-size: 1.2rem;
+  font-weight: 700;
+}
+
+.winner {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--success);
+}
+
+/* ─── Wish Indicator ────────────────────── */
+
+.wish-indicator {
+  background: var(--warning);
+  color: #333;
+  padding: 0.3rem 0.75rem;
+  border-radius: 6px;
+  font-weight: 600;
+  font-size: 0.8rem;
+}
+
+/* ─── Utilities ─────────────────────────── */
+
+.error {
+  color: var(--primary);
+  font-size: 0.9rem;
+  text-align: center;
+}
+
+.info {
+  color: var(--text-muted);
+  text-align: center;
+}
+
+/* ─── Connection Banner ─────────────────── */
+
+.connection-banner {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  background: var(--primary);
+  color: white;
+  text-align: center;
+  padding: 0.4rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+  z-index: 100;
+  animation: pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.7; }
+}
+
+/* ─── Wish Selector ─────────────────────── */
+
+.wish-selector {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.wish-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  justify-content: center;
+  max-width: 400px;
+}
+
+.wish-btn {
+  min-width: 36px;
+  text-align: center;
+}
+
+/* ─── Responsive ────────────────────────── */
+
+@media (max-width: 600px) {
+  .card {
+    width: 48px;
+    height: 68px;
+  }
+
+  .card-sm {
+    width: 36px;
+    height: 50px;
+  }
+
+  .card-rank {
+    font-size: 0.75rem;
+  }
+
+  .card-suit-lg {
+    font-size: 1.2rem;
+  }
+
+  .hand-card-wrapper {
+    margin-left: -16px;
+  }
+
+  .layout-middle {
+    flex-direction: column;
+  }
+
+  .trick-area {
+    min-width: auto;
+    width: 100%;
+  }
+}

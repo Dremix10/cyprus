@@ -1,0 +1,22 @@
+{
+  "name": "cyprus",
+  "private": true,
+  "workspaces": [
+    "packages/*"
+  ],
+  "scripts": {
+    "build": "npm run build --workspaces",
+    "dev": "concurrently \"npm run dev --workspace=packages/server\" \"npm run dev --workspace=packages/client\"",
+    "start": "NODE_ENV=production node packages/server/dist/index.js",
+    "test": "npm run test --workspaces --if-present",
+    "lint": "eslint 'packages/*/src/**/*.{ts,tsx}'",
+    "clean": "rm -rf packages/*/dist"
+  },
+  "devDependencies": {
+    "concurrently": "^9.2.1",
+    "eslint": "^9.0.0",
+    "prettier": "^3.3.0",
+    "typescript": "^5.4.0",
+    "vitest": "^2.0.0"
+  }
+}
