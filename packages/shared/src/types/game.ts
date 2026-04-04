@@ -42,6 +42,8 @@ export type ClientGameState = {
   finishOrder: PlayerPosition[];
   scores: [number, number];
   roundScores: [number, number];
+  targetScore: number;
+  roundTrickCards?: [Card[], Card[]];
   grandTichuPending?: boolean;
   hasPlayedCards?: boolean;
 };

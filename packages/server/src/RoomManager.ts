@@ -1,5 +1,6 @@
 import type { PlayerPosition, RoomState } from '@cyprus/shared';
 import { GameEngine } from './GameEngine.js';
+import type { BotDifficulty } from './BotAI.js';
 
 export type RoomPlayer = {
   socketId: string;
@@ -13,6 +14,9 @@ export type Room = {
   code: string;
   players: Map<PlayerPosition, RoomPlayer>;
   engine: GameEngine | null;
+  targetScore: number;
+  botPositions: Set<PlayerPosition>;
+  botDifficulty: BotDifficulty;
   createdAt: number;
   lastActivity: number;
 };
@@ -36,12 +40,16 @@ export class RoomManager {
     clearInterval(this.cleanupInterval);
   }
 
-  createRoom(socketId: string, nickname: string): { roomCode: string } | { error: string } {
+  createRoom(socketId: string, nickname: string, targetScore: number = 1000): { roomCode: string } | { error: string } {
+    if (targetScore < 250) targetScore = 250;
     const code = this.generateCode();
     const room: Room = {
       code,
       players: new Map(),
       engine: null,
+      targetScore,
+      botPositions: new Set(),
+      botDifficulty: 'medium',
       createdAt: Date.now(),
       lastActivity: Date.now(),
     };
@@ -56,6 +64,54 @@ export class RoomManager {
     };
     room.players.set(0, player);
     this.socketToRoom.set(socketId, { roomCode: code, position: 0 });
+
+    return { roomCode: code };
+  }
+
+  createSoloRoom(
+    socketId: string,
+    nickname: string,
+    targetScore: number = 1000,
+    difficulty: BotDifficulty = 'medium'
+  ): { roomCode: string } | { error: string } {
+    if (targetScore < 250) targetScore = 250;
+    const code = this.generateCode();
+
+    const botPositions = new Set<PlayerPosition>([1, 2, 3] as PlayerPosition[]);
+    const room: Room = {
+      code,
+      players: new Map(),
+      engine: null,
+      targetScore,
+      botPositions,
+      botDifficulty: difficulty,
+      createdAt: Date.now(),
+      lastActivity: Date.now(),
+    };
+    this.rooms.set(code, room);
+
+    // Human at position 0
+    const player: RoomPlayer = {
+      socketId,
+      nickname,
+      position: 0,
+      connected: true,
+    };
+    room.players.set(0, player);
+    this.socketToRoom.set(socketId, { roomCode: code, position: 0 });
+
+    // Bots at positions 1, 2, 3
+    const botNames = ['Bot 1', 'Bot 2', 'Bot 3'];
+    for (let i = 0; i < 3; i++) {
+      const pos = (i + 1) as PlayerPosition;
+      const bot: RoomPlayer = {
+        socketId: `bot-${code}-${pos}`,
+        nickname: botNames[i],
+        position: pos,
+        connected: true,
+      };
+      room.players.set(pos, bot);
+    }
 
     return { roomCode: code };
   }
@@ -145,7 +201,7 @@ export class RoomManager {
       room.players.get(3)!.nickname,
     ];
 
-    room.engine = new GameEngine(nicknames);
+    room.engine = new GameEngine(nicknames, room.targetScore);
     room.engine.startRound();
     room.lastActivity = Date.now();
 

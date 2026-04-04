@@ -7,12 +7,15 @@ type RoomView = 'lobby' | 'waiting' | 'game';
 interface RoomStore {
   view: RoomView;
   nickname: string;
+  targetScore: number;
   roomCode: string | null;
   roomState: RoomState | null;
   error: string | null;
 
   setNickname: (name: string) => void;
+  setTargetScore: (score: number) => void;
   createRoom: () => Promise<void>;
+  createSoloRoom: (difficulty: string) => Promise<void>;
   joinRoom: (code: string) => Promise<void>;
   sitAt: (position: PlayerPosition) => void;
   startGame: () => void;
@@ -25,15 +28,17 @@ interface RoomStore {
 export const useRoomStore = create<RoomStore>((set, get) => ({
   view: 'lobby',
   nickname: '',
+  targetScore: 1000,
   roomCode: null,
   roomState: null,
   error: null,
 
   setNickname: (name) => set({ nickname: name }),
+  setTargetScore: (score) => set({ targetScore: score }),
 
   createRoom: () => {
     return new Promise<void>((resolve) => {
-      const { nickname } = get();
+      const { nickname, targetScore } = get();
       if (!nickname.trim()) {
         set({ error: 'Enter a nickname' });
         resolve();
@@ -42,13 +47,38 @@ export const useRoomStore = create<RoomStore>((set, get) => ({
 
       if (!socket.connected) socket.connect();
 
-      socket.emit('room:create', nickname.trim(), (response) => {
+      socket.emit('room:create', nickname.trim(), targetScore, (response) => {
         if ('error' in response) {
           set({ error: response.error });
         } else {
           set({
             roomCode: response.roomCode,
             view: 'waiting',
+            error: null,
+          });
+        }
+        resolve();
+      });
+    });
+  },
+
+  createSoloRoom: (difficulty: string) => {
+    return new Promise<void>((resolve) => {
+      const { nickname, targetScore } = get();
+      if (!nickname.trim()) {
+        set({ error: 'Enter a nickname' });
+        resolve();
+        return;
+      }
+
+      if (!socket.connected) socket.connect();
+
+      socket.emit('room:create_solo', nickname.trim(), targetScore, difficulty, (response) => {
+        if ('error' in response) {
+          set({ error: response.error });
+        } else {
+          set({
+            roomCode: response.roomCode,
             error: null,
           });
         }

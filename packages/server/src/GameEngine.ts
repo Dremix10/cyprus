@@ -56,8 +56,11 @@ export type GameEngineState = {
 export class GameEngine {
   state: GameEngineState;
   private events: GameEvent[] = [];
+  private targetScore: number;
+  private roundTrickCards: [Card[], Card[]] = [[], []];
 
-  constructor(nicknames: [string, string, string, string]) {
+  constructor(nicknames: [string, string, string, string], targetScore: number = WINNING_SCORE) {
+    this.targetScore = targetScore;
     this.state = {
       phase: GamePhase.WAITING,
       players: nicknames.map((nickname, i) => ({
@@ -101,6 +104,7 @@ export class GameEngine {
       (p as any)._remaining = dealt.remaining[i];
     }
 
+    this.roundTrickCards = [[], []];
     this.state.phase = GamePhase.GRAND_TICHU;
     this.state.currentTrick = { plays: [], currentWinner: null, passCount: 0 };
     this.state.wish = { active: false, wishedRank: null, wishedBy: null };
@@ -443,7 +447,7 @@ export class GameEngine {
     this.assertPhase(GamePhase.ROUND_SCORING);
 
     // Check if game is over
-    if (this.state.scores[0] >= WINNING_SCORE || this.state.scores[1] >= WINNING_SCORE) {
+    if (this.state.scores[0] >= this.targetScore || this.state.scores[1] >= this.targetScore) {
       this.state.phase = GamePhase.GAME_OVER;
       this.emit({ type: 'GAME_OVER' });
       return this.events;
@@ -512,23 +516,44 @@ export class GameEngine {
         playerPosition: player.position,
         data: { place: player.finishOrder },
       });
+
+      // Check for 1-2 double victory (same team finishes 1st and 2nd)
+      this.checkRoundEnd();
     }
   }
 
   private checkRoundEnd(): void {
-    // Round ends when 3 of 4 players are out
-    const outCount = this.state.players.filter((p) => p.isOut).length;
-    if (outCount < 3) return;
+    if (this.state.phase === GamePhase.ROUND_SCORING) return;
 
+    const outCount = this.state.players.filter((p) => p.isOut).length;
+
+    // 1-2 double victory: same team finishes 1st and 2nd
+    if (
+      outCount >= 2 &&
+      this.state.finishOrder.length >= 2 &&
+      sameTeam(this.state.finishOrder[0], this.state.finishOrder[1])
+    ) {
+      this.scoreRound();
+      return;
+    }
+
+    // Normal: round ends when 3 of 4 players are out
+    if (outCount < 3) return;
     this.scoreRound();
   }
 
   private scoreRound(): void {
-    // Find the last player (4th place)
-    const lastPlayer = this.state.players.find((p) => !p.isOut)!;
-    lastPlayer.isOut = true;
-    this.state.finishOrder.push(lastPlayer.position);
-    lastPlayer.finishOrder = 4;
+    // Mark all remaining players as out
+    const remainingPlayers = this.state.players.filter((p) => !p.isOut);
+    for (const p of remainingPlayers) {
+      p.isOut = true;
+      this.state.finishOrder.push(p.position);
+      p.finishOrder = this.state.finishOrder.length;
+    }
+
+    // Last player in finish order (for scoring)
+    const lastPos = this.state.finishOrder[this.state.finishOrder.length - 1];
+    const lastPlayer = this.state.players[lastPos];
 
     // Collect trick points per team
     const teamTricks: [Card[], Card[]] = [[], []];
@@ -553,6 +578,7 @@ export class GameEngine {
       tichuCalls,
     });
 
+    this.roundTrickCards = teamTricks;
     this.state.roundScores = result.totalRound;
     this.state.scores[0] += result.totalRound[0];
     this.state.scores[1] += result.totalRound[1];
@@ -613,6 +639,11 @@ export class GameEngine {
       finishOrder: this.state.finishOrder as PlayerPosition[],
       scores: this.state.scores,
       roundScores: this.state.roundScores,
+      targetScore: this.targetScore,
+      roundTrickCards:
+        this.state.phase === GamePhase.ROUND_SCORING || this.state.phase === GamePhase.GAME_OVER
+          ? this.roundTrickCards
+          : undefined,
       grandTichuPending:
         this.state.phase === GamePhase.GRAND_TICHU && !player.grandTichuDecided,
       hasPlayedCards: player.hasPlayedCards,

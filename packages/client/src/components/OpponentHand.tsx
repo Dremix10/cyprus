@@ -4,13 +4,14 @@ interface OpponentHandProps {
   player: PublicPlayerState;
   position: 'left' | 'top' | 'right';
   isCurrentTurn: boolean;
+  isTeammate?: boolean;
 }
 
-export function OpponentHand({ player, position, isCurrentTurn }: OpponentHandProps) {
+export function OpponentHand({ player, position, isCurrentTurn, isTeammate }: OpponentHandProps) {
   return (
     <div className={`opponent-panel opponent-${position} ${isCurrentTurn ? 'opponent-active' : ''}`}>
       <div className="opponent-info">
-        <span className="opponent-name">{player.nickname}</span>
+        <span className={`opponent-name ${isTeammate ? 'name-teammate' : 'name-opponent'}`}>{player.nickname}</span>
         {player.tichuCall !== 'none' && (
           <span className="tichu-badge">{player.tichuCall === 'grand_tichu' ? 'GT' : 'T'}</span>
         )}

@@ -26,6 +26,13 @@ export type GameEvent = {
 export interface ClientToServerEvents {
   'room:create': (
     nickname: string,
+    targetScore: number,
+    callback: (response: { roomCode: string } | { error: string }) => void
+  ) => void;
+  'room:create_solo': (
+    nickname: string,
+    targetScore: number,
+    difficulty: string,
     callback: (response: { roomCode: string } | { error: string }) => void
   ) => void;
   'room:join': (

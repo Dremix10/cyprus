@@ -1,6 +1,6 @@
 import { useGameStore } from '../stores/gameStore.js';
-import { GamePhase, SpecialCardType } from '@cyprus/shared';
-import type { PlayerPosition } from '@cyprus/shared';
+import { GamePhase, SpecialCardType, getCardPoints } from '@cyprus/shared';
+import type { Card, PlayerPosition } from '@cyprus/shared';
 import { CardComponent } from './CardComponent.js';
 import { PlayerHand } from './PlayerHand.js';
 import { OpponentHand } from './OpponentHand.js';
@@ -28,11 +28,11 @@ export function GameBoard() {
     <div className="game-board">
       <div className="game-info">
         <span>
-          Team A: {gameState.scores[0]}
+          Team A: {gameState.scores[0]} / {gameState.targetScore}
         </span>
         <span className="phase-label">{formatPhase(gameState.phase)}</span>
         <span>
-          Team B: {gameState.scores[1]}
+          Team B: {gameState.scores[1]} / {gameState.targetScore}
         </span>
       </div>
 
@@ -163,6 +163,7 @@ function PlayingLayout({
   const canCallTichu = myInfo?.tichuCall === 'none' && !gameState.hasPlayedCards;
   const hasTrickOnTable = gameState.currentTrick.plays.length > 0;
   const isDragonGive = gameState.phase === GamePhase.DRAGON_GIVE;
+  const isTeammate = (pos: PlayerPosition) => pos % 2 === gameState.myPosition % 2;
 
   // Check if we need to show the wish selector
   const lastPlay = gameState.currentTrick.plays[gameState.currentTrick.plays.length - 1];
@@ -182,6 +183,7 @@ function PlayingLayout({
           player={gameState.players[rel.top]}
           position="top"
           isCurrentTurn={gameState.currentPlayer === rel.top}
+          isTeammate={isTeammate(rel.top)}
         />
       </div>
 
@@ -191,6 +193,7 @@ function PlayingLayout({
           player={gameState.players[rel.left]}
           position="left"
           isCurrentTurn={gameState.currentPlayer === rel.left}
+          isTeammate={isTeammate(rel.left)}
         />
 
         <div className="trick-area">
@@ -203,7 +206,7 @@ function PlayingLayout({
             <div className="trick-cards">
               {gameState.currentTrick.plays.map((play, i) => (
                 <div key={i} className="trick-play">
-                  <span className="trick-player">
+                  <span className={`trick-player ${isTeammate(play.playerPosition) ? 'name-teammate' : 'name-opponent'}`}>
                     {gameState.players[play.playerPosition]?.nickname}
                   </span>
                   <div className="trick-combo">
@@ -225,6 +228,7 @@ function PlayingLayout({
           player={gameState.players[rel.right]}
           position="right"
           isCurrentTurn={gameState.currentPlayer === rel.right}
+          isTeammate={isTeammate(rel.right)}
         />
       </div>
 
@@ -293,35 +297,67 @@ function PlayingLayout({
   );
 }
 
+function PointCards({ cards, team }: { cards: Card[]; team: string }) {
+  const pointCards = cards.filter((c) => getCardPoints(c) !== 0);
+  const total = cards.reduce((sum, c) => sum + getCardPoints(c), 0);
+
+  return (
+    <div className="point-cards-panel">
+      <div className="point-cards-header">
+        <span className="point-cards-team">{team}</span>
+        <span className="point-cards-total">{total} pts</span>
+      </div>
+      <div className="point-cards-list">
+        {pointCards.map((c) => (
+          <div key={c.id} className="point-card-entry">
+            <CardComponent card={c} size="small" />
+            <span className="point-card-value">{getCardPoints(c) > 0 ? '+' : ''}{getCardPoints(c)}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function ScoringView() {
   const gameState = useGameStore((s) => s.gameState)!;
   const nextRound = useGameStore((s) => s.nextRound);
 
   return (
-    <div className="phase-view">
-      <h3>Round Over</h3>
-      <div className="scores">
-        <div className="score-row">
-          <span className="score-team">Team A</span>
-          <span className="score-round">+{gameState.roundScores[0]}</span>
-          <span className="score-total">{gameState.scores[0]}</span>
+    <div className="scoring-layout">
+      {gameState.roundTrickCards && (
+        <PointCards cards={gameState.roundTrickCards[0]} team="Team A" />
+      )}
+
+      <div className="phase-view">
+        <h3>Round Over</h3>
+        <div className="scores">
+          <div className="score-row">
+            <span className="score-team">Team A</span>
+            <span className="score-round">+{gameState.roundScores[0]}</span>
+            <span className="score-total">{gameState.scores[0]}</span>
+          </div>
+          <div className="score-row">
+            <span className="score-team">Team B</span>
+            <span className="score-round">+{gameState.roundScores[1]}</span>
+            <span className="score-total">{gameState.scores[1]}</span>
+          </div>
         </div>
-        <div className="score-row">
-          <span className="score-team">Team B</span>
-          <span className="score-round">+{gameState.roundScores[1]}</span>
-          <span className="score-total">{gameState.scores[1]}</span>
-        </div>
+        <button className="btn btn-primary" onClick={nextRound}>
+          Next Round
+        </button>
       </div>
-      <button className="btn btn-primary" onClick={nextRound}>
-        Next Round
-      </button>
+
+      {gameState.roundTrickCards && (
+        <PointCards cards={gameState.roundTrickCards[1]} team="Team B" />
+      )}
     </div>
   );
 }
 
 function GameOverView() {
   const gameState = useGameStore((s) => s.gameState)!;
-  const winner = gameState.scores[0] >= 1000 ? 'Team A' : 'Team B';
+  const winner = gameState.scores[0] >= gameState.targetScore ? 'Team A' : 'Team B';
 
   return (
     <div className="phase-view">
