@@ -29,6 +29,13 @@ export function OpponentHand({ player, position, isCurrentTurn, isTeammate }: Op
           </>
         )}
       </div>
+      {player.collectedCards > 0 && (
+        <div className="collected-pile">
+          <div className="card card-back card-sm collected-card">
+            <span className="collected-count">{player.collectedCards}</span>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

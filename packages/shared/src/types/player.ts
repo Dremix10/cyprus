@@ -8,6 +8,7 @@ export type PublicPlayerState = {
   position: PlayerPosition;
   nickname: string;
   cardCount: number;
+  collectedCards: number;
   hasPassed: boolean;
   tichuCall: TichuCall;
   isOut: boolean;

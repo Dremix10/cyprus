@@ -106,6 +106,38 @@ body {
   align-items: center;
 }
 
+.play-pass-group {
+  display: flex;
+  gap: 2.5rem;
+  align-items: center;
+  justify-content: center;
+}
+
+.btn-play {
+  background: var(--success);
+  color: #fff;
+  padding: 0.85rem 2.5rem;
+  font-size: 1.1rem;
+  letter-spacing: 0.03em;
+}
+
+.btn-play:hover:not(:disabled) {
+  background: #27ae60;
+}
+
+.btn-pass {
+  background: transparent;
+  border: 2px solid var(--text-muted);
+  color: var(--text-muted);
+  padding: 0.5rem 1.2rem;
+  font-size: 0.85rem;
+}
+
+.btn-pass:hover:not(:disabled) {
+  border-color: var(--text);
+  color: var(--text);
+}
+
 /* ─── Lobby ─────────────────────────────── */
 
 .lobby {
@@ -586,6 +618,42 @@ body {
   border-radius: 4px;
   font-size: 0.65rem;
   font-weight: 700;
+}
+
+.collected-pile {
+  margin-top: 0.3rem;
+}
+
+.collected-card {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: default;
+}
+
+.collected-card:hover {
+  transform: none;
+  box-shadow: none;
+}
+
+.collected-count {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: #fff;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
+}
+
+.my-hand-row {
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  gap: 0.75rem;
+}
+
+.my-collected {
+  margin-top: 0;
+  flex-shrink: 0;
 }
 
 /* ─── Trick Area ────────────────────────── */

@@ -204,7 +204,7 @@ function PlayingLayout({
           )}
           {gameState.currentTrick.plays.length > 0 ? (
             <div className="trick-cards">
-              {gameState.currentTrick.plays.map((play, i) => (
+              {gameState.currentTrick.plays.slice(-2).map((play, i) => (
                 <div key={i} className="trick-play">
                   <span className={`trick-player ${isTeammate(play.playerPosition) ? 'name-teammate' : 'name-opponent'}`}>
                     {gameState.players[play.playerPosition]?.nickname}
@@ -244,11 +244,20 @@ function PlayingLayout({
       </div>
 
       {/* My hand */}
-      <PlayerHand
-        cards={gameState.myHand}
-        selectedCards={selectedCards}
-        onToggle={toggleCard}
-      />
+      <div className="my-hand-row">
+        <PlayerHand
+          cards={gameState.myHand}
+          selectedCards={selectedCards}
+          onToggle={toggleCard}
+        />
+        {myInfo.collectedCards > 0 && (
+          <div className="collected-pile my-collected">
+            <div className="card card-back card-sm collected-card">
+              <span className="collected-count">{myInfo.collectedCards}</span>
+            </div>
+          </div>
+        )}
+      </div>
 
       {/* Wish selector */}
       {showWishSelector && <WishSelector />}
@@ -272,20 +281,20 @@ function PlayingLayout({
           </>
         )}
         {!isDragonGive && isMyTurn && (
-          <>
+          <div className="play-pass-group">
             <button
-              className="btn btn-primary"
+              className="btn btn-play"
               onClick={playCards}
               disabled={selectedCards.size === 0}
             >
               Play
             </button>
             {hasTrickOnTable && (
-              <button className="btn btn-secondary" onClick={passTurn}>
+              <button className="btn btn-pass" onClick={passTurn}>
                 Pass
               </button>
             )}
-          </>
+          </div>
         )}
         {canCallTichu && (
           <button className="btn btn-tichu" onClick={callTichu}>
