@@ -120,6 +120,22 @@ function PassingView() {
         selectedCards={selectedCards}
         onToggle={toggleCard}
       />
+      {canPass && (
+        <div className="pass-preview">
+          <div className="pass-slot pass-opponent">
+            <span className="pass-label name-opponent">Left</span>
+            <CardComponent card={gameState.myHand.find(c => c.id === selectedArray[0])!} size="small" />
+          </div>
+          <div className="pass-slot pass-teammate">
+            <span className="pass-label name-teammate">Partner</span>
+            <CardComponent card={gameState.myHand.find(c => c.id === selectedArray[1])!} size="small" />
+          </div>
+          <div className="pass-slot pass-opponent">
+            <span className="pass-label name-opponent">Right</span>
+            <CardComponent card={gameState.myHand.find(c => c.id === selectedArray[2])!} size="small" />
+          </div>
+        </div>
+      )}
       <div className="btn-group">
         {canPass && (
           <button

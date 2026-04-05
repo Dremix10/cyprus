@@ -59,9 +59,6 @@ export function calculateRoundScore(result: RoundResult): RoundScore {
     const lastTeam = getTeam(lastPlayer);
     const opposingTeam = lastTeam === 0 ? 1 : 0;
     teamPoints[opposingTeam] += sumCardPoints(lastPlayerHand);
-
-    // Last player gives their won tricks to the team that finished first
-    // (this is handled by the caller moving cards before calling this function)
   }
 
   // Tichu bonuses/penalties

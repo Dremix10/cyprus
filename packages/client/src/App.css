@@ -753,6 +753,39 @@ body {
   color: var(--success);
 }
 
+/* ─── Pass Preview ─────────────────────── */
+
+.pass-preview {
+  display: flex;
+  gap: 1.5rem;
+  justify-content: center;
+  align-items: flex-end;
+  margin-bottom: 0.5rem;
+}
+
+.pass-slot {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.3rem;
+}
+
+.pass-label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.pass-teammate .card {
+  border-color: var(--success) !important;
+  box-shadow: 0 0 6px rgba(46, 204, 113, 0.4);
+}
+
+.pass-opponent .card {
+  border-color: var(--primary) !important;
+  box-shadow: 0 0 6px rgba(233, 69, 96, 0.4);
+}
+
 /* ─── Wish Indicator ────────────────────── */
 
 .wish-indicator {
