@@ -138,24 +138,254 @@ body {
   color: var(--text);
 }
 
-/* ─── Lobby ─────────────────────────────── */
+/* ─── Lobby (Greek Theme — Full Screen) ── */
 
-.lobby {
-  text-align: center;
-  padding: 2rem;
-  max-width: 360px;
+.lobby-fullscreen {
+  position: relative;
+  width: 100vw;
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+/* Background: stormy clouds */
+.lobby-bg-clouds {
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(ellipse at 20% 20%, rgba(60, 80, 120, 0.4) 0%, transparent 50%),
+    radial-gradient(ellipse at 80% 30%, rgba(40, 60, 100, 0.3) 0%, transparent 50%),
+    radial-gradient(ellipse at 50% 80%, rgba(20, 30, 60, 0.5) 0%, transparent 60%),
+    linear-gradient(180deg, #0d1520 0%, #1a2540 40%, #0f1a2e 100%);
+  z-index: 0;
+}
+
+/* Background: Zeus image */
+.lobby-bg-zeus {
+  position: absolute;
+  inset: 0;
+  background-image: url('/zeus.png');
+  background-size: cover;
+  background-position: center 15%;
+  background-repeat: no-repeat;
+  opacity: 0.25;
+  z-index: 1;
+  animation: bg-lightning 6s ease-in-out infinite;
+}
+
+/* Overlay gradient to blend Zeus into the dark theme */
+.lobby-bg-overlay {
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(ellipse at center 30%, transparent 0%, rgba(13, 21, 32, 0.6) 60%, rgba(13, 21, 32, 0.95) 100%),
+    linear-gradient(180deg, rgba(13, 21, 32, 0.3) 0%, transparent 30%, transparent 60%, rgba(13, 21, 32, 0.8) 100%);
+  z-index: 2;
+}
+
+/* Side columns */
+.lobby-column {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 50px;
+  z-index: 3;
+  display: flex;
+  flex-direction: column;
+  pointer-events: none;
+}
+
+.lobby-column-left {
+  left: 20px;
+}
+
+.lobby-column-right {
+  right: 20px;
+}
+
+.column-ornament {
+  flex-shrink: 0;
+}
+
+.column-svg {
   width: 100%;
+  height: auto;
 }
 
-.lobby h1 {
-  font-size: 2.5rem;
-  color: var(--primary);
-  margin-bottom: 0.25rem;
+.column-body {
+  flex: 1;
+  display: flex;
+  justify-content: center;
 }
 
-.subtitle {
-  color: var(--text-muted);
+.column-flutes {
+  width: 36px;
+  display: flex;
+  gap: 2px;
+  overflow: hidden;
+}
+
+.column-flute-line {
+  flex: 1;
+  background: linear-gradient(
+    90deg,
+    rgba(201, 168, 76, 0.08) 0%,
+    rgba(201, 168, 76, 0.18) 50%,
+    rgba(201, 168, 76, 0.08) 100%
+  );
+}
+
+/* Main content area */
+.lobby-content {
+  position: relative;
+  z-index: 4;
+  text-align: center;
+  width: 100%;
+  max-width: 400px;
+  padding: 2rem 1.5rem;
+}
+
+.lobby-header {
   margin-bottom: 2rem;
+}
+
+.title-greek {
+  font-size: 3.5rem;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  background: linear-gradient(180deg, #ffd700 0%, #c9a84c 40%, #8b6914 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  margin-bottom: 0.2rem;
+  font-family: 'Georgia', 'Times New Roman', serif;
+  filter: drop-shadow(0 2px 8px rgba(255, 215, 0, 0.3));
+}
+
+.subtitle-greek {
+  color: #c9a84c;
+  font-size: 1rem;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  font-family: 'Georgia', 'Times New Roman', serif;
+  margin-bottom: 0.75rem;
+  opacity: 0.8;
+}
+
+/* Meander border */
+.meander-border {
+  margin: 0.5rem auto 0;
+  max-width: 320px;
+  overflow: hidden;
+}
+
+.meander-svg {
+  width: 100%;
+  height: 12px;
+}
+
+/* Form card with glass effect */
+.lobby-form-card {
+  background: rgba(13, 21, 32, 0.7);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(201, 168, 76, 0.2);
+  border-radius: 16px;
+  padding: 1.75rem;
+  box-shadow:
+    0 8px 32px rgba(0, 0, 0, 0.4),
+    inset 0 1px 0 rgba(201, 168, 76, 0.1);
+}
+
+/* Greek-themed inputs */
+.input-greek {
+  background: rgba(22, 33, 62, 0.8);
+  border: 1px solid rgba(201, 168, 76, 0.25);
+  color: var(--text);
+  font-family: 'Georgia', 'Times New Roman', serif;
+  letter-spacing: 0.02em;
+}
+
+.input-greek:focus {
+  border-color: #c9a84c;
+  box-shadow: 0 0 12px rgba(201, 168, 76, 0.2);
+}
+
+.input-greek::placeholder {
+  color: rgba(201, 168, 76, 0.4);
+  font-style: italic;
+}
+
+/* Olympus buttons */
+.btn-olympus {
+  padding: 0.75rem 1.5rem;
+  border: none;
+  border-radius: 8px;
+  font-size: 1rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.25s;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  font-family: 'Georgia', 'Times New Roman', serif;
+  position: relative;
+  overflow: hidden;
+}
+
+.btn-olympus:active {
+  transform: scale(0.97);
+}
+
+.btn-create {
+  background: linear-gradient(135deg, #c9a84c, #8b6914);
+  color: #1a1a2e;
+  box-shadow: 0 2px 16px rgba(201, 168, 76, 0.35);
+}
+
+.btn-create:hover {
+  background: linear-gradient(135deg, #dab94c, #a07a1c);
+  box-shadow: 0 4px 24px rgba(201, 168, 76, 0.5);
+  transform: translateY(-1px);
+}
+
+.btn-join {
+  background: rgba(201, 168, 76, 0.12);
+  color: #c9a84c;
+  border: 1px solid rgba(201, 168, 76, 0.35);
+}
+
+.btn-join:hover {
+  background: rgba(201, 168, 76, 0.22);
+  border-color: #c9a84c;
+  transform: translateY(-1px);
+}
+
+.btn-solo-greek {
+  background: linear-gradient(135deg, #533483, #6c5ce7);
+  color: #e8e0d0;
+  box-shadow: 0 2px 16px rgba(108, 92, 231, 0.3);
+}
+
+.btn-solo-greek:hover {
+  background: linear-gradient(135deg, #6c5ce7, #533483);
+  box-shadow: 0 4px 24px rgba(108, 92, 231, 0.45);
+  transform: translateY(-1px);
+}
+
+/* Dividers */
+.divider-greek {
+  color: rgba(201, 168, 76, 0.45);
+  font-family: 'Georgia', 'Times New Roman', serif;
+  font-style: italic;
+  font-size: 0.85rem;
+}
+
+.divider-greek::before,
+.divider-greek::after {
+  background: linear-gradient(90deg, transparent, rgba(201, 168, 76, 0.25), transparent);
 }
 
 .lobby-form {
@@ -169,8 +399,9 @@ body {
   align-items: center;
   gap: 0.5rem;
   justify-content: center;
-  color: var(--text-muted);
+  color: rgba(201, 168, 76, 0.6);
   font-size: 0.9rem;
+  font-family: 'Georgia', 'Times New Roman', serif;
 }
 
 .input-score {
@@ -188,30 +419,25 @@ body {
 .input-select {
   width: 100%;
   padding: 0.75rem 1rem;
-  background: var(--surface);
-  border: 1px solid var(--surface-light);
+  background: rgba(22, 33, 62, 0.8);
+  border: 1px solid rgba(201, 168, 76, 0.25);
   border-radius: 8px;
   color: var(--text);
   font-size: 1rem;
   outline: none;
   cursor: pointer;
   appearance: none;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%23999' stroke-width='2' fill='none'/%3E%3C/svg%3E");
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%23c9a84c' stroke-width='2' fill='none'/%3E%3C/svg%3E");
   background-repeat: no-repeat;
   background-position: right 12px center;
 }
 
 .input-select:focus {
-  border-color: var(--primary);
+  border-color: #c9a84c;
 }
 
-.btn-solo {
-  background: linear-gradient(135deg, var(--secondary), #6c5ce7);
-  color: white;
-}
-
-.btn-solo:hover:not(:disabled) {
-  background: linear-gradient(135deg, #6c5ce7, var(--secondary));
+.lobby-footer {
+  margin-top: 1.5rem;
 }
 
 .divider {
@@ -228,6 +454,17 @@ body {
   flex: 1;
   height: 1px;
   background: var(--surface-light);
+}
+
+/* Lightning flicker on background */
+@keyframes bg-lightning {
+  0%, 100% { opacity: 0.25; }
+  48% { opacity: 0.25; }
+  50% { opacity: 0.35; }
+  52% { opacity: 0.25; }
+  78% { opacity: 0.25; }
+  80% { opacity: 0.3; }
+  81% { opacity: 0.25; }
 }
 
 /* ─── Waiting Room ──────────────────────── */

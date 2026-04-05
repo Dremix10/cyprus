@@ -1,5 +1,6 @@
 import type {
   Card,
+  NormalCard,
   NormalRank,
   PlayerPosition,
   TrickState,
@@ -13,25 +14,265 @@ import {
   CombinationType,
   findPlayableFromHand,
   detectCombination,
+  canBeat,
   isSpecial,
   isNormalCard,
   getCardSortRank,
   getCardPoints,
+  FULL_DECK,
 } from '@cyprus/shared';
 
 export type BotDifficulty = 'easy' | 'medium' | 'hard';
 
-/** Extra context available for smarter bot decisions. */
+/** Extended context for hard mode decisions. */
 export type GameContext = {
   playerCardCounts: Map<PlayerPosition, number>;
   tichuCalls: Record<PlayerPosition, TichuCall>;
   finishOrder: PlayerPosition[];
+  playedCards: Card[];
+  scores: [number, number];
 };
+
+// ─── Hand Analysis ──────────────────────────────────────────────────────
+
+interface HandPlan {
+  combos: Card[][];
+  turnsToOut: number;
+  controlCount: number; // combos that are very likely to win the trick
+  hasBomb: boolean;
+}
+
+/** Decompose a hand into an estimated optimal set of combos. */
+function planHand(hand: Card[]): HandPlan {
+  const dragon = hand.find((c) => isSpecial(c, SpecialCardType.DRAGON));
+  const dog = hand.find((c) => isSpecial(c, SpecialCardType.DOG));
+  const mahjong = hand.find((c) => isSpecial(c, SpecialCardType.MAHJONG));
+  const phoenix = hand.find((c) => isSpecial(c, SpecialCardType.PHOENIX));
+  const normals = hand.filter(isNormalCard);
+
+  // Group normal cards by rank
+  const groups = new Map<number, NormalCard[]>();
+  for (const c of normals) {
+    if (!groups.has(c.rank)) groups.set(c.rank, []);
+    groups.get(c.rank)!.push(c);
+  }
+
+  const combos: Card[][] = [];
+  let hasBomb = false;
+
+  // 1. Extract 4-of-a-kind bombs (keep as-is, they're powerful control)
+  for (const [rank, cards] of groups) {
+    if (cards.length === 4) {
+      combos.push([...cards]);
+      groups.delete(rank);
+      hasBomb = true;
+    }
+  }
+
+  // 2. Find longest straights (5+ cards, greedily)
+  const straightCards = extractStraights(groups, mahjong ?? null, phoenix ?? null);
+  let phoenixUsedInStraight = false;
+  for (const straight of straightCards) {
+    combos.push(straight);
+    if (phoenix && straight.some((c) => c.id === phoenix.id)) {
+      phoenixUsedInStraight = true;
+    }
+  }
+
+  // 3. Extract triples
+  for (const [rank, cards] of groups) {
+    if (cards.length >= 3) {
+      combos.push(cards.slice(0, 3));
+      const remaining = cards.slice(3);
+      if (remaining.length > 0) groups.set(rank, remaining);
+      else groups.delete(rank);
+    }
+  }
+
+  // 4. Extract pairs (including phoenix pairs if phoenix wasn't used)
+  const unusedPhoenix = phoenix && !phoenixUsedInStraight;
+  let phoenixUsedInPair = false;
+  for (const [rank, cards] of groups) {
+    if (cards.length >= 2) {
+      combos.push(cards.slice(0, 2));
+      const remaining = cards.slice(2);
+      if (remaining.length > 0) groups.set(rank, remaining);
+      else groups.delete(rank);
+    } else if (cards.length === 1 && unusedPhoenix && !phoenixUsedInPair) {
+      // Use phoenix to form a pair with a singleton
+      combos.push([cards[0], phoenix!]);
+      groups.delete(rank);
+      phoenixUsedInPair = true;
+    }
+  }
+
+  // 5. Remaining singletons
+  for (const [, cards] of groups) {
+    for (const c of cards) combos.push([c]);
+  }
+
+  // Add special cards as singles
+  if (dragon) combos.push([dragon]);
+  if (dog) combos.push([dog]);
+  if (mahjong && !straightCards.some((s) => s.some((c) => c.id === mahjong.id))) {
+    combos.push([mahjong]);
+  }
+  if (phoenix && !phoenixUsedInStraight && !phoenixUsedInPair) {
+    combos.push([phoenix]);
+  }
+
+  // Count control cards (combos likely to win)
+  let controlCount = 0;
+  if (dragon) controlCount++;
+  for (const combo of combos) {
+    const det = detectCombination(combo);
+    if (!det) continue;
+    if (det.type === CombinationType.FOUR_OF_A_KIND_BOMB ||
+        det.type === CombinationType.STRAIGHT_FLUSH_BOMB) {
+      controlCount++;
+    } else if (det.type === CombinationType.SINGLE && det.rank >= NR.ACE) {
+      controlCount++;
+    } else if (det.length >= 2 && det.rank >= NR.ACE) {
+      controlCount++;
+    }
+  }
+
+  return { combos, turnsToOut: combos.length, controlCount, hasBomb };
+}
+
+/** Greedily extract the longest straights from available rank groups. */
+function extractStraights(
+  groups: Map<number, NormalCard[]>,
+  mahjong: Card | null,
+  phoenix: Card | null
+): Card[][] {
+  const results: Card[][] = [];
+
+  // Build available ranks including mahjong (rank 1)
+  const availableRanks = new Set(groups.keys());
+  if (mahjong) availableRanks.add(1);
+
+  const sortedRanks = [...availableRanks].sort((a, b) => a - b);
+  if (sortedRanks.length < 5) return results;
+
+  // Find the longest consecutive run, allowing one phoenix gap
+  let bestStart = -1;
+  let bestLen = 0;
+  let bestGap = -1;
+
+  for (let i = 0; i < sortedRanks.length; i++) {
+    let len = 1;
+    let gapPos = -1;
+
+    for (let j = i + 1; j < sortedRanks.length; j++) {
+      const expected = sortedRanks[i] + (j - i);
+      if (sortedRanks[j] === expected) {
+        len++;
+      } else if (
+        phoenix &&
+        gapPos === -1 &&
+        sortedRanks[j] === expected + 1
+      ) {
+        // One gap, fill with phoenix
+        gapPos = expected;
+        len += 2; // phoenix card + the card after the gap
+        // But we need to re-check: the next iteration expects rank after sortedRanks[j]
+        // Continue from j
+        for (let k = j + 1; k < sortedRanks.length; k++) {
+          const exp2 = sortedRanks[j] + (k - j);
+          if (sortedRanks[k] === exp2) {
+            len++;
+          } else {
+            break;
+          }
+        }
+        break;
+      } else {
+        break;
+      }
+    }
+
+    if (len >= 5 && len > bestLen) {
+      bestLen = len;
+      bestStart = sortedRanks[i];
+      bestGap = gapPos;
+    }
+  }
+
+  if (bestLen >= 5 && bestStart >= 0) {
+    const straight: Card[] = [];
+    for (let r = bestStart; r < bestStart + bestLen; r++) {
+      if (r === bestGap && phoenix) {
+        straight.push(phoenix);
+      } else if (r === 1 && mahjong) {
+        straight.push(mahjong);
+        // Don't remove mahjong from groups (it's not in groups)
+      } else if (groups.has(r)) {
+        const cards = groups.get(r)!;
+        straight.push(cards[0]);
+        if (cards.length <= 1) groups.delete(r);
+        else groups.set(r, cards.slice(1));
+      }
+    }
+    if (straight.length >= 5) {
+      results.push(straight);
+    }
+  }
+
+  return results;
+}
+
+// ─── Card Counting ──────────────────────────────────────────────────────
+
+interface CardCountInfo {
+  remainingCards: Card[];       // cards not yet played and not in my hand
+  dragonPlayed: boolean;
+  phoenixPlayed: boolean;
+  acesRemaining: number;       // aces not in my hand and not played
+  bombsPossible: boolean;      // could opponents still have a 4-of-a-kind?
+}
+
+function analyzePlayedCards(playedCards: Card[], myHand: Card[]): CardCountInfo {
+  const knownIds = new Set([
+    ...playedCards.map((c) => c.id),
+    ...myHand.map((c) => c.id),
+  ]);
+
+  const remainingCards = FULL_DECK.filter((c) => !knownIds.has(c.id));
+
+  const dragonPlayed = playedCards.some((c) => isSpecial(c, SpecialCardType.DRAGON)) ||
+    myHand.some((c) => isSpecial(c, SpecialCardType.DRAGON));
+  const phoenixPlayed = playedCards.some((c) => isSpecial(c, SpecialCardType.PHOENIX)) ||
+    myHand.some((c) => isSpecial(c, SpecialCardType.PHOENIX));
+
+  const acesRemaining = remainingCards.filter(
+    (c) => isNormalCard(c) && c.rank === NR.ACE
+  ).length;
+
+  // Check if any rank has 4 cards still in play (not played and not in my hand)
+  const rankCounts = new Map<number, number>();
+  for (const c of remainingCards) {
+    if (isNormalCard(c)) {
+      rankCounts.set(c.rank, (rankCounts.get(c.rank) || 0) + 1);
+    }
+  }
+  const bombsPossible = [...rankCounts.values()].some((count) => count >= 4);
+
+  return {
+    remainingCards,
+    dragonPlayed: playedCards.some((c) => isSpecial(c, SpecialCardType.DRAGON)),
+    phoenixPlayed: playedCards.some((c) => isSpecial(c, SpecialCardType.PHOENIX)),
+    acesRemaining,
+    bombsPossible,
+  };
+}
+
+// ─── Bot AI ─────────────────────────────────────────────────────────────
 
 export class BotAI {
   constructor(private difficulty: BotDifficulty) {}
 
-  // ─── Grand Tichu ──────────────────────────────────────────────────────
+  // ─── Grand Tichu ────────────────────────────────────────────────────
 
   decideGrandTichu(hand: Card[]): boolean {
     if (this.difficulty === 'easy') return false;
@@ -47,18 +288,15 @@ export class BotAI {
       return strength >= 8;
     }
 
-    // Hard: thorough hand analysis
+    // Hard: thorough hand analysis on 8 cards
     return this.evaluateGrandTichuHard(hand);
   }
 
   private evaluateGrandTichuHard(hand: Card[]): boolean {
     let strength = 0;
 
-    const hasDragon = hand.some((c) => isSpecial(c, SpecialCardType.DRAGON));
-    const hasPhoenix = hand.some((c) => isSpecial(c, SpecialCardType.PHOENIX));
-
-    if (hasDragon) strength += 3;
-    if (hasPhoenix) strength += 2;
+    if (hand.some((c) => isSpecial(c, SpecialCardType.DRAGON))) strength += 3;
+    if (hand.some((c) => isSpecial(c, SpecialCardType.PHOENIX))) strength += 2;
 
     const normalCards = hand.filter(isNormalCard);
     const rankCounts = new Map<number, number>();
@@ -66,27 +304,23 @@ export class BotAI {
       rankCounts.set(c.rank, (rankCounts.get(c.rank) || 0) + 1);
     }
 
-    // High cards
     for (const c of normalCards) {
       if (c.rank === NR.ACE) strength += 1.5;
       else if (c.rank === NR.KING) strength += 0.8;
       else if (c.rank === NR.QUEEN) strength += 0.3;
     }
 
-    // Bombs (4 of a kind in 8 cards is huge)
     for (const [, count] of rankCounts) {
       if (count >= 4) strength += 3;
       else if (count >= 3) strength += 0.5;
     }
 
-    // Pairs are good (multi-card combos clear hand faster)
     let pairCount = 0;
     for (const [, count] of rankCounts) {
       if (count >= 2) pairCount++;
     }
     if (pairCount >= 3) strength += 1;
 
-    // Consecutive ranks (straight potential)
     const ranks = [...rankCounts.keys()].sort((a, b) => a - b);
     let maxRun = 1;
     let currentRun = 1;
@@ -104,7 +338,47 @@ export class BotAI {
     return strength >= 7;
   }
 
-  // ─── Card Passing ─────────────────────────────────────────────────────
+  // ─── Regular Tichu ──────────────────────────────────────────────────
+
+  decideTichu(hand: Card[]): boolean {
+    if (this.difficulty === 'easy') return false;
+
+    const plan = planHand(hand);
+
+    if (this.difficulty === 'medium') {
+      // Medium: call Tichu if very strong (few turns, many control)
+      return plan.turnsToOut <= 5 && plan.controlCount >= 4;
+    }
+
+    // Hard: call Tichu with a nuanced evaluation
+    // Need enough control cards to regain the lead after losing it
+    // turnsToOut is how many plays to empty hand
+    // controlCount is how many of those are near-guaranteed winners
+    // "losable turns" = turnsToOut - controlCount
+    const losableTurns = plan.turnsToOut - plan.controlCount;
+
+    // Call Tichu if:
+    // - We can go out in 7 or fewer turns
+    // - We lose the lead at most 2 times (need control for the rest)
+    // - We have at least 3 control cards
+    if (plan.turnsToOut <= 7 && losableTurns <= 2 && plan.controlCount >= 3) {
+      return true;
+    }
+
+    // Very strong hands: few turns even with fewer control
+    if (plan.turnsToOut <= 4 && plan.controlCount >= 2) {
+      return true;
+    }
+
+    // Bomb + strong hand
+    if (plan.hasBomb && plan.turnsToOut <= 6 && plan.controlCount >= 3) {
+      return true;
+    }
+
+    return false;
+  }
+
+  // ─── Card Passing ─────────────────────────────────────────────────
 
   choosePassCards(
     hand: Card[],
@@ -148,15 +422,13 @@ export class BotAI {
   }
 
   private passCardsHard(hand: Card[]): { left: string; across: string; right: string } {
-    // Analyze hand structure to find "loose" cards that don't contribute to combos
     const normalCards = hand.filter(isNormalCard);
     const rankCounts = new Map<number, number>();
     for (const c of normalCards) {
       rankCounts.set(c.rank, (rankCounts.get(c.rank) || 0) + 1);
     }
 
-    // Never pass Dragon or Phoenix (too valuable)
-    // Never break up a bomb (4 of a kind)
+    // Never pass Dragon, Phoenix, or bomb cards
     const bombRanks = new Set<number>();
     for (const [rank, count] of rankCounts) {
       if (count >= 4) bombRanks.add(rank);
@@ -169,41 +441,34 @@ export class BotAI {
       return true;
     });
 
-    // Score each passable card by how "loose" it is (lower = more expendable)
+    // Score each card: lower = more expendable
     const scored = passable.map((c) => {
       let value = getCardSortRank(c);
 
       if (isNormalCard(c)) {
         const count = rankCounts.get(c.rank) || 0;
-        // Singletons are more expendable than paired cards
-        if (count === 1) value -= 2;
-        // Cards in pairs/triples are more valuable (combo potential)
-        if (count >= 2) value += 3;
+        if (count === 1) value -= 2; // singleton — expendable
+        if (count >= 2) value += 3;  // pair/triple — keep
         if (count >= 3) value += 3;
 
-        // Check if this card participates in a consecutive run
         const rank = c.rank;
-        const hasNeighbor =
-          rankCounts.has(rank - 1) || rankCounts.has(rank + 1);
-        if (hasNeighbor) value += 2; // part of a potential straight
+        if (rankCounts.has(rank - 1) || rankCounts.has(rank + 1)) {
+          value += 2; // part of potential straight
+        }
       }
 
-      // Dog and Mahjong have special tactical value
-      if (isSpecial(c, SpecialCardType.DOG)) value = -1; // very expendable to pass
-      if (isSpecial(c, SpecialCardType.MAHJONG)) value = 2; // modest value
+      if (isSpecial(c, SpecialCardType.DOG)) value = -1;
+      if (isSpecial(c, SpecialCardType.MAHJONG)) value = 2;
 
       return { card: c, value };
     });
 
-    // Sort by value ascending (most expendable first)
     scored.sort((a, b) => a.value - b.value);
 
-    // To opponents (left, right): pass the two weakest cards
-    // To partner (across): pass the best remaining card we can spare, preferring an Ace or high card
+    // Opponents get weakest cards, partner gets strongest spare
     const toLeft = scored[0]?.card.id ?? hand[0].id;
     const toRight = scored[1]?.card.id ?? hand[1].id;
 
-    // For partner, give the highest-value passable card that isn't already chosen
     const forPartner = scored
       .filter((s) => s.card.id !== toLeft && s.card.id !== toRight)
       .sort((a, b) => b.value - a.value);
@@ -213,7 +478,7 @@ export class BotAI {
     return { left: toLeft, across: toAcross, right: toRight };
   }
 
-  // ─── Play Decision ────────────────────────────────────────────────────
+  // ─── Play Decision ────────────────────────────────────────────────
 
   choosePlay(
     hand: Card[],
@@ -239,14 +504,18 @@ export class BotAI {
       return this.chooseFollowMedium(hand, playable, currentTrick, botPosition);
     }
 
-    // Hard mode: optimal play with full context
+    // Hard mode
+    const cardInfo = context?.playedCards
+      ? analyzePlayedCards(context.playedCards, hand)
+      : null;
+
     if (isLeading) {
-      return this.chooseLeadHard(hand, playable, botPosition, context);
+      return this.chooseLeadHard(hand, playable, botPosition, context, cardInfo);
     }
-    return this.chooseFollowHard(hand, playable, currentTrick, botPosition, context);
+    return this.chooseFollowHard(hand, playable, currentTrick, botPosition, context, cardInfo);
   }
 
-  // ─── Easy ────────────────────────────────────────────────────────────
+  // ─── Easy ────────────────────────────────────────────────────────
 
   private choosePlayEasy(playable: Card[][], isLeading: boolean): string[] | null {
     if (!isLeading && Math.random() < 0.3) return null;
@@ -254,14 +523,15 @@ export class BotAI {
     return choice.map((c) => c.id);
   }
 
-  // ─── Medium Leading ─────────────────────────────────────────────────
+  // ─── Medium Leading ──────────────────────────────────────────────
 
   private chooseLeadMedium(hand: Card[], playable: Card[][]): string[] {
     const multiCard = playable.filter((c) => c.length > 1);
     const singles = playable.filter((c) => c.length === 1);
     const nonSpecialSingles = singles.filter(
-      (c) => !isSpecial(c[0], SpecialCardType.DOG) &&
-             !isSpecial(c[0], SpecialCardType.DRAGON)
+      (c) =>
+        !isSpecial(c[0], SpecialCardType.DOG) &&
+        !isSpecial(c[0], SpecialCardType.DRAGON)
     );
 
     if (multiCard.length > 0 && Math.random() < 0.6) {
@@ -275,7 +545,7 @@ export class BotAI {
     return this.pickLowestCombo(playable);
   }
 
-  // ─── Medium Following ──────────────────────────────────────────────
+  // ─── Medium Following ────────────────────────────────────────────
 
   private chooseFollowMedium(
     hand: Card[],
@@ -285,14 +555,13 @@ export class BotAI {
   ): string[] | null {
     const partnerPos = ((botPosition + 2) % 4) as PlayerPosition;
     const partnerWinning = currentTrick.currentWinner === partnerPos;
-    const trickTop = currentTrick.plays[currentTrick.plays.length - 1].combination;
 
     const { bombs, regular } = this.splitBombs(playable);
 
     if (partnerWinning && Math.random() < 0.5) return null;
 
     if (regular.length === 0) {
-      if (this.shouldUseBombBasic(hand, partnerWinning)) {
+      if (!partnerWinning && hand.length <= 5 && bombs.length > 0) {
         return this.pickLowestCombo(bombs);
       }
       return null;
@@ -313,144 +582,187 @@ export class BotAI {
     return lowestBeat.map((c) => c.id);
   }
 
-  // ─── Hard Leading ──────────────────────────────────────────────────
+  // ─── Hard Leading ────────────────────────────────────────────────
 
   private chooseLeadHard(
     hand: Card[],
     playable: Card[][],
     botPosition: PlayerPosition,
-    context?: GameContext
+    context?: GameContext,
+    cardInfo?: CardCountInfo | null
   ): string[] {
     const combos = this.categorizeCombos(playable);
+    const plan = planHand(hand);
 
-    // If 1-2 cards left, just play to go out
-    if (hand.length <= 2) {
-      // Prefer multi-card combos to go out in one play
+    // ── Endgame: 1-3 cards left, just go out ──
+    if (hand.length <= 3) {
       const biggest = [...playable].sort((a, b) => b.length - a.length);
       return biggest[0].map((c) => c.id);
     }
 
-    // Dog: play it to give lead to partner if partner has fewer cards
+    // ── Team coordination: play Dog to give partner the lead ──
     const dogPlay = combos.singles.find((c) => isSpecial(c[0], SpecialCardType.DOG));
     if (dogPlay && context) {
       const partnerPos = ((botPosition + 2) % 4) as PlayerPosition;
       const partnerCards = context.playerCardCounts.get(partnerPos) ?? 14;
       const partnerOut = context.finishOrder.includes(partnerPos);
-      // Play Dog if partner has few cards and isn't already out
-      if (!partnerOut && partnerCards <= 5 && partnerCards > 0) {
+      const partnerCalledTichu = context.tichuCalls[partnerPos] === 'tichu' ||
+        context.tichuCalls[partnerPos] === 'grand_tichu';
+
+      // Play Dog if partner called Tichu, or has few cards and isn't out
+      if (!partnerOut && (partnerCalledTichu || (partnerCards <= 5 && partnerCards > 0))) {
         return dogPlay.map((c) => c.id);
       }
     }
 
-    // Priority 1: Lead multi-card combos that are "isolated" (clear whole rank groups)
-    const isolatedMulti = this.findIsolatedMultiCardCombos(hand, combos.multiCard);
-    if (isolatedMulti.length > 0) {
-      // Prefer longer combos (straights, full houses clear more cards)
-      const longestFirst = [...isolatedMulti].sort((a, b) => b.length - a.length);
-      return longestFirst[0].map((c) => c.id);
-    }
-
-    // Priority 2: Lead with multi-card combos (longest first to clear hand)
-    if (combos.multiCard.length > 0) {
-      // Among multi-card combos, prefer ones with more cards, then lowest rank
-      const sorted = [...combos.multiCard].sort((a, b) => {
+    // ── Lead long combos first (hardest to beat) ──
+    // Straights of 5+ are very hard to beat
+    const longCombos = combos.multiCard.filter((c) => c.length >= 5);
+    if (longCombos.length > 0) {
+      // Lead the longest, lowest-rank one
+      const sorted = [...longCombos].sort((a, b) => {
         if (b.length !== a.length) return b.length - a.length;
-        const ra = detectCombination(a)?.rank ?? 0;
-        const rb = detectCombination(b)?.rank ?? 0;
-        return ra - rb;
+        return (detectCombination(a)?.rank ?? 0) - (detectCombination(b)?.rank ?? 0);
       });
       return sorted[0].map((c) => c.id);
     }
 
-    // Priority 3: Lead singleton cards (ranks that appear only once in hand)
+    // ── Lead isolated multi-card combos ──
+    const isolatedMulti = this.findIsolatedMultiCardCombos(hand, combos.multiCard);
+    if (isolatedMulti.length > 0) {
+      const sorted = [...isolatedMulti].sort((a, b) => b.length - a.length);
+      return sorted[0].map((c) => c.id);
+    }
+
+    // ── Lead multi-card combos (longest first) ──
+    if (combos.multiCard.length > 0) {
+      const sorted = [...combos.multiCard].sort((a, b) => {
+        if (b.length !== a.length) return b.length - a.length;
+        return (detectCombination(a)?.rank ?? 0) - (detectCombination(b)?.rank ?? 0);
+      });
+      return sorted[0].map((c) => c.id);
+    }
+
+    // ── Lead singleton low cards ──
     const singletons = this.findSingletonCards(hand, combos.nonSpecialSingles);
     if (singletons.length > 0) {
       return this.pickLowestCombo(singletons);
     }
 
-    // Priority 4: Lead lowest non-special single
-    if (combos.nonSpecialSingles.length > 0) {
-      return this.pickLowestCombo(combos.nonSpecialSingles);
-    }
-
-    // Priority 5: Lead Mahjong if we have it (start trick, get wish)
+    // ── Lead with Mahjong (to trigger wish) ──
+    // But only if we have a good wish (a rank we don't hold)
     const mahjongPlay = combos.singles.find((c) => isSpecial(c[0], SpecialCardType.MAHJONG));
     if (mahjongPlay) {
       return mahjongPlay.map((c) => c.id);
     }
 
+    // ── Lead lowest non-special single ──
+    if (combos.nonSpecialSingles.length > 0) {
+      return this.pickLowestCombo(combos.nonSpecialSingles);
+    }
+
+    // ── Lead high single if it's safe (all higher cards played) ──
+    if (cardInfo && combos.singles.length > 0) {
+      for (const single of this.sortByRank(combos.singles)) {
+        if (isSpecial(single[0], SpecialCardType.DOG)) continue;
+        if (isSpecial(single[0], SpecialCardType.DRAGON)) continue;
+        const rank = getCardSortRank(single[0]);
+        // Check if any remaining card could beat this
+        const canBeBeat = cardInfo.remainingCards.some((c) => {
+          const r = getCardSortRank(c);
+          return r > rank;
+        });
+        if (!canBeBeat) {
+          return single.map((c) => c.id);
+        }
+      }
+    }
+
     return this.pickLowestCombo(playable);
   }
 
-  // ─── Hard Following ────────────────────────────────────────────────
+  // ─── Hard Following ──────────────────────────────────────────────
 
   private chooseFollowHard(
     hand: Card[],
     playable: Card[][],
     currentTrick: TrickState,
     botPosition: PlayerPosition,
-    context?: GameContext
+    context?: GameContext,
+    cardInfo?: CardCountInfo | null
   ): string[] | null {
     const partnerPos = ((botPosition + 2) % 4) as PlayerPosition;
     const partnerWinning = currentTrick.currentWinner === partnerPos;
-    const trickTop = currentTrick.plays[currentTrick.plays.length - 1].combination;
     const trickPoints = this.estimateTrickPoints(currentTrick);
-
     const { bombs, regular } = this.splitBombs(playable);
 
-    // If I have 1-2 cards left, always play to go out
-    if (hand.length <= 2 && regular.length > 0) {
-      return this.pickLowestCombo(regular);
+    // ── Endgame urgency: play to go out ──
+    if (hand.length <= 3 && regular.length > 0) {
+      // Play whatever gets us closest to going out
+      const sorted = this.sortByRank(regular);
+      return sorted[0].map((c) => c.id);
     }
 
-    // Partner is winning: always pass (don't overplay partner)
+    // ── Check if opponent is about to go out ──
+    const opponentAboutToOut = context ? this.isOpponentAboutToOut(botPosition, context) : false;
+
+    // ── Partner winning ──
     if (partnerWinning) {
-      // Exception: play if I can go out (1-2 cards) - already handled above
-      // Exception: bomb if opponent called Tichu and is close to going out
-      if (context && bombs.length > 0) {
-        if (this.shouldBombToPreventOpponentOut(botPosition, context)) {
-          return this.pickLowestCombo(bombs);
-        }
+      // Bomb only if opponent is about to go out (prevent them)
+      if (opponentAboutToOut && bombs.length > 0) {
+        return this.pickLowestCombo(bombs);
       }
       return null;
     }
 
-    // No regular plays available — consider bombing
+    // ── No regular plays — consider bombing ──
     if (regular.length === 0) {
-      if (bombs.length > 0 && this.shouldUseBombHard(hand, trickPoints, botPosition, context)) {
+      if (bombs.length > 0 && this.shouldUseBombHard(hand, trickPoints, opponentAboutToOut)) {
         return this.pickLowestCombo(bombs);
       }
       return null;
     }
 
     const sorted = this.sortByRank(regular);
-    const lowestBeat = sorted[0];
 
-    // If Dragon is our only option for a single, always play it (it always wins)
+    // ── Smart card selection ──
+    const bestPlay = this.findBestFollowCard(hand, sorted, trickPoints, cardInfo);
+    if (bestPlay) return bestPlay;
+
+    // Fallback to lowest beat
+    const lowestBeat = sorted[0];
+    const lowestCombo = detectCombination(lowestBeat);
+
+    // Dragon always wins singles — always play it
     if (lowestBeat.length === 1 && isSpecial(lowestBeat[0], SpecialCardType.DRAGON)) {
       return lowestBeat.map((c) => c.id);
     }
 
-    // Smart card selection: prefer "loose" cards over cards in combos
-    const bestPlay = this.findBestFollowCard(hand, sorted, trickPoints);
-    if (bestPlay) return bestPlay;
-
-    // Don't waste Phoenix on low-value tricks if we have many cards left
+    // Don't waste Phoenix on worthless tricks (unless close to going out)
     if (lowestBeat.length === 1 && isSpecial(lowestBeat[0], SpecialCardType.PHOENIX)) {
       if (trickPoints < 5 && hand.length > 4) return null;
     }
 
-    // If cheapest beat is very expensive (Ace) and trick has no points, pass
-    const lowestCombo = detectCombination(lowestBeat);
-    if (lowestCombo && lowestCombo.rank >= NR.ACE && trickPoints <= 0 && hand.length > 4) {
+    // Pass if cheapest beat is Ace+ on a pointless trick and we're not in endgame
+    if (lowestCombo && lowestCombo.rank >= NR.ACE && trickPoints <= 0 && hand.length > 5) {
       return null;
+    }
+
+    // If opponent is about to go out, always play (don't let them win tricks)
+    if (opponentAboutToOut) {
+      return lowestBeat.map((c) => c.id);
     }
 
     return lowestBeat.map((c) => c.id);
   }
 
-  /** Among available plays, prefer ones that use "loose" cards (singletons, non-combo cards). */
-  private findBestFollowCard(hand: Card[], sortedPlays: Card[][], trickPoints: number): string[] | null {
+  /** Among available plays, prefer ones that use "loose" cards. */
+  private findBestFollowCard(
+    hand: Card[],
+    sortedPlays: Card[][],
+    trickPoints: number,
+    cardInfo?: CardCountInfo | null
+  ): string[] | null {
     if (sortedPlays.length <= 1) return null;
 
     const normalHand = hand.filter(isNormalCard);
@@ -459,7 +771,6 @@ export class BotAI {
       rankCounts.set(c.rank, (rankCounts.get(c.rank) || 0) + 1);
     }
 
-    // Score each play option: lower is better (prefer expendable cards)
     let bestPlay: Card[] | null = null;
     let bestScore = Infinity;
 
@@ -468,21 +779,29 @@ export class BotAI {
       const combo = detectCombination(play);
       if (!combo) continue;
 
-      // Base: rank cost (higher rank = higher cost)
+      // Base: rank cost
       score += combo.rank;
 
       for (const c of play) {
         if (isSpecial(c, SpecialCardType.PHOENIX)) {
-          score += 8; // Phoenix is very valuable, avoid using
+          score += 10; // Phoenix is very valuable
         } else if (isSpecial(c, SpecialCardType.DRAGON)) {
-          // Dragon always wins - it's great value if trick has points
           score += trickPoints >= 5 ? -5 : 5;
         } else if (isNormalCard(c)) {
           const count = rankCounts.get(c.rank) || 0;
-          if (count === 1) score -= 3; // singleton — expendable, prefer using
-          if (count >= 3) score += 4; // part of triple/bomb — don't break
-          if (count === 2) score += 1; // part of pair — mild preference to keep
+          if (count === 1) score -= 3;  // singleton — expendable
+          if (count >= 3) score += 5;   // part of triple/bomb — protect
+          if (count === 2) score += 1;  // part of pair
         }
+      }
+
+      // Bonus: if this card is the highest of its type remaining (safe to play)
+      if (cardInfo && play.length === 1 && isNormalCard(play[0])) {
+        const rank = play[0].rank;
+        const higherExists = cardInfo.remainingCards.some(
+          (c) => isNormalCard(c) && c.rank > rank
+        );
+        if (!higherExists) score -= 5; // this is the top card — safe to play
       }
 
       if (score < bestScore) {
@@ -494,60 +813,46 @@ export class BotAI {
     return bestPlay ? bestPlay.map((c) => c.id) : null;
   }
 
-  // ─── Bomb Logic ────────────────────────────────────────────────────
-
-  private shouldUseBombBasic(hand: Card[], partnerWinning: boolean): boolean {
-    if (partnerWinning) return false;
-    return hand.length <= 5;
-  }
+  // ─── Bomb Logic ──────────────────────────────────────────────────
 
   private shouldUseBombHard(
     hand: Card[],
     trickPoints: number,
-    botPosition: PlayerPosition,
-    context?: GameContext
+    opponentAboutToOut: boolean
   ): boolean {
     // Always bomb if close to going out
     if (hand.length <= 5) return true;
-
-    // Bomb high-value tricks (≥ 10 points)
+    // Bomb high-value tricks
     if (trickPoints >= 10) return true;
-
-    // Bomb to prevent opponent Tichu
-    if (context && this.shouldBombToPreventOpponentOut(botPosition, context)) {
-      return true;
-    }
-
+    // Bomb to prevent opponent from going out
+    if (opponentAboutToOut) return true;
     return false;
   }
 
-  private shouldBombToPreventOpponentOut(
-    botPosition: PlayerPosition,
-    context: GameContext
-  ): boolean {
-    // Check if an opponent called Tichu and has very few cards
+  private isOpponentAboutToOut(botPosition: PlayerPosition, context: GameContext): boolean {
     for (const pos of [0, 1, 2, 3] as PlayerPosition[]) {
       if (pos % 2 === botPosition % 2) continue; // skip teammates
-      if (context.finishOrder.includes(pos)) continue; // already out
-      const call = context.tichuCalls[pos];
+      if (context.finishOrder.includes(pos)) continue;
       const cards = context.playerCardCounts.get(pos) ?? 14;
-      if ((call === 'tichu' || call === 'grand_tichu') && cards <= 3) {
-        return true;
-      }
+      // Opponent has 1-2 cards: they're about to go out
+      if (cards <= 2) return true;
+      // Opponent called Tichu and has few cards
+      const call = context.tichuCalls[pos];
+      if ((call === 'tichu' || call === 'grand_tichu') && cards <= 4) return true;
     }
     return false;
   }
 
-  // ─── Utility Methods ─────────────────────────────────────────────────
+  // ─── Utility Methods ─────────────────────────────────────────────
 
   private categorizeCombos(playable: Card[][]) {
     const singles = playable.filter((c) => c.length === 1);
     const nonSpecialSingles = singles.filter(
-      (c) => !isSpecial(c[0], SpecialCardType.DOG) &&
-             !isSpecial(c[0], SpecialCardType.DRAGON)
+      (c) =>
+        !isSpecial(c[0], SpecialCardType.DOG) &&
+        !isSpecial(c[0], SpecialCardType.DRAGON)
     );
     const multiCard = playable.filter((c) => c.length > 1);
-
     return { singles, nonSpecialSingles, multiCard };
   }
 
@@ -558,18 +863,17 @@ export class BotAI {
         rankCounts.set(c.rank, (rankCounts.get(c.rank) || 0) + 1);
       }
     }
-
     return multiCard.filter((combo) => {
       if (combo.length === 2) {
-        const normalCards = combo.filter(isNormalCard);
-        if (normalCards.length === 2 && normalCards[0].rank === normalCards[1].rank) {
-          return rankCounts.get(normalCards[0].rank) === 2;
+        const nc = combo.filter(isNormalCard);
+        if (nc.length === 2 && nc[0].rank === nc[1].rank) {
+          return rankCounts.get(nc[0].rank) === 2;
         }
       }
       if (combo.length === 3) {
-        const normalCards = combo.filter(isNormalCard);
-        if (normalCards.length === 3 && normalCards.every((c) => c.rank === normalCards[0].rank)) {
-          return rankCounts.get(normalCards[0].rank) === 3;
+        const nc = combo.filter(isNormalCard);
+        if (nc.length === 3 && nc.every((c) => c.rank === nc[0].rank)) {
+          return rankCounts.get(nc[0].rank) === 3;
         }
       }
       return false;
@@ -582,9 +886,7 @@ export class BotAI {
       const r = getCardSortRank(c);
       rankCounts.set(r, (rankCounts.get(r) || 0) + 1);
     }
-    return singles.filter(
-      (c) => rankCounts.get(getCardSortRank(c[0])) === 1
-    );
+    return singles.filter((c) => rankCounts.get(getCardSortRank(c[0])) === 1);
   }
 
   private splitBombs(playable: Card[][]): { bombs: Card[][]; regular: Card[][] } {
@@ -627,23 +929,49 @@ export class BotAI {
     return sorted[0].map((c) => c.id);
   }
 
-  // ─── Dragon & Wish ───────────────────────────────────────────────────
+  // ─── Dragon Give ─────────────────────────────────────────────────
 
   chooseDragonGiveTarget(
     opponents: PlayerPosition[],
-    playerCardCounts: Map<PlayerPosition, number>
+    playerCardCounts: Map<PlayerPosition, number>,
+    context?: GameContext
   ): PlayerPosition {
     if (this.difficulty === 'easy') {
       return opponents[Math.floor(Math.random() * opponents.length)];
     }
-    // Give to opponent with more cards remaining (less likely to go out soon)
+
+    if (this.difficulty === 'hard' && context) {
+      // Give to opponent who benefits LEAST from the +25 points
+      // Prefer giving to the opponent with more cards (further from going out)
+      // But also consider: if one opponent's team is ahead, give to the other
+      const scored = opponents.map((pos) => {
+        let score = 0;
+        const cards = playerCardCounts.get(pos) ?? 0;
+        score += cards * 10; // more cards = better target (further from going out)
+
+        // If opponent called Tichu, DON'T give them Dragon (helps their trick points)
+        const call = context.tichuCalls[pos];
+        if (call === 'tichu' || call === 'grand_tichu') {
+          score -= 100;
+        }
+
+        return { pos, score };
+      });
+
+      scored.sort((a, b) => b.score - a.score);
+      return scored[0].pos;
+    }
+
+    // Medium: give to opponent with more cards
     const sorted = [...opponents].sort(
       (a, b) => (playerCardCounts.get(b) ?? 0) - (playerCardCounts.get(a) ?? 0)
     );
     return sorted[0];
   }
 
-  chooseWish(hand: Card[]): NormalRank {
+  // ─── Wish ────────────────────────────────────────────────────────
+
+  chooseWish(hand: Card[], context?: GameContext): NormalRank {
     if (this.difficulty === 'easy') {
       const ranks = [
         NR.TWO, NR.THREE, NR.FOUR, NR.FIVE, NR.SIX, NR.SEVEN,
@@ -652,18 +980,18 @@ export class BotAI {
       return ranks[Math.floor(Math.random() * ranks.length)];
     }
 
-    // Wish for a high rank the bot doesn't have — forces opponents to reveal/use strong cards
     const myRanks = new Set<NormalRank>();
     for (const c of hand) {
       if (c.type === 'normal') myRanks.add(c.rank);
     }
 
-    // Hard: prioritize ranks that are most disruptive (Aces first, then Kings)
+    // Wish for high ranks we DON'T have (forces opponents to use strong cards)
     const candidates = [
       NR.ACE, NR.KING, NR.QUEEN, NR.JACK, NR.TEN,
       NR.NINE, NR.EIGHT, NR.SEVEN, NR.SIX, NR.FIVE,
       NR.FOUR, NR.THREE, NR.TWO,
     ];
+
     for (const r of candidates) {
       if (!myRanks.has(r)) return r;
     }

@@ -6,13 +6,20 @@ import type {
   NormalRank,
   GameEvent,
   TichuCall,
+  Card,
 } from '@cyprus/shared';
 import { GamePhase, SpecialCardType, isSpecial } from '@cyprus/shared';
 import { RoomManager } from './RoomManager.js';
 import type { Room } from './RoomManager.js';
 import type { GameEngine } from './GameEngine.js';
 import { BotAI } from './BotAI.js';
-import type { BotDifficulty } from './BotAI.js';
+import type { BotDifficulty, GameContext } from './BotAI.js';
+import { writeFileSync, appendFileSync, mkdirSync } from 'node:fs';
+import { join, dirname } from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
+const DATA_DIR = join(__dirname, '..', 'data');
 
 type TypedServer = Server<ClientToServerEvents, ServerToClientEvents>;
 type TypedSocket = Socket<ClientToServerEvents, ServerToClientEvents>;
@@ -208,8 +215,84 @@ export class SocketHandler {
       this.io.to(socketId).emit('game:state', state);
     }
 
+    // Save latest game state for debugging
+    this.saveGameState(roomCode, room);
+
     // Schedule bot actions if this is a solo room
     this.scheduleBotAction(roomCode);
+  }
+
+  /** Persist the latest game state to disk for debugging. */
+  private saveGameState(roomCode: string, room: Room): void {
+    try {
+      const engine = room.engine;
+      if (!engine) return;
+
+      const snapshot = {
+        roomCode,
+        timestamp: new Date().toISOString(),
+        phase: engine.state.phase,
+        currentPlayer: engine.state.currentPlayer,
+        scores: engine.state.scores,
+        roundScores: engine.state.roundScores,
+        finishOrder: engine.state.finishOrder,
+        currentTrick: engine.state.currentTrick,
+        wish: engine.state.wish,
+        dragonWinner: engine.state.dragonWinner,
+        players: engine.state.players.map((p) => ({
+          position: p.position,
+          nickname: p.nickname,
+          hand: p.hand.map((c) => c.id),
+          cardCount: p.hand.length,
+          tichuCall: p.tichuCall,
+          isOut: p.isOut,
+          finishOrder: p.finishOrder,
+          hasPlayedCards: p.hasPlayedCards,
+          wonTricksCount: p.wonTricks.length,
+          collectedCards: p.wonTricks.reduce((sum, t) => sum + t.length, 0),
+        })),
+        isSolo: room.botPositions.size > 0,
+        botDifficulty: room.botDifficulty,
+      };
+
+      // Save latest snapshot (overwrite)
+      writeFileSync(
+        join(DATA_DIR, `latest-game-${roomCode}.json`),
+        JSON.stringify(snapshot, null, 2)
+      );
+
+      // Append to move log (one JSON line per state change)
+      const logLine = {
+        t: snapshot.timestamp,
+        phase: snapshot.phase,
+        currentPlayer: snapshot.currentPlayer,
+        trick: snapshot.currentTrick.plays.map((p) => ({
+          pos: p.playerPosition,
+          cards: p.combination.cards.map((c) => c.id),
+          type: p.combination.type,
+        })),
+        trickWinner: snapshot.currentTrick.currentWinner,
+        finishOrder: snapshot.finishOrder,
+        scores: snapshot.scores,
+        roundScores: snapshot.roundScores,
+        players: snapshot.players.map((p) => ({
+          pos: p.position,
+          name: p.nickname,
+          cards: p.cardCount,
+          hand: p.hand,
+          tichu: p.tichuCall,
+          out: p.isOut,
+          finishPos: p.finishOrder,
+        })),
+      };
+
+      appendFileSync(
+        join(DATA_DIR, `game-log-${roomCode}.jsonl`),
+        JSON.stringify(logLine) + '\n'
+      );
+    } catch {
+      // Don't crash the game if saving fails
+    }
   }
 
   // ─── Bot Turn Processing ──────────────────────────────────────────────
@@ -240,6 +323,38 @@ export class SocketHandler {
         console.error(`Bot action error in room ${roomCode}:`, err);
       }
     }, delay);
+  }
+
+  /** Compute all cards that have been played this round (won tricks + current trick). */
+  private getPlayedCards(engine: GameEngine): Card[] {
+    const played: Card[] = [];
+    for (const p of engine.state.players) {
+      for (const trick of p.wonTricks) {
+        played.push(...trick);
+      }
+    }
+    for (const play of engine.state.currentTrick.plays) {
+      played.push(...play.combination.cards);
+    }
+    return played;
+  }
+
+  /** Build the full game context for hard mode bot decisions. */
+  private buildGameContext(engine: GameEngine): GameContext {
+    return {
+      playerCardCounts: new Map<PlayerPosition, number>(
+        engine.state.players.map((p) => [p.position, p.hand.length])
+      ),
+      tichuCalls: {
+        0: engine.state.players[0].tichuCall,
+        1: engine.state.players[1].tichuCall,
+        2: engine.state.players[2].tichuCall,
+        3: engine.state.players[3].tichuCall,
+      } as Record<PlayerPosition, TichuCall>,
+      finishOrder: engine.state.finishOrder as PlayerPosition[],
+      playedCards: this.getPlayedCards(engine),
+      scores: [...engine.state.scores] as [number, number],
+    };
   }
 
   private findBotAction(
@@ -293,7 +408,8 @@ export class SocketHandler {
       ) {
         const wishPos = lastPlay.playerPosition;
         const hand = engine.state.players[wishPos].hand;
-        const rank = botAI.chooseWish(hand);
+        const gameContext = this.buildGameContext(engine);
+        const rank = botAI.chooseWish(hand, gameContext);
         return () => engine.setWish(wishPos, rank);
       }
 
@@ -301,21 +417,17 @@ export class SocketHandler {
       const currentPlayer = engine.state.currentPlayer;
       if (!room.botPositions.has(currentPlayer)) return null;
 
-      const hand = engine.state.players[currentPlayer].hand;
+      const player = engine.state.players[currentPlayer];
 
-      // Build game context for hard mode
-      const gameContext = {
-        playerCardCounts: new Map<PlayerPosition, number>(
-          engine.state.players.map((p) => [p.position, p.hand.length])
-        ),
-        tichuCalls: {
-          0: engine.state.players[0].tichuCall,
-          1: engine.state.players[1].tichuCall,
-          2: engine.state.players[2].tichuCall,
-          3: engine.state.players[3].tichuCall,
-        } as Record<PlayerPosition, TichuCall>,
-        finishOrder: engine.state.finishOrder as PlayerPosition[],
-      };
+      // Bot Tichu calling: call before first play if hand is strong enough
+      if (player.tichuCall === 'none' && !player.hasPlayedCards) {
+        if (botAI.decideTichu(player.hand)) {
+          return () => engine.callTichu(currentPlayer);
+        }
+      }
+
+      const hand = player.hand;
+      const gameContext = this.buildGameContext(engine);
 
       const cardIds = botAI.choosePlay(
         hand,
@@ -343,7 +455,8 @@ export class SocketHandler {
       for (const p of engine.state.players) {
         cardCounts.set(p.position, p.hand.length);
       }
-      const target = botAI.chooseDragonGiveTarget(opponents, cardCounts);
+      const gameContext = this.buildGameContext(engine);
+      const target = botAI.chooseDragonGiveTarget(opponents, cardCounts, gameContext);
       return () => engine.dragonGive(winner, target);
     }
 

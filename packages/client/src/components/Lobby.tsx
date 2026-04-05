@@ -1,6 +1,52 @@
 import { useState } from 'react';
 import { useRoomStore } from '../stores/roomStore.js';
 
+function MeanderBorder() {
+  return (
+    <div className="meander-border">
+      <svg viewBox="0 0 400 12" preserveAspectRatio="none" className="meander-svg">
+        <path
+          d="M0 6 h8 v-6 h6 v6 h6 v6 h6 v-6 h6 v-6 h6 v6 h6 v6 h6 v-6 h6 v-6 h6 v6 h6 v6 h6 v-6 h6 v-6 h6 v6 h6 v6 h6 v-6 h6 v-6 h6 v6 h6 v6 h6 v-6 h6 v-6 h6 v6 h6 v6 h6 v-6 h6 v-6 h6 v6 h6 v6 h6 v-6 h6 v-6 h6 v6 h6 v6 h6 v-6 h6 v-6 h6 v6 h6 v6 h6 v-6 h6 v-6 h6 v6 h6 v6 h6 v-6 h6 v-6 h6 v6 h6 v6 h6 v-6 h6 v-6 h6 v6 h6 v6 h8"
+          stroke="#c9a84c"
+          strokeWidth="1.5"
+          fill="none"
+          opacity="0.6"
+        />
+      </svg>
+    </div>
+  );
+}
+
+function GreekColumn({ side }: { side: 'left' | 'right' }) {
+  return (
+    <div className={`lobby-column lobby-column-${side}`}>
+      <div className="column-ornament column-ornament-top">
+        <svg viewBox="0 0 60 80" className="column-svg">
+          {/* Ionic capital */}
+          <rect x="5" y="60" width="50" height="20" rx="2" fill="#c9a84c" opacity="0.5" />
+          <ellipse cx="10" cy="58" rx="10" ry="10" fill="none" stroke="#c9a84c" strokeWidth="2" opacity="0.4" />
+          <ellipse cx="50" cy="58" rx="10" ry="10" fill="none" stroke="#c9a84c" strokeWidth="2" opacity="0.4" />
+          <rect x="10" y="46" width="40" height="14" rx="1" fill="#c9a84c" opacity="0.35" />
+        </svg>
+      </div>
+      <div className="column-body">
+        <div className="column-flutes">
+          {Array.from({ length: 6 }).map((_, i) => (
+            <div key={i} className="column-flute-line" />
+          ))}
+        </div>
+      </div>
+      <div className="column-ornament column-ornament-bottom">
+        <svg viewBox="0 0 60 30" className="column-svg">
+          <rect x="0" y="0" width="60" height="8" rx="2" fill="#c9a84c" opacity="0.4" />
+          <rect x="5" y="8" width="50" height="6" rx="1" fill="#c9a84c" opacity="0.3" />
+          <rect x="10" y="14" width="40" height="16" rx="2" fill="#c9a84c" opacity="0.25" />
+        </svg>
+      </div>
+    </div>
+  );
+}
+
 export function Lobby() {
   const [roomCode, setRoomCode] = useState('');
   const [difficulty, setDifficulty] = useState('medium');
@@ -14,85 +60,106 @@ export function Lobby() {
   const error = useRoomStore((s) => s.error);
 
   return (
-    <div className="lobby">
-      <h1>Cyprus</h1>
-      <p className="subtitle">Tichu Online</p>
+    <div className="lobby-fullscreen">
+      {/* Background layers */}
+      <div className="lobby-bg-clouds" />
+      <div className="lobby-bg-zeus" />
+      <div className="lobby-bg-overlay" />
 
-      <div className="lobby-form">
-        <input
-          type="text"
-          placeholder="Your nickname"
-          value={nickname}
-          onChange={(e) => setNickname(e.target.value)}
-          maxLength={16}
-          className="input"
-        />
+      {/* Side columns */}
+      <GreekColumn side="left" />
+      <GreekColumn side="right" />
 
-        <div className="target-score-row">
-          <label htmlFor="targetScore">Play to</label>
-          <input
-            id="targetScore"
-            type="number"
-            min={250}
-            step={50}
-            value={targetScore}
-            onChange={(e) => {
-              const val = parseInt(e.target.value, 10);
-              if (!isNaN(val)) setTargetScore(Math.max(250, val));
-            }}
-            className="input input-score"
-          />
-          <span>pts</span>
+      {/* Main content */}
+      <div className="lobby-content">
+        <div className="lobby-header">
+          <h1 className="title-greek">Cyprus</h1>
+          <p className="subtitle-greek">Game of the Gods</p>
+          <MeanderBorder />
         </div>
 
-        <button className="btn btn-primary" onClick={createRoom}>
-          Create Room
-        </button>
+        <div className="lobby-form-card">
+          <div className="lobby-form">
+            <input
+              type="text"
+              placeholder="Enter your name, mortal"
+              value={nickname}
+              onChange={(e) => setNickname(e.target.value)}
+              maxLength={16}
+              className="input input-greek"
+            />
 
-        <div className="divider">
-          <span>or</span>
+            <div className="target-score-row">
+              <label htmlFor="targetScore">Play to</label>
+              <input
+                id="targetScore"
+                type="number"
+                min={250}
+                step={50}
+                value={targetScore}
+                onChange={(e) => {
+                  const val = parseInt(e.target.value, 10);
+                  if (!isNaN(val)) setTargetScore(Math.max(250, val));
+                }}
+                className="input input-score input-greek"
+              />
+              <span>pts</span>
+            </div>
+
+            <button className="btn btn-olympus btn-create" onClick={createRoom}>
+              Create Room
+            </button>
+
+            <div className="divider divider-greek">
+              <span>or</span>
+            </div>
+
+            <input
+              type="text"
+              placeholder="Room code"
+              value={roomCode}
+              onChange={(e) => setRoomCode(e.target.value.toUpperCase())}
+              maxLength={4}
+              className="input input-greek"
+            />
+
+            <button
+              className="btn btn-olympus btn-join"
+              onClick={() => joinRoom(roomCode)}
+            >
+              Join Room
+            </button>
+
+            <div className="divider divider-greek">
+              <span>or</span>
+            </div>
+
+            <div className="solo-section">
+              <select
+                value={difficulty}
+                onChange={(e) => setDifficulty(e.target.value)}
+                className="input input-select input-greek"
+              >
+                <option value="easy">Easy Bots</option>
+                <option value="medium">Medium Bots</option>
+                <option value="hard">Hard Bots</option>
+              </select>
+
+              <button
+                className="btn btn-olympus btn-solo-greek"
+                onClick={() => createSoloRoom(difficulty)}
+              >
+                Solo Game
+              </button>
+            </div>
+
+            {error && <p className="error">{error}</p>}
+          </div>
         </div>
 
-        <input
-          type="text"
-          placeholder="Room code"
-          value={roomCode}
-          onChange={(e) => setRoomCode(e.target.value.toUpperCase())}
-          maxLength={4}
-          className="input"
-        />
-
-        <button
-          className="btn btn-secondary"
-          onClick={() => joinRoom(roomCode)}
-        >
-          Join Room
-        </button>
-
-        <div className="divider">
-          <span>or</span>
+        <div className="lobby-footer">
+          <MeanderBorder />
         </div>
-
-        <div className="solo-section">
-          <select
-            value={difficulty}
-            onChange={(e) => setDifficulty(e.target.value)}
-            className="input input-select"
-          >
-            <option value="easy">Easy Bots</option>
-            <option value="medium">Medium Bots</option>
-            <option value="hard">Hard Bots</option>
-          </select>
-
-          <button
-            className="btn btn-solo"
-            onClick={() => createSoloRoom(difficulty)}
-          >
-            Solo Game
-          </button>
-        </div>
-
-        {error && <p className="error">{error}</p>}
       </div>
     </div>
   );

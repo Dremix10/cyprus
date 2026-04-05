@@ -546,6 +546,14 @@ export class GameEngine {
   }
 
   private scoreRound(): void {
+    // Resolve any unfinished trick on the table — award to the current winner
+    if (this.state.currentTrick.plays.length > 0 && this.state.currentTrick.currentWinner !== null) {
+      const trickCards = this.state.currentTrick.plays.flatMap((p) => p.combination.cards);
+      const winner = this.state.currentTrick.currentWinner;
+      this.state.players[winner].wonTricks.push(trickCards);
+      this.state.currentTrick = { plays: [], currentWinner: null, passCount: 0 };
+    }
+
     // Mark all remaining players as out
     const remainingPlayers = this.state.players.filter((p) => !p.isOut);
     for (const p of remainingPlayers) {
