@@ -1,0 +1,2753 @@
+[
+  {
+    "id": "QKKD-1775416257227-09mtcj",
+    "timestamp": 1775416273525,
+    "rating": "up",
+    "botDifficulty": "hard",
+    "actionType": "play",
+    "actionDescription": "Played cards",
+    "context": {
+      "phase": "PLAYING",
+      "isLeading": false,
+      "trickTopRank": 1,
+      "trickPoints": 0,
+      "botHandSize": 14,
+      "playerCardCounts": {
+        "0": 13,
+        "1": 14,
+        "2": 14,
+        "3": 14
+      }
+    }
+  },
+  {
+    "id": "QKKD-1775416273829-wxuzyf",
+    "timestamp": 1775416277474,
+    "rating": "up",
+    "botDifficulty": "hard",
+    "actionType": "play",
+    "actionDescription": "Played cards",
+    "context": {
+      "phase": "PLAYING",
+      "isLeading": false,
+      "trickTopRank": 2,
+      "trickPoints": 0,
+      "botHandSize": 14,
+      "playerCardCounts": {
+        "0": 13,
+        "1": 13,
+        "2": 14,
+        "3": 14
+      }
+    }
+  },
+  {
+    "id": "QKKD-1775416277779-h93klb",
+    "timestamp": 1775416279148,
+    "rating": "up",
+    "botDifficulty": "hard",
+    "actionType": "play",
+    "actionDescription": "Played cards",
+    "context": {
+      "phase": "PLAYING",
+      "isLeading": false,
+      "trickTopRank": 4,
+      "trickPoints": 0,
+      "botHandSize": 14,
+      "playerCardCounts": {
+        "0": 13,
+        "1": 13,
+        "2": 13,
+        "3": 14
+      }
+    }
+  },
+  {
+    "id": "QKKD-1775416289401-uenec5",
+    "timestamp": 1775416295882,
+    "rating": "up",
+    "botDifficulty": "hard",
+    "actionType": "play",
+    "actionDescription": "Played cards",
+    "context": {
+      "phase": "PLAYING",
+      "isLeading": false,
+      "trickTopRank": 12,
+      "trickPoints": 5,
+      "botHandSize": 13,
+      "playerCardCounts": {
+        "0": 12,
+        "1": 13,
+        "2": 13,
+        "3": 13
+      }
+    }
+  },
+  {
+    "id": "QKKD-1775416296186-ltvjkz",
+    "timestamp": 1775416307774,
+    "rating": "up",
+    "botDifficulty": "hard",
+    "actionType": "pass",
+    "actionDescription": "Passed turn",
+    "context": {
+      "phase": "PLAYING",
+      "isLeading": false,
+      "trickTopRank": 14,
+      "trickPoints": 5,
+      "botHandSize": 13,
+      "playerCardCounts": {
+        "0": 12,
+        "1": 12,
+        "2": 13,
+        "3": 13
+      }
+    }
+  },
+  {
+    "id": "QKKD-1775416308078-adyvqr",
+    "timestamp": 1775416320591,
+    "rating": "up",
+    "botDifficulty": "hard",
+    "actionType": "pass",
+    "actionDescription": "Passed turn",
+    "context": {
+      "phase": "PLAYING",
+      "isLeading": false,
+      "trickTopRank": 14,
+      "trickPoints": 5,
+      "botHandSize": 13,
+      "playerCardCounts": {
+        "0": 12,
+        "1": 12,
+        "2": 13,
+        "3": 13
+      }
+    }
+  },
+  {
+    "id": "QKKD-1775416325416-w02exj",
+    "timestamp": 1775416328597,
+    "rating": "up",
+    "botDifficulty": "hard",
+    "actionType": "pass",
+    "actionDescription": "Passed turn",
+    "context": {
+      "phase": "PLAYING",
+      "isLeading": false,
+      "trickTopRank": 15,
+      "trickPoints": 30,
+      "botHandSize": 12,
+      "playerCardCounts": {
+        "0": 11,
+        "1": 12,
+        "2": 13,
+        "3": 13
+      }
+    }
+  },
+  {
+    "id": "QKKD-1775416328901-t6jg30",
+    "timestamp": 1775416338588,
+    "rating": "up",
+    "botDifficulty": "hard",
+    "actionType": "pass",
+    "actionDescription": "Passed turn",
+    "context": {
+      "phase": "PLAYING",
+      "isLeading": false,
+      "trickTopRank": 15,
+      "trickPoints": 30,
+      "botHandSize": 13,
+      "playerCardCounts": {
+        "0": 11,
+        "1": 12,
+        "2": 13,
+        "3": 13
+      }
+    }
+  },
+  {
+    "id": "QKKD-1775416338892-iamz33",
+    "timestamp": 1775416344108,
+    "rating": "up",
+    "botDifficulty": "hard",
+    "actionType": "pass",
+    "actionDescription": "Passed turn",
+    "context": {
+      "phase": "PLAYING",
+      "isLeading": false,
+      "trickTopRank": 15,
+      "trickPoints": 30,
+      "botHandSize": 13,
+      "playerCardCounts": {
+        "0": 11,
+        "1": 12,
+        "2": 13,
+        "3": 13
+      }
+    }
+  },
+  {
+    "id": "QKKD-1775416540581-8vebyn",
+    "timestamp": 1775416550900,
+    "rating": "up",
+    "botDifficulty": "hard",
+    "actionType": "pass",
+    "actionDescription": "Passed turn",
+    "context": {
+      "phase": "PLAYING",
+      "isLeading": false,
+      "trickTopRank": 11,
+      "trickPoints": 20,
+      "botHandSize": 12,
+      "playerCardCounts": {
+        "0": 7,
+        "1": 12,
+        "2": 13,
+        "3": 13
+      }
+    }
+  },
+  {
+    "id": "QKKD-1775416551203-817o1y",
+    "timestamp": 1775416618779,
+    "rating": "up",
+    "botDifficulty": "hard",
+    "actionType": "pass",
+    "actionDescription": "Passed turn",
+    "context": {
+      "phase": "PLAYING",
+      "isLeading": false,
+      "trickTopRank": 11,
+      "trickPoints": 20,
+      "botHandSize": 13,
+      "playerCardCounts": {
+        "0": 7,
+        "1": 12,
+        "2": 13,
+        "3": 13
+      }
+    }
+  },
+  {
+    "id": "QKKD-1775416619082-vvvzh9",
+    "timestamp": 1775416632131,
+    "rating": "up",
+    "botDifficulty": "hard",
+    "actionType": "pass",
+    "actionDescription": "Passed turn",
+    "context": {
+      "phase": "PLAYING",
+      "isLeading": false,
+      "trickTopRank": 11,
+      "trickPoints": 20,
+      "botHandSize": 13,
+      "playerCardCounts": {
+        "0": 7,
+        "1": 12,
+        "2": 13,
+        "3": 13
+      }
+    }
+  },
+  {
+    "id": "QKKD-1775416638576-wn5rls",
+    "timestamp": 1775416641047,
+    "rating": "up",
+    "botDifficulty": "hard",
+    "actionType": "pass",
+    "actionDescription": "Passed turn",
+    "context": {
+      "phase": "PLAYING",
+      "isLeading": false,
+      "trickTopRank": 13,
+      "trickPoints": 30,
+      "botHandSize": 12,
+      "playerCardCounts": {
+        "0": 2,
+        "1": 12,
+        "2": 13,
+        "3": 13
+      }
+    }
+  },
+  {
+    "id": "QKKD-1775416641350-24htti",
+    "timestamp": 1775416643849,
+    "rating": "up",
+    "botDifficulty": "hard",
+    "actionType": "pass",
+    "actionDescription": "Passed turn",
+    "context": {
+      "phase": "PLAYING",
+      "isLeading": false,
+      "trickTopRank": 13,
+      "trickPoints": 30,
+      "botHandSize": 13,
+      "playerCardCounts": {
+        "0": 2,
+        "1": 12,
+        "2": 13,
+        "3": 13
+      }
+    }
+  },
+  {
+    "id": "QKKD-1775416644153-q5x3wj",
+    "timestamp": 1775416651449,
+    "rating": "up",
+    "botDifficulty": "hard",
+    "actionType": "pass",
+    "actionDescription": "Passed turn",
+    "context": {
+      "phase": "PLAYING",
+      "isLeading": false,
+      "trickTopRank": 13,
+      "trickPoints": 30,
+      "botHandSize": 13,
+      "playerCardCounts": {
+        "0": 2,
+        "1": 12,
+        "2": 13,
+        "3": 13
+      }
+    }
+  },
+  {
+    "id": "QKKD-1775416655552-stnya3",
+    "timestamp": 1775416683772,
+    "rating": "down",
+    "botDifficulty": "hard",
+    "actionType": "play",
+    "actionDescription": "Played cards",
+    "context": {
+      "phase": "PLAYING",
+      "isLeading": false,
+      "trickTopRank": 4,
+      "trickPoints": 0,
+      "botHandSize": 12,
+      "playerCardCounts": {
+        "0": 1,
+        "1": 12,
+        "2": 13,
+        "3": 13
+      }
+    }
+  },
+  {
+    "id": "QKKD-1775416684074-z8600w",
+    "timestamp": 1775416687446,
+    "rating": "down",
+    "botDifficulty": "hard",
+    "actionType": "play",
+    "actionDescription": "Played cards",
+    "context": {
+      "phase": "PLAYING",
+      "isLeading": false,
+      "trickTopRank": 9,
+      "trickPoints": 0,
+      "botHandSize": 13,
+      "playerCardCounts": {
+        "0": 1,
+        "1": 11,
+        "2": 13,
+        "3": 13
+      }
+    }
+  },
+  {
+    "id": "QKKD-1775416687749-hw5h16",
+    "timestamp": 1775416694322,
+    "rating": "down",
+    "botDifficulty": "hard",
+    "actionType": "pass",
+    "actionDescription": "Passed turn",
+    "context": {
+      "phase": "PLAYING",
+      "isLeading": false,
+      "trickTopRank": 12,
+      "trickPoints": 0,
+      "botHandSize": 13,
+      "playerCardCounts": {
+        "0": 1,
+        "1": 11,
+        "2": 12,
+        "3": 13
+      }
+    }
+  },
+  {
+    "id": "QKKD-1775416697534-udcamr",
+    "timestamp": 1775416701750,
+    "rating": "down",
+    "botDifficulty": "hard",
+    "actionType": "pass",
+    "actionDescription": "Passed turn",
+    "context": {
+      "phase": "PLAYING",
+      "isLeading": false,
+      "trickTopRank": 14,
+      "trickPoints": 0,
+      "botHandSize": 11,
+      "playerCardCounts": {
+        "0": 0,
+        "1": 11,
+        "2": 12,
+        "3": 13
+      }
+    }
+  },
+  {
+    "id": "QKKD-1775416702053-aoao44",
+    "timestamp": 1775416720647,
+    "rating": "up",
+    "botDifficulty": "hard",
+    "actionType": "pass",
+    "actionDescription": "Passed turn",
+    "context": {
+      "phase": "PLAYING",
+      "isLeading": false,
+      "trickTopRank": 14,
+      "trickPoints": 0,
+      "botHandSize": 12,
+      "playerCardCounts": {
+        "0": 0,
+        "1": 11,
+        "2": 12,
+        "3": 13
+      }
+    }
+  },
+  {
+    "id": "QKKD-1775416720950-36tgca",
+    "timestamp": 1775416726395,
+    "rating": "up",
+    "botDifficulty": "hard",
+    "actionType": "play",
+    "actionDescription": "Played cards",
+    "context": {
+      "phase": "PLAYING",
+      "isLeading": true,
+      "trickTopRank": null,
+      "trickPoints": 0,
+      "botHandSize": 11,
+      "playerCardCounts": {
+        "0": 0,
+        "1": 11,
+        "2": 12,
+        "3": 13
+      }
+    }
+  },
+  {
+    "id": "QKKD-1775416726698-xz6f38",
+    "timestamp": 1775416728230,
+    "rating": "up",
+    "botDifficulty": "hard",
+    "actionType": "play",
+    "actionDescription": "Played cards",
+    "context": {
+      "phase": "PLAYING",
+      "isLeading": false,
+      "trickTopRank": 4,
+      "trickPoints": 0,
+      "botHandSize": 12,
+      "playerCardCounts": {
+        "0": 0,
+        "1": 9,
+        "2": 12,
+        "3": 13
+      }
+    }
+  },
+  {
+    "id": "QKKD-1775416728533-fcl68p",
+    "timestamp": 1775416794973,
+    "rating": "up",
+    "botDifficulty": "hard",
+    "actionType": "play",
+    "actionDescription": "Played cards",
+    "context": {
+      "phase": "PLAYING",
+      "isLeading": false,
+      "trickTopRank": 6,
+      "trickPoints": 0,
+      "botHandSize": 13,
+      "playerCardCounts": {
+        "0": 0,
+        "1": 9,
+        "2": 10,
+        "3": 13
+      }
+    }
+  },
+  {
+    "id": "QKKD-1775416795276-l2xgct",
+    "timestamp": 1775416802169,
+    "rating": "up",
+    "botDifficulty": "hard",
+    "actionType": "pass",
+    "actionDescription": "Passed turn",
+    "context": {
+      "phase": "PLAYING",
+      "isLeading": false,
+      "trickTopRank": 7,
+      "trickPoints": -25,
+      "botHandSize": 9,
+      "playerCardCounts": {
+        "0": 0,
+        "1": 9,
+        "2": 10,
+        "3": 11
+      }
+    }
+  },
+  {
+    "id": "QKKD-1775416802471-ttgjqo",
+    "timestamp": 1775416812114,
+    "rating": "up",
+    "botDifficulty": "hard",
+    "actionType": "pass",
+    "actionDescription": "Passed turn",
+    "context": {
+      "phase": "PLAYING",
+      "isLeading": false,
+      "trickTopRank": 7,
+      "trickPoints": -25,
+      "botHandSize": 10,
+      "playerCardCounts": {
+        "0": 0,
+        "1": 9,
+        "2": 10,
+        "3": 11
+      }
+    }
+  },
+  {
+    "id": "QKKD-1775416812417-uijfop",
+    "timestamp": 1775416827013,
+    "rating": "down",
+    "botDifficulty": "hard",
+    "actionType": "play",
+    "actionDescription": "Played cards",
+    "context": {
+      "phase": "PLAYING",
+      "isLeading": true,
+      "trickTopRank": null,
+      "trickPoints": 0,
+      "botHandSize": 11,
+      "playerCardCounts": {
+        "0": 0,
+        "1": 9,
+        "2": 10,
+        "3": 11
+      }
+    }
+  },
+  {
+    "id": "QKKD-1775416827317-jcqzk9",
+    "timestamp": 1775416831105,
+    "rating": "up",
+    "botDifficulty": "hard",
+    "actionType": "pass",
+    "actionDescription": "Passed turn",
+    "context": {
+      "phase": "PLAYING",
+      "isLeading": false,
+      "trickTopRank": 3,
+      "trickPoints": 0,
+      "botHandSize": 9,
+      "playerCardCounts": {
+        "0": 0,
+        "1": 9,
+        "2": 10,
+        "3": 8
+      }
+    }
+  },
+  {
+    "id": "QKKD-1775416831408-th3gxo",
+    "timestamp": 1775416833839,
+    "rating": "up",
+    "botDifficulty": "hard",
+    "actionType": "play",
+    "actionDescription": "Played cards",
+    "context": {
+      "phase": "PLAYING",
+      "isLeading": false,
+      "trickTopRank": 3,
+      "trickPoints": 0,
+      "botHandSize": 10,
+      "playerCardCounts": {
+        "0": 0,
+        "1": 9,
+        "2": 10,
+        "3": 8
+      }
+    }
+  },
+  {
+    "id": "QKKD-1775416834143-cw32yx",
+    "timestamp": 1775416838647,
+    "rating": "up",
+    "botDifficulty": "hard",
+    "actionType": "pass",
+    "actionDescription": "Passed turn",
+    "context": {
+      "phase": "PLAYING",
+      "isLeading": false,
+      "trickTopRank": 5,
+      "trickPoints": 15,
+      "botHandSize": 8,
+      "playerCardCounts": {
+        "0": 0,
+        "1": 9,
+        "2": 7,
+        "3": 8
+      }
+    }
+  },
+  {
+    "id": "QKKD-1775416838950-05tbt3",
+    "timestamp": 1775416847414,
+    "rating": "up",
+    "botDifficulty": "hard",
+    "actionType": "pass",
+    "actionDescription": "Passed turn",
+    "context": {
+      "phase": "PLAYING",
+      "isLeading": false,
+      "trickTopRank": 5,
+      "trickPoints": 15,
+      "botHandSize": 9,
+      "playerCardCounts": {
+        "0": 0,
+        "1": 9,
+        "2": 7,
+        "3": 8
+      }
+    }
+  },
+  {
+    "id": "QKKD-1775416847718-jgbbfk",
+    "timestamp": 1775416850980,
+    "rating": "up",
+    "botDifficulty": "hard",
+    "actionType": "play",
+    "actionDescription": "Played cards",
+    "context": {
+      "phase": "PLAYING",
+      "isLeading": true,
+      "trickTopRank": null,
+      "trickPoints": 0,
+      "botHandSize": 7,
+      "playerCardCounts": {
+        "0": 0,
+        "1": 9,
+        "2": 7,
+        "3": 8
+      }
+    }
+  },
+  {
+    "id": "QKKD-1775416851283-4i6vm2",
+    "timestamp": 1775416852682,
+    "rating": "up",
+    "botDifficulty": "hard",
+    "actionType": "play",
+    "actionDescription": "Played cards",
+    "context": {
+      "phase": "PLAYING",
+      "isLeading": false,
+      "trickTopRank": 2,
+      "trickPoints": 0,
+      "botHandSize": 8,
+      "playerCardCounts": {
+        "0": 0,
+        "1": 9,
+        "2": 5,
+        "3": 8
+      }
+    }
+  },
+  {
+    "id": "QKKD-1775416852984-6smr3t",
+    "timestamp": 1775416858237,
+    "rating": "down",
+    "botDifficulty": "hard",
+    "actionType": "pass",
+    "actionDescription": "Passed turn",
+    "context": {
+      "phase": "PLAYING",
+      "isLeading": false,
+      "trickTopRank": 6,
+      "trickPoints": 0,
+      "botHandSize": 9,
+      "playerCardCounts": {
+        "0": 0,
+        "1": 9,
+        "2": 5,
+        "3": 6
+      }
+    }
+  },
+  {
+    "id": "QKKD-1775416858539-dly095",
+    "timestamp": 1775416864431,
+    "rating": "up",
+    "botDifficulty": "hard",
+    "actionType": "pass",
+    "actionDescription": "Passed turn",
+    "context": {
+      "phase": "PLAYING",
+      "isLeading": false,
+      "trickTopRank": 6,
+      "trickPoints": 0,
+      "botHandSize": 5,
+      "playerCardCounts": {
+        "0": 0,
+        "1": 9,
+        "2": 5,
+        "3": 6
+      }
+    }
+  },
+  {
+    "id": "QKKD-1775416864734-r59y85",
+    "timestamp": 1775416870781,
+    "rating": "up",
+    "botDifficulty": "hard",
+    "actionType": "play",
+    "actionDescription": "Played cards",
+    "context": {
+      "phase": "PLAYING",
+      "isLeading": true,
+      "trickTopRank": null,
+      "trickPoints": 0,
+      "botHandSize": 6,
+      "playerCardCounts": {
+        "0": 0,
+        "1": 9,
+        "2": 5,
+        "3": 6
+      }
+    }
+  },
+  {
+    "id": "QKKD-1775416871083-ogqien",
+    "timestamp": 1775416881049,
+    "rating": "down",
+    "botDifficulty": "hard",
+    "actionType": "pass",
+    "actionDescription": "Passed turn",
+    "context": {
+      "phase": "PLAYING",
+      "isLeading": false,
+      "trickTopRank": 2,
+      "trickPoints": 0,
+      "botHandSize": 9,
+      "playerCardCounts": {
+        "0": 0,
+        "1": 9,
+        "2": 5,
+        "3": 5
+      }
+    }
+  },
+  {
+    "id": "QKKD-1775416881351-satprx",
+    "timestamp": 1775416888886,
+    "rating": "up",
+    "botDifficulty": "hard",
+    "actionType": "play",
+    "actionDescription": "Played cards",
+    "context": {
+      "phase": "PLAYING",
+      "isLeading": false,
+      "trickTopRank": 2,
+      "trickPoints": 0,
+      "botHandSize": 5,
+      "playerCardCounts": {
+        "0": 0,
+        "1": 9,
+        "2": 5,
+        "3": 5
+      }
+    }
+  },
+  {
+    "id": "QKKD-1775416889189-vkrs5k",
+    "timestamp": 1775416891847,
+    "rating": "up",
+    "botDifficulty": "hard",
+    "actionType": "play",
+    "actionDescription": "Played cards",
+    "context": {
+      "phase": "PLAYING",
+      "isLeading": false,
+      "trickTopRank": 7,
+      "trickPoints": 0,
+      "botHandSize": 5,
+      "playerCardCounts": {
+        "0": 0,
+        "1": 9,
+        "2": 4,
+        "3": 5
+      }
+    }
+  },
+  {
+    "id": "QKKD-1775416892150-nk9v99",
+    "timestamp": 1775416901391,
+    "rating": "down",
+    "botDifficulty": "hard",
+    "actionType": "pass",
+    "actionDescription": "Passed turn",
+    "context": {
+      "phase": "PLAYING",
+      "isLeading": false,
+      "trickTopRank": 8,
+      "trickPoints": 0,
+      "botHandSize": 9,
+      "playerCardCounts": {
+        "0": 0,
+        "1": 9,
+        "2": 4,
+        "3": 4
+      }
+    }
+  },
+  {
+    "id": "QKKD-1775416901694-rnufyi",
+    "timestamp": 1775416910946,
+    "rating": "up",
+    "botDifficulty": "hard",
+    "actionType": "play",
+    "actionDescription": "Played cards",
+    "context": {
+      "phase": "PLAYING",
+      "isLeading": false,
+      "trickTopRank": 8,
+      "trickPoints": 0,
+      "botHandSize": 4,
+      "playerCardCounts": {
+        "0": 0,
+        "1": 9,
+        "2": 4,
+        "3": 4
+      }
+    }
+  },
+  {
+    "id": "QKKD-1775416911249-w3vq38",
+    "timestamp": 1775416913830,
+    "rating": "up",
+    "botDifficulty": "hard",
+    "actionType": "play",
+    "actionDescription": "Played cards",
+    "context": {
+      "phase": "PLAYING",
+      "isLeading": false,
+      "trickTopRank": 9,
+      "trickPoints": 0,
+      "botHandSize": 4,
+      "playerCardCounts": {
+        "0": 0,
+        "1": 9,
+        "2": 3,
+        "3": 4
+      }
+    }
+  },
+  {
+    "id": "QKKD-1775416914133-qryw6n",
+    "timestamp": 1775416991423,
+    "rating": "up",
+    "botDifficulty": "hard",
+    "actionType": "pass",
+    "actionDescription": "Passed turn",
+    "context": {
+      "phase": "PLAYING",
+      "isLeading": false,
+      "trickTopRank": 10,
+      "trickPoints": 10,
+      "botHandSize": 9,
+      "playerCardCounts": {
+        "0": 0,
+        "1": 9,
+        "2": 3,
+        "3": 3
+      }
+    }
+  },
+  {
+    "id": "QKKD-1775416991725-hci22s",
+    "timestamp": 1775417003538,
+    "rating": "up",
+    "botDifficulty": "hard",
+    "actionType": "play",
+    "actionDescription": "Played cards",
+    "context": {
+      "phase": "PLAYING",
+      "isLeading": false,
+      "trickTopRank": 10,
+      "trickPoints": 10,
+      "botHandSize": 3,
+      "playerCardCounts": {
+        "0": 0,
+        "1": 9,
+        "2": 3,
+        "3": 3
+      }
+    }
+  },
+  {
+    "id": "QKKD-1775417003841-vonaqt",
+    "timestamp": 1775417005930,
+    "rating": "up",
+    "botDifficulty": "hard",
+    "actionType": "play",
+    "actionDescription": "Played cards",
+    "context": {
+      "phase": "PLAYING",
+      "isLeading": false,
+      "trickTopRank": 13,
+      "trickPoints": 20,
+      "botHandSize": 3,
+      "playerCardCounts": {
+        "0": 0,
+        "1": 9,
+        "2": 2,
+        "3": 3
+      }
+    }
+  },
+  {
+    "id": "QKKD-1775417006233-o4w3x7",
+    "timestamp": 1775417019480,
+    "rating": "up",
+    "botDifficulty": "hard",
+    "actionType": "pass",
+    "actionDescription": "Passed turn",
+    "context": {
+      "phase": "PLAYING",
+      "isLeading": false,
+      "trickTopRank": 14,
+      "trickPoints": 20,
+      "botHandSize": 9,
+      "playerCardCounts": {
+        "0": 0,
+        "1": 9,
+        "2": 2,
+        "3": 2
+      }
+    }
+  },
+  {
+    "id": "QKKD-1775417019782-6fxwps",
+    "timestamp": 1775417025080,
+    "rating": "up",
+    "botDifficulty": "hard",
+    "actionType": "pass",
+    "actionDescription": "Passed turn",
+    "context": {
+      "phase": "PLAYING",
+      "isLeading": false,
+      "trickTopRank": 14,
+      "trickPoints": 20,
+      "botHandSize": 2,
+      "playerCardCounts": {
+        "0": 0,
+        "1": 9,
+        "2": 2,
+        "3": 2
+      }
+    }
+  },
+  {
+    "id": "QKKD-1775417025384-thn0p3",
+    "timestamp": 1775417029129,
+    "rating": "up",
+    "botDifficulty": "hard",
+    "actionType": "play",
+    "actionDescription": "Played cards",
+    "context": {
+      "phase": "PLAYING",
+      "isLeading": true,
+      "trickTopRank": null,
+      "trickPoints": 0,
+      "botHandSize": 2,
+      "playerCardCounts": {
+        "0": 0,
+        "1": 9,
+        "2": 2,
+        "3": 2
+      }
+    }
+  },
+  {
+    "id": "QKKD-1775417029433-gnsnuh",
+    "timestamp": 1775417033179,
+    "rating": "up",
+    "botDifficulty": "hard",
+    "actionType": "pass",
+    "actionDescription": "Passed turn",
+    "context": {
+      "phase": "PLAYING",
+      "isLeading": false,
+      "trickTopRank": 11,
+      "trickPoints": 0,
+      "botHandSize": 9,
+      "playerCardCounts": {
+        "0": 0,
+        "1": 9,
+        "2": 2,
+        "3": 1
+      }
+    }
+  },
+  {
+    "id": "QKKD-1775417033482-hy5ooc",
+    "timestamp": 1775417035195,
+    "rating": "up",
+    "botDifficulty": "hard",
+    "actionType": "play",
+    "actionDescription": "Played cards",
+    "context": {
+      "phase": "PLAYING",
+      "isLeading": false,
+      "trickTopRank": 11,
+      "trickPoints": 0,
+      "botHandSize": 2,
+      "playerCardCounts": {
+        "0": 0,
+        "1": 9,
+        "2": 2,
+        "3": 1
+      }
+    }
+  },
+  {
+    "id": "QKKD-1775417035498-2ndg8c",
+    "timestamp": 1775417045705,
+    "rating": "up",
+    "botDifficulty": "hard",
+    "actionType": "pass",
+    "actionDescription": "Passed turn",
+    "context": {
+      "phase": "PLAYING",
+      "isLeading": false,
+      "trickTopRank": 14,
+      "trickPoints": 0,
+      "botHandSize": 1,
+      "playerCardCounts": {
+        "0": 0,
+        "1": 9,
+        "2": 1,
+        "3": 1
+      }
+    }
+  },
+  {
+    "id": "QKKD-1775417046007-pqvt0t",
+    "timestamp": 1775417048662,
+    "rating": "up",
+    "botDifficulty": "hard",
+    "actionType": "pass",
+    "actionDescription": "Passed turn",
+    "context": {
+      "phase": "PLAYING",
+      "isLeading": false,
+      "trickTopRank": 14,
+      "trickPoints": 0,
+      "botHandSize": 9,
+      "playerCardCounts": {
+        "0": 0,
+        "1": 9,
+        "2": 1,
+        "3": 1
+      }
+    }
+  },
+  {
+    "id": "QKKD-1775417048966-aou33v",
+    "timestamp": 1775417054549,
+    "rating": "up",
+    "botDifficulty": "hard",
+    "actionType": "play",
+    "actionDescription": "Played cards",
+    "context": {
+      "phase": "PLAYING",
+      "isLeading": true,
+      "trickTopRank": null,
+      "trickPoints": 0,
+      "botHandSize": 1,
+      "playerCardCounts": {
+        "0": 0,
+        "1": 9,
+        "2": 1,
+        "3": 1
+      }
+    }
+  },
+  {
+    "id": "YZCZ-1775418760098-j178zg",
+    "timestamp": 1775418766529,
+    "rating": "up",
+    "botDifficulty": "hard",
+    "actionType": "play",
+    "actionDescription": "Played cards",
+    "context": {
+      "phase": "PLAYING",
+      "isLeading": false,
+      "trickTopRank": 6,
+      "trickPoints": 5,
+      "botHandSize": 14,
+      "playerCardCounts": {
+        "0": 8,
+        "1": 14,
+        "2": 14,
+        "3": 14
+      }
+    }
+  },
+  {
+    "id": "YZCZ-1775418766832-jl10z3",
+    "timestamp": 1775418769581,
+    "rating": "up",
+    "botDifficulty": "hard",
+    "actionType": "pass",
+    "actionDescription": "Passed turn",
+    "context": {
+      "phase": "PLAYING",
+      "isLeading": false,
+      "trickTopRank": 7,
+      "trickPoints": -15,
+      "botHandSize": 14,
+      "playerCardCounts": {
+        "0": 8,
+        "1": 8,
+        "2": 14,
+        "3": 14
+      }
+    }
+  },
+  {
+    "id": "YZCZ-1775418769884-eagcvi",
+    "timestamp": 1775418771180,
+    "rating": "up",
+    "botDifficulty": "hard",
+    "actionType": "pass",
+    "actionDescription": "Passed turn",
+    "context": {
+      "phase": "PLAYING",
+      "isLeading": false,
+      "trickTopRank": 7,
+      "trickPoints": -15,
+      "botHandSize": 14,
+      "playerCardCounts": {
+        "0": 8,
+        "1": 8,
+        "2": 14,
+        "3": 14
+      }
+    }
+  },
+  {
+    "id": "YZCZ-1775418774101-91mqpz",
+    "timestamp": 1775418778313,
+    "rating": "up",
+    "botDifficulty": "hard",
+    "actionType": "play",
+    "actionDescription": "Played cards",
+    "context": {
+      "phase": "PLAYING",
+      "isLeading": true,
+      "trickTopRank": null,
+      "trickPoints": 0,
+      "botHandSize": 8,
+      "playerCardCounts": {
+        "0": 8,
+        "1": 8,
+        "2": 14,
+        "3": 14
+      }
+    }
+  },
+  {
+    "id": "YZCZ-1775418778615-mqzx1z",
+    "timestamp": 1775418782638,
+    "rating": "up",
+    "botDifficulty": "hard",
+    "actionType": "play",
+    "actionDescription": "Played cards",
+    "context": {
+      "phase": "PLAYING",
+      "isLeading": false,
+      "trickTopRank": 9,
+      "trickPoints": 0,
+      "botHandSize": 14,
+      "playerCardCounts": {
+        "0": 8,
+        "1": 6,
+        "2": 14,
+        "3": 14
+      }
+    }
+  },
+  {
+    "id": "YZCZ-1775418782942-y7y96y",
+    "timestamp": 1775418788215,
+    "rating": "up",
+    "botDifficulty": "hard",
+    "actionType": "play",
+    "actionDescription": "Played cards",
+    "context": {
+      "phase": "PLAYING",
+      "isLeading": false,
+      "trickTopRank": 10,
+      "trickPoints": 20,
+      "botHandSize": 14,
+      "playerCardCounts": {
+        "0": 8,
+        "1": 6,
+        "2": 12,
+        "3": 14
+      }
+    }
+  },
+  {
+    "id": "YZCZ-1775418795082-lxkvib",
+    "timestamp": 1775418798645,
+    "rating": "up",
+    "botDifficulty": "hard",
+    "actionType": "pass",
+    "actionDescription": "Passed turn",
+    "context": {
+      "phase": "PLAYING",
+      "isLeading": false,
+      "trickTopRank": 12,
+      "trickPoints": 20,
+      "botHandSize": 6,
+      "playerCardCounts": {
+        "0": 8,
+        "1": 6,
+        "2": 12,
+        "3": 12
+      }
+    }
+  },
+  {
+    "id": "YZCZ-1775418798948-oby2r0",
+    "timestamp": 1775418802521,
+    "rating": "up",
+    "botDifficulty": "hard",
+    "actionType": "pass",
+    "actionDescription": "Passed turn",
+    "context": {
+      "phase": "PLAYING",
+      "isLeading": false,
+      "trickTopRank": 12,
+      "trickPoints": 20,
+      "botHandSize": 12,
+      "playerCardCounts": {
+        "0": 8,
+        "1": 6,
+        "2": 12,
+        "3": 12
+      }
+    }
+  },
+  {
+    "id": "YZCZ-1775418802824-enlr36",
+    "timestamp": 1775418818289,
+    "rating": "up",
+    "botDifficulty": "hard",
+    "actionType": "play",
+    "actionDescription": "Played cards",
+    "context": {
+      "phase": "PLAYING",
+      "isLeading": true,
+      "trickTopRank": null,
+      "trickPoints": 0,
+      "botHandSize": 12,
+      "playerCardCounts": {
+        "0": 8,
+        "1": 6,
+        "2": 12,
+        "3": 12
+      }
+    }
+  },
+  {
+    "id": "YZCZ-1775418825681-568kem",
+    "timestamp": 1775418828347,
+    "rating": "up",
+    "botDifficulty": "hard",
+    "actionType": "pass",
+    "actionDescription": "Passed turn",
+    "context": {
+      "phase": "PLAYING",
+      "isLeading": false,
+      "trickTopRank": 2,
+      "trickPoints": 0,
+      "botHandSize": 6,
+      "playerCardCounts": {
+        "0": 8,
+        "1": 6,
+        "2": 12,
+        "3": 10
+      }
+    }
+  },
+  {
+    "id": "YZCZ-1775418828650-lg4l08",
+    "timestamp": 1775418832689,
+    "rating": "up",
+    "botDifficulty": "hard",
+    "actionType": "play",
+    "actionDescription": "Played cards",
+    "context": {
+      "phase": "PLAYING",
+      "isLeading": false,
+      "trickTopRank": 2,
+      "trickPoints": 0,
+      "botHandSize": 12,
+      "playerCardCounts": {
+        "0": 8,
+        "1": 6,
+        "2": 12,
+        "3": 10
+      }
+    }
+  },
+  {
+    "id": "YZCZ-1775418832992-6lilar",
+    "timestamp": 1775418842485,
+    "rating": "up",
+    "botDifficulty": "hard",
+    "actionType": "play",
+    "actionDescription": "Played cards",
+    "context": {
+      "phase": "PLAYING",
+      "isLeading": false,
+      "trickTopRank": 8,
+      "trickPoints": 0,
+      "botHandSize": 10,
+      "playerCardCounts": {
+        "0": 8,
+        "1": 6,
+        "2": 10,
+        "3": 10
+      }
+    }
+  },
+  {
+    "id": "YZCZ-1775418846193-wqi7xh",
+    "timestamp": 1775418847880,
+    "rating": "up",
+    "botDifficulty": "hard",
+    "actionType": "pass",
+    "actionDescription": "Passed turn",
+    "context": {
+      "phase": "PLAYING",
+      "isLeading": false,
+      "trickTopRank": 13,
+      "trickPoints": 20,
+      "botHandSize": 6,
+      "playerCardCounts": {
+        "0": 8,
+        "1": 6,
+        "2": 10,
+        "3": 8
+      }
+    }
+  },
+  {
+    "id": "YZCZ-1775418848183-pqx0zn",
+    "timestamp": 1775418851745,
+    "rating": "up",
+    "botDifficulty": "hard",
+    "actionType": "pass",
+    "actionDescription": "Passed turn",
+    "context": {
+      "phase": "PLAYING",
+      "isLeading": false,
+      "trickTopRank": 13,
+      "trickPoints": 20,
+      "botHandSize": 10,
+      "playerCardCounts": {
+        "0": 8,
+        "1": 6,
+        "2": 10,
+        "3": 8
+      }
+    }
+  },
+  {
+    "id": "YZCZ-1775418852048-0bbq10",
+    "timestamp": 1775418857116,
+    "rating": "up",
+    "botDifficulty": "hard",
+    "actionType": "play",
+    "actionDescription": "Played cards",
+    "context": {
+      "phase": "PLAYING",
+      "isLeading": true,
+      "trickTopRank": null,
+      "trickPoints": 0,
+      "botHandSize": 8,
+      "playerCardCounts": {
+        "0": 8,
+        "1": 6,
+        "2": 10,
+        "3": 8
+      }
+    }
+  },
+  {
+    "id": "YZCZ-1775418860826-ffp5g7",
+    "timestamp": 1775418865614,
+    "rating": "up",
+    "botDifficulty": "hard",
+    "actionType": "play",
+    "actionDescription": "Played cards",
+    "context": {
+      "phase": "PLAYING",
+      "isLeading": false,
+      "trickTopRank": 8,
+      "trickPoints": 0,
+      "botHandSize": 6,
+      "playerCardCounts": {
+        "0": 7,
+        "1": 6,
+        "2": 10,
+        "3": 7
+      }
+    }
+  },
+  {
+    "id": "YZCZ-1775418865916-mvpx7r",
+    "timestamp": 1775418871916,
+    "rating": "up",
+    "botDifficulty": "hard",
+    "actionType": "play",
+    "actionDescription": "Played cards",
+    "context": {
+      "phase": "PLAYING",
+      "isLeading": false,
+      "trickTopRank": 11,
+      "trickPoints": 0,
+      "botHandSize": 10,
+      "playerCardCounts": {
+        "0": 7,
+        "1": 5,
+        "2": 10,
+        "3": 7
+      }
+    }
+  },
+  {
+    "id": "YZCZ-1775418872218-r9lcmt",
+    "timestamp": 1775418874649,
+    "rating": "up",
+    "botDifficulty": "hard",
+    "actionType": "play",
+    "actionDescription": "Played cards",
+    "context": {
+      "phase": "PLAYING",
+      "isLeading": false,
+      "trickTopRank": 12,
+      "trickPoints": 0,
+      "botHandSize": 7,
+      "playerCardCounts": {
+        "0": 7,
+        "1": 5,
+        "2": 9,
+        "3": 7
+      }
+    }
+  },
+  {
+    "id": "YZCZ-1775418876099-bnd08b",
+    "timestamp": 1775418877332,
+    "rating": "up",
+    "botDifficulty": "hard",
+    "actionType": "pass",
+    "actionDescription": "Passed turn",
+    "context": {
+      "phase": "PLAYING",
+      "isLeading": false,
+      "trickTopRank": 14,
+      "trickPoints": 0,
+      "botHandSize": 5,
+      "playerCardCounts": {
+        "0": 7,
+        "1": 5,
+        "2": 9,
+        "3": 6
+      }
+    }
+  },
+  {
+    "id": "YZCZ-1775418877634-e94qng",
+    "timestamp": 1775418878964,
+    "rating": "up",
+    "botDifficulty": "hard",
+    "actionType": "pass",
+    "actionDescription": "Passed turn",
+    "context": {
+      "phase": "PLAYING",
+      "isLeading": false,
+      "trickTopRank": 14,
+      "trickPoints": 0,
+      "botHandSize": 9,
+      "playerCardCounts": {
+        "0": 7,
+        "1": 5,
+        "2": 9,
+        "3": 6
+      }
+    }
+  },
+  {
+    "id": "YZCZ-1775418879267-zi6jww",
+    "timestamp": 1775418884180,
+    "rating": "up",
+    "botDifficulty": "hard",
+    "actionType": "play",
+    "actionDescription": "Played cards",
+    "context": {
+      "phase": "PLAYING",
+      "isLeading": true,
+      "trickTopRank": null,
+      "trickPoints": 0,
+      "botHandSize": 6,
+      "playerCardCounts": {
+        "0": 7,
+        "1": 5,
+        "2": 9,
+        "3": 6
+      }
+    }
+  },
+  {
+    "id": "YZCZ-1775418886242-7oxvjs",
+    "timestamp": 1775418893732,
+    "rating": "up",
+    "botDifficulty": "hard",
+    "actionType": "play",
+    "actionDescription": "Played cards",
+    "context": {
+      "phase": "PLAYING",
+      "isLeading": false,
+      "trickTopRank": 10,
+      "trickPoints": 10,
+      "botHandSize": 5,
+      "playerCardCounts": {
+        "0": 6,
+        "1": 5,
+        "2": 9,
+        "3": 5
+      }
+    }
+  },
+  {
+    "id": "YZCZ-1775418894035-8n1cm4",
+    "timestamp": 1775418895713,
+    "rating": "up",
+    "botDifficulty": "hard",
+    "actionType": "pass",
+    "actionDescription": "Passed turn",
+    "context": {
+      "phase": "PLAYING",
+      "isLeading": false,
+      "trickTopRank": 14,
+      "trickPoints": 10,
+      "botHandSize": 9,
+      "playerCardCounts": {
+        "0": 6,
+        "1": 4,
+        "2": 9,
+        "3": 5
+      }
+    }
+  },
+  {
+    "id": "YZCZ-1775418896015-dpxhrv",
+    "timestamp": 1775418897895,
+    "rating": "up",
+    "botDifficulty": "hard",
+    "actionType": "pass",
+    "actionDescription": "Passed turn",
+    "context": {
+      "phase": "PLAYING",
+      "isLeading": false,
+      "trickTopRank": 14,
+      "trickPoints": 10,
+      "botHandSize": 5,
+      "playerCardCounts": {
+        "0": 6,
+        "1": 4,
+        "2": 9,
+        "3": 5
+      }
+    }
+  },
+  {
+    "id": "YZCZ-1775418900650-jfaljn",
+    "timestamp": 1775418906363,
+    "rating": "up",
+    "botDifficulty": "hard",
+    "actionType": "play",
+    "actionDescription": "Played cards",
+    "context": {
+      "phase": "PLAYING",
+      "isLeading": true,
+      "trickTopRank": null,
+      "trickPoints": 0,
+      "botHandSize": 4,
+      "playerCardCounts": {
+        "0": 6,
+        "1": 4,
+        "2": 9,
+        "3": 5
+      }
+    }
+  },
+  {
+    "id": "YZCZ-1775418906665-b7t0ze",
+    "timestamp": 1775418909104,
+    "rating": "up",
+    "botDifficulty": "hard",
+    "actionType": "pass",
+    "actionDescription": "Passed turn",
+    "context": {
+      "phase": "PLAYING",
+      "isLeading": false,
+      "trickTopRank": 13,
+      "trickPoints": 20,
+      "botHandSize": 9,
+      "playerCardCounts": {
+        "0": 6,
+        "1": 2,
+        "2": 9,
+        "3": 5
+      }
+    }
+  },
+  {
+    "id": "YZCZ-1775418909406-mzxevw",
+    "timestamp": 1775418912827,
+    "rating": "up",
+    "botDifficulty": "hard",
+    "actionType": "pass",
+    "actionDescription": "Passed turn",
+    "context": {
+      "phase": "PLAYING",
+      "isLeading": false,
+      "trickTopRank": 13,
+      "trickPoints": 20,
+      "botHandSize": 5,
+      "playerCardCounts": {
+        "0": 6,
+        "1": 2,
+        "2": 9,
+        "3": 5
+      }
+    }
+  },
+  {
+    "id": "YZCZ-1775418915431-a72ivv",
+    "timestamp": 1775418916565,
+    "rating": "up",
+    "botDifficulty": "hard",
+    "actionType": "pass",
+    "actionDescription": "Passed turn",
+    "context": {
+      "phase": "PLAYING",
+      "isLeading": false,
+      "trickTopRank": 14,
+      "trickPoints": 20,
+      "botHandSize": 2,
+      "playerCardCounts": {
+        "0": 4,
+        "1": 2,
+        "2": 9,
+        "3": 5
+      }
+    }
+  },
+  {
+    "id": "YZCZ-1775418916867-t3meyw",
+    "timestamp": 1775418917632,
+    "rating": "up",
+    "botDifficulty": "hard",
+    "actionType": "pass",
+    "actionDescription": "Passed turn",
+    "context": {
+      "phase": "PLAYING",
+      "isLeading": false,
+      "trickTopRank": 14,
+      "trickPoints": 20,
+      "botHandSize": 9,
+      "playerCardCounts": {
+        "0": 4,
+        "1": 2,
+        "2": 9,
+        "3": 5
+      }
+    }
+  },
+  {
+    "id": "YZCZ-1775418917934-o3heuz",
+    "timestamp": 1775418922461,
+    "rating": "up",
+    "botDifficulty": "hard",
+    "actionType": "pass",
+    "actionDescription": "Passed turn",
+    "context": {
+      "phase": "PLAYING",
+      "isLeading": false,
+      "trickTopRank": 14,
+      "trickPoints": 20,
+      "botHandSize": 5,
+      "playerCardCounts": {
+        "0": 4,
+        "1": 2,
+        "2": 9,
+        "3": 5
+      }
+    }
+  },
+  {
+    "id": "YZCZ-1775418924283-ks95qj",
+    "timestamp": 1775418925814,
+    "rating": "up",
+    "botDifficulty": "hard",
+    "actionType": "pass",
+    "actionDescription": "Passed turn",
+    "context": {
+      "phase": "PLAYING",
+      "isLeading": false,
+      "trickTopRank": 11,
+      "trickPoints": 0,
+      "botHandSize": 2,
+      "playerCardCounts": {
+        "0": 1,
+        "1": 2,
+        "2": 9,
+        "3": 5
+      }
+    }
+  },
+  {
+    "id": "YZCZ-1775418926116-851vyp",
+    "timestamp": 1775418928072,
+    "rating": "up",
+    "botDifficulty": "hard",
+    "actionType": "pass",
+    "actionDescription": "Passed turn",
+    "context": {
+      "phase": "PLAYING",
+      "isLeading": false,
+      "trickTopRank": 11,
+      "trickPoints": 0,
+      "botHandSize": 9,
+      "playerCardCounts": {
+        "0": 1,
+        "1": 2,
+        "2": 9,
+        "3": 5
+      }
+    }
+  },
+  {
+    "id": "YZCZ-1775418928374-lk5skr",
+    "timestamp": 1775418929927,
+    "rating": "up",
+    "botDifficulty": "hard",
+    "actionType": "pass",
+    "actionDescription": "Passed turn",
+    "context": {
+      "phase": "PLAYING",
+      "isLeading": false,
+      "trickTopRank": 11,
+      "trickPoints": 0,
+      "botHandSize": 5,
+      "playerCardCounts": {
+        "0": 1,
+        "1": 2,
+        "2": 9,
+        "3": 5
+      }
+    }
+  },
+  {
+    "id": "YZCZ-1775418932451-8uxh41",
+    "timestamp": 1775418935796,
+    "rating": "up",
+    "botDifficulty": "hard",
+    "actionType": "play",
+    "actionDescription": "Played cards",
+    "context": {
+      "phase": "PLAYING",
+      "isLeading": false,
+      "trickTopRank": 3,
+      "trickPoints": 0,
+      "botHandSize": 2,
+      "playerCardCounts": {
+        "0": 0,
+        "1": 2,
+        "2": 9,
+        "3": 5
+      }
+    }
+  },
+  {
+    "id": "YZCZ-1775418936097-n74giy",
+    "timestamp": 1775418942122,
+    "rating": "up",
+    "botDifficulty": "hard",
+    "actionType": "play",
+    "actionDescription": "Played cards",
+    "context": {
+      "phase": "PLAYING",
+      "isLeading": false,
+      "trickTopRank": 4,
+      "trickPoints": 0,
+      "botHandSize": 9,
+      "playerCardCounts": {
+        "0": 0,
+        "1": 1,
+        "2": 9,
+        "3": 5
+      }
+    }
+  },
+  {
+    "id": "YZCZ-1775418942425-ui93ed",
+    "timestamp": 1775418956795,
+    "rating": "down",
+    "botDifficulty": "hard",
+    "actionType": "play",
+    "actionDescription": "Played cards",
+    "context": {
+      "phase": "PLAYING",
+      "isLeading": false,
+      "trickTopRank": 5,
+      "trickPoints": 5,
+      "botHandSize": 5,
+      "playerCardCounts": {
+        "0": 0,
+        "1": 1,
+        "2": 8,
+        "3": 5
+      }
+    }
+  },
+  {
+    "id": "YZCZ-1775418957096-nynxjr",
+    "timestamp": 1775418972413,
+    "rating": "up",
+    "botDifficulty": "hard",
+    "actionType": "pass",
+    "actionDescription": "Passed turn",
+    "context": {
+      "phase": "PLAYING",
+      "isLeading": false,
+      "trickTopRank": 6,
+      "trickPoints": 5,
+      "botHandSize": 1,
+      "playerCardCounts": {
+        "0": 0,
+        "1": 1,
+        "2": 8,
+        "3": 4
+      }
+    }
+  },
+  {
+    "id": "YZCZ-1775418972717-scfsy8",
+    "timestamp": 1775418975529,
+    "rating": "up",
+    "botDifficulty": "hard",
+    "actionType": "play",
+    "actionDescription": "Played cards",
+    "context": {
+      "phase": "PLAYING",
+      "isLeading": false,
+      "trickTopRank": 6,
+      "trickPoints": 5,
+      "botHandSize": 8,
+      "playerCardCounts": {
+        "0": 0,
+        "1": 1,
+        "2": 8,
+        "3": 4
+      }
+    }
+  },
+  {
+    "id": "YZCZ-1775418975833-uzi847",
+    "timestamp": 1775418978296,
+    "rating": "up",
+    "botDifficulty": "hard",
+    "actionType": "play",
+    "actionDescription": "Played cards",
+    "context": {
+      "phase": "PLAYING",
+      "isLeading": false,
+      "trickTopRank": 12,
+      "trickPoints": 5,
+      "botHandSize": 4,
+      "playerCardCounts": {
+        "0": 0,
+        "1": 1,
+        "2": 7,
+        "3": 4
+      }
+    }
+  },
+  {
+    "id": "YZCZ-1775418978599-glctnb",
+    "timestamp": 1775418979812,
+    "rating": "up",
+    "botDifficulty": "hard",
+    "actionType": "pass",
+    "actionDescription": "Passed turn",
+    "context": {
+      "phase": "PLAYING",
+      "isLeading": false,
+      "trickTopRank": 15,
+      "trickPoints": 30,
+      "botHandSize": 1,
+      "playerCardCounts": {
+        "0": 0,
+        "1": 1,
+        "2": 7,
+        "3": 3
+      }
+    }
+  },
+  {
+    "id": "YZCZ-1775418980114-u864b3",
+    "timestamp": 1775418984377,
+    "rating": "up",
+    "botDifficulty": "hard",
+    "actionType": "pass",
+    "actionDescription": "Passed turn",
+    "context": {
+      "phase": "PLAYING",
+      "isLeading": false,
+      "trickTopRank": 15,
+      "trickPoints": 30,
+      "botHandSize": 7,
+      "playerCardCounts": {
+        "0": 0,
+        "1": 1,
+        "2": 7,
+        "3": 3
+      }
+    }
+  },
+  {
+    "id": "YZCZ-1775418984680-m7ar08",
+    "timestamp": 1775418990396,
+    "rating": "up",
+    "botDifficulty": "hard",
+    "actionType": "dragon_give",
+    "actionDescription": "Gave Dragon trick to opponent",
+    "context": {
+      "phase": "DRAGON_GIVE",
+      "isLeading": false,
+      "trickTopRank": 15,
+      "trickPoints": 30,
+      "botHandSize": 3,
+      "playerCardCounts": {
+        "0": 0,
+        "1": 1,
+        "2": 7,
+        "3": 3
+      }
+    }
+  },
+  {
+    "id": "YZCZ-1775418990698-srersl",
+    "timestamp": 1775418993121,
+    "rating": "up",
+    "botDifficulty": "hard",
+    "actionType": "play",
+    "actionDescription": "Played cards",
+    "context": {
+      "phase": "PLAYING",
+      "isLeading": true,
+      "trickTopRank": null,
+      "trickPoints": 0,
+      "botHandSize": 3,
+      "playerCardCounts": {
+        "0": 0,
+        "1": 1,
+        "2": 7,
+        "3": 3
+      }
+    }
+  },
+  {
+    "id": "YZCZ-1775418993425-at3q6q",
+    "timestamp": 1775418997929,
+    "rating": "up",
+    "botDifficulty": "hard",
+    "actionType": "play",
+    "actionDescription": "Played cards",
+    "context": {
+      "phase": "PLAYING",
+      "isLeading": false,
+      "trickTopRank": 5,
+      "trickPoints": 5,
+      "botHandSize": 1,
+      "playerCardCounts": {
+        "0": 0,
+        "1": 1,
+        "2": 7,
+        "3": 2
+      }
+    }
+  },
+  {
+    "id": "YZCZ-1775418998231-tbdxjv",
+    "timestamp": 1775419003046,
+    "rating": "up",
+    "botDifficulty": "hard",
+    "actionType": "play",
+    "actionDescription": "Played cards",
+    "context": {
+      "phase": "PLAYING",
+      "isLeading": false,
+      "trickTopRank": 6,
+      "trickPoints": 5,
+      "botHandSize": 7,
+      "playerCardCounts": {
+        "0": 0,
+        "1": 0,
+        "2": 7,
+        "3": 2
+      }
+    }
+  },
+  {
+    "id": "YZCZ-1775419003348-70pc4b",
+    "timestamp": 1775419005396,
+    "rating": "up",
+    "botDifficulty": "hard",
+    "actionType": "play",
+    "actionDescription": "Played cards",
+    "context": {
+      "phase": "PLAYING",
+      "isLeading": false,
+      "trickTopRank": 9,
+      "trickPoints": 5,
+      "botHandSize": 2,
+      "playerCardCounts": {
+        "0": 0,
+        "1": 0,
+        "2": 6,
+        "3": 2
+      }
+    }
+  },
+  {
+    "id": "YZCZ-1775419005697-qqfo3d",
+    "timestamp": 1775419007049,
+    "rating": "up",
+    "botDifficulty": "hard",
+    "actionType": "pass",
+    "actionDescription": "Passed turn",
+    "context": {
+      "phase": "PLAYING",
+      "isLeading": false,
+      "trickTopRank": 10,
+      "trickPoints": 15,
+      "botHandSize": 6,
+      "playerCardCounts": {
+        "0": 0,
+        "1": 0,
+        "2": 6,
+        "3": 1
+      }
+    }
+  },
+  {
+    "id": "YZCZ-1775419007353-wc2rg3",
+    "timestamp": 1775419013432,
+    "rating": "up",
+    "botDifficulty": "hard",
+    "actionType": "play",
+    "actionDescription": "Played cards",
+    "context": {
+      "phase": "PLAYING",
+      "isLeading": true,
+      "trickTopRank": null,
+      "trickPoints": 0,
+      "botHandSize": 1,
+      "playerCardCounts": {
+        "0": 0,
+        "1": 0,
+        "2": 6,
+        "3": 1
+      }
+    }
+  },
+  {
+    "id": "YZCZ-1775419052581-hwrfoc",
+    "timestamp": 1775419077080,
+    "rating": "down",
+    "botDifficulty": "hard",
+    "actionType": "play",
+    "actionDescription": "Played cards",
+    "context": {
+      "phase": "PLAYING",
+      "isLeading": true,
+      "trickTopRank": null,
+      "trickPoints": 0,
+      "botHandSize": 14,
+      "playerCardCounts": {
+        "0": 14,
+        "1": 14,
+        "2": 14,
+        "3": 14
+      }
+    }
+  },
+  {
+    "id": "YZCZ-1775419077383-ps4xnv",
+    "timestamp": 1775419084533,
+    "rating": "down",
+    "botDifficulty": "hard",
+    "actionType": "pass",
+    "actionDescription": "Passed turn",
+    "context": {
+      "phase": "PLAYING",
+      "isLeading": false,
+      "trickTopRank": 5,
+      "trickPoints": 15,
+      "botHandSize": 14,
+      "playerCardCounts": {
+        "0": 14,
+        "1": 14,
+        "2": 11,
+        "3": 14
+      }
+    }
+  },
+  {
+    "id": "YZCZ-1775419096715-mvmytg",
+    "timestamp": 1775419099161,
+    "rating": "up",
+    "botDifficulty": "hard",
+    "actionType": "pass",
+    "actionDescription": "Passed turn",
+    "context": {
+      "phase": "PLAYING",
+      "isLeading": false,
+      "trickTopRank": 5,
+      "trickPoints": 15,
+      "botHandSize": 14,
+      "playerCardCounts": {
+        "0": 14,
+        "1": 14,
+        "2": 11,
+        "3": 14
+      }
+    }
+  },
+  {
+    "id": "YZCZ-1775419099463-vs9ge7",
+    "timestamp": 1775419111245,
+    "rating": "up",
+    "botDifficulty": "hard",
+    "actionType": "play",
+    "actionDescription": "Played cards",
+    "context": {
+      "phase": "PLAYING",
+      "isLeading": true,
+      "trickTopRank": null,
+      "trickPoints": 0,
+      "botHandSize": 11,
+      "playerCardCounts": {
+        "0": 14,
+        "1": 14,
+        "2": 11,
+        "3": 14
+      }
+    }
+  },
+  {
+    "id": "YZCZ-1775419111548-0za5tt",
+    "timestamp": 1775419114461,
+    "rating": "up",
+    "botDifficulty": "hard",
+    "actionType": "play",
+    "actionDescription": "Played cards",
+    "context": {
+      "phase": "PLAYING",
+      "isLeading": false,
+      "trickTopRank": 3,
+      "trickPoints": 0,
+      "botHandSize": 14,
+      "playerCardCounts": {
+        "0": 14,
+        "1": 14,
+        "2": 9,
+        "3": 14
+      }
+    }
+  },
+  {
+    "id": "YZCZ-1775419135183-aolxbw",
+    "timestamp": 1775419136581,
+    "rating": "up",
+    "botDifficulty": "hard",
+    "actionType": "pass",
+    "actionDescription": "Passed turn",
+    "context": {
+      "phase": "PLAYING",
+      "isLeading": false,
+      "trickTopRank": 14,
+      "trickPoints": 0,
+      "botHandSize": 14,
+      "playerCardCounts": {
+        "0": 12,
+        "1": 14,
+        "2": 9,
+        "3": 12
+      }
+    }
+  },
+  {
+    "id": "YZCZ-1775419136883-ts8i8q",
+    "timestamp": 1775419140555,
+    "rating": "up",
+    "botDifficulty": "hard",
+    "actionType": "pass",
+    "actionDescription": "Passed turn",
+    "context": {
+      "phase": "PLAYING",
+      "isLeading": false,
+      "trickTopRank": 14,
+      "trickPoints": 0,
+      "botHandSize": 9,
+      "playerCardCounts": {
+        "0": 12,
+        "1": 14,
+        "2": 9,
+        "3": 12
+      }
+    }
+  },
+  {
+    "id": "YZCZ-1775419140858-uz2o6t",
+    "timestamp": 1775419142847,
+    "rating": "up",
+    "botDifficulty": "hard",
+    "actionType": "pass",
+    "actionDescription": "Passed turn",
+    "context": {
+      "phase": "PLAYING",
+      "isLeading": false,
+      "trickTopRank": 14,
+      "trickPoints": 0,
+      "botHandSize": 12,
+      "playerCardCounts": {
+        "0": 12,
+        "1": 14,
+        "2": 9,
+        "3": 12
+      }
+    }
+  },
+  {
+    "id": "YZCZ-1775419169067-p0hcep",
+    "timestamp": 1775419170465,
+    "rating": "up",
+    "botDifficulty": "hard",
+    "actionType": "pass",
+    "actionDescription": "Passed turn",
+    "context": {
+      "phase": "PLAYING",
+      "isLeading": false,
+      "trickTopRank": 10,
+      "trickPoints": -15,
+      "botHandSize": 14,
+      "playerCardCounts": {
+        "0": 3,
+        "1": 14,
+        "2": 9,
+        "3": 12
+      }
+    }
+  },
+  {
+    "id": "YZCZ-1775419170767-bqx61l",
+    "timestamp": 1775419172646,
+    "rating": "up",
+    "botDifficulty": "hard",
+    "actionType": "pass",
+    "actionDescription": "Passed turn",
+    "context": {
+      "phase": "PLAYING",
+      "isLeading": false,
+      "trickTopRank": 10,
+      "trickPoints": -15,
+      "botHandSize": 9,
+      "playerCardCounts": {
+        "0": 3,
+        "1": 14,
+        "2": 9,
+        "3": 12
+      }
+    }
+  },
+  {
+    "id": "YZCZ-1775419172950-xgd0v1",
+    "timestamp": 1775419174039,
+    "rating": "up",
+    "botDifficulty": "hard",
+    "actionType": "pass",
+    "actionDescription": "Passed turn",
+    "context": {
+      "phase": "PLAYING",
+      "isLeading": false,
+      "trickTopRank": 10,
+      "trickPoints": -15,
+      "botHandSize": 12,
+      "playerCardCounts": {
+        "0": 3,
+        "1": 14,
+        "2": 9,
+        "3": 12
+      }
+    }
+  },
+  {
+    "id": "YZCZ-1775419185398-ogsuwo",
+    "timestamp": 1775419189580,
+    "rating": "down",
+    "botDifficulty": "hard",
+    "actionType": "play",
+    "actionDescription": "Played cards",
+    "context": {
+      "phase": "PLAYING",
+      "isLeading": true,
+      "trickTopRank": null,
+      "trickPoints": 0,
+      "botHandSize": 9,
+      "playerCardCounts": {
+        "0": 2,
+        "1": 14,
+        "2": 9,
+        "3": 12
+      }
+    }
+  },
+  {
+    "id": "YZCZ-1775419189882-lfsjx5",
+    "timestamp": 1775419195179,
+    "rating": "up",
+    "botDifficulty": "hard",
+    "actionType": "play",
+    "actionDescription": "Played cards",
+    "context": {
+      "phase": "PLAYING",
+      "isLeading": false,
+      "trickTopRank": 8,
+      "trickPoints": 0,
+      "botHandSize": 12,
+      "playerCardCounts": {
+        "0": 2,
+        "1": 14,
+        "2": 7,
+        "3": 12
+      }
+    }
+  },
+  {
+    "id": "YZCZ-1775419197250-dqzj02",
+    "timestamp": 1775419200962,
+    "rating": "up",
+    "botDifficulty": "hard",
+    "actionType": "pass",
+    "actionDescription": "Passed turn",
+    "context": {
+      "phase": "PLAYING",
+      "isLeading": false,
+      "trickTopRank": 9,
+      "trickPoints": 0,
+      "botHandSize": 14,
+      "playerCardCounts": {
+        "0": 2,
+        "1": 14,
+        "2": 7,
+        "3": 10
+      }
+    }
+  },
+  {
+    "id": "YZCZ-1775419201266-dhyrvo",
+    "timestamp": 1775419202532,
+    "rating": "up",
+    "botDifficulty": "hard",
+    "actionType": "play",
+    "actionDescription": "Played cards",
+    "context": {
+      "phase": "PLAYING",
+      "isLeading": false,
+      "trickTopRank": 9,
+      "trickPoints": 0,
+      "botHandSize": 7,
+      "playerCardCounts": {
+        "0": 2,
+        "1": 14,
+        "2": 7,
+        "3": 10
+      }
+    }
+  },
+  {
+    "id": "YZCZ-1775419202834-e5y39v",
+    "timestamp": 1775419204382,
+    "rating": "up",
+    "botDifficulty": "hard",
+    "actionType": "play",
+    "actionDescription": "Played cards",
+    "context": {
+      "phase": "PLAYING",
+      "isLeading": false,
+      "trickTopRank": 11,
+      "trickPoints": 0,
+      "botHandSize": 10,
+      "playerCardCounts": {
+        "0": 2,
+        "1": 14,
+        "2": 5,
+        "3": 10
+      }
+    }
+  },
+  {
+    "id": "YZCZ-1775419207251-1fma3a",
+    "timestamp": 1775419211479,
+    "rating": "up",
+    "botDifficulty": "hard",
+    "actionType": "pass",
+    "actionDescription": "Passed turn",
+    "context": {
+      "phase": "PLAYING",
+      "isLeading": false,
+      "trickTopRank": 12,
+      "trickPoints": 0,
+      "botHandSize": 14,
+      "playerCardCounts": {
+        "0": 2,
+        "1": 14,
+        "2": 5,
+        "3": 8
+      }
+    }
+  },
+  {
+    "id": "YZCZ-1775419211783-lltyrt",
+    "timestamp": 1775419215689,
+    "rating": "up",
+    "botDifficulty": "hard",
+    "actionType": "play",
+    "actionDescription": "Played cards",
+    "context": {
+      "phase": "PLAYING",
+      "isLeading": false,
+      "trickTopRank": 12,
+      "trickPoints": 0,
+      "botHandSize": 5,
+      "playerCardCounts": {
+        "0": 2,
+        "1": 14,
+        "2": 5,
+        "3": 8
+      }
+    }
+  },
+  {
+    "id": "YZCZ-1775419215992-8jbk5n",
+    "timestamp": 1775419217597,
+    "rating": "up",
+    "botDifficulty": "hard",
+    "actionType": "pass",
+    "actionDescription": "Passed turn",
+    "context": {
+      "phase": "PLAYING",
+      "isLeading": false,
+      "trickTopRank": 13,
+      "trickPoints": 20,
+      "botHandSize": 8,
+      "playerCardCounts": {
+        "0": 2,
+        "1": 14,
+        "2": 3,
+        "3": 8
+      }
+    }
+  },
+  {
+    "id": "YZCZ-1775419219998-pfybot",
+    "timestamp": 1775419221313,
+    "rating": "up",
+    "botDifficulty": "hard",
+    "actionType": "pass",
+    "actionDescription": "Passed turn",
+    "context": {
+      "phase": "PLAYING",
+      "isLeading": false,
+      "trickTopRank": 13,
+      "trickPoints": 20,
+      "botHandSize": 14,
+      "playerCardCounts": {
+        "0": 2,
+        "1": 14,
+        "2": 3,
+        "3": 8
+      }
+    }
+  },
+  {
+    "id": "YZCZ-1775419221616-mrkott",
+    "timestamp": 1775419224914,
+    "rating": "up",
+    "botDifficulty": "hard",
+    "actionType": "play",
+    "actionDescription": "Played cards",
+    "context": {
+      "phase": "PLAYING",
+      "isLeading": true,
+      "trickTopRank": null,
+      "trickPoints": 0,
+      "botHandSize": 3,
+      "playerCardCounts": {
+        "0": 2,
+        "1": 14,
+        "2": 3,
+        "3": 8
+      }
+    }
+  },
+  {
+    "id": "YZCZ-1775419225216-mxmpzo",
+    "timestamp": 1775419231413,
+    "rating": "up",
+    "botDifficulty": "hard",
+    "actionType": "wish",
+    "actionDescription": "Wished for rank 13",
+    "context": {
+      "phase": "PLAYING",
+      "isLeading": false,
+      "trickTopRank": 1,
+      "trickPoints": 0,
+      "botHandSize": 8,
+      "playerCardCounts": {
+        "0": 2,
+        "1": 14,
+        "2": 2,
+        "3": 8
+      }
+    }
+  },
+  {
+    "id": "YZCZ-1775419231715-cifja1",
+    "timestamp": 1775419238927,
+    "rating": "up",
+    "botDifficulty": "hard",
+    "actionType": "play",
+    "actionDescription": "Played cards",
+    "context": {
+      "phase": "PLAYING",
+      "isLeading": false,
+      "trickTopRank": 1,
+      "trickPoints": 0,
+      "botHandSize": 8,
+      "playerCardCounts": {
+        "0": 2,
+        "1": 14,
+        "2": 2,
+        "3": 8
+      }
+    }
+  },
+  {
+    "id": "YZCZ-1775419241682-fbpys8",
+    "timestamp": 1775419242698,
+    "rating": "up",
+    "botDifficulty": "hard",
+    "actionType": "pass",
+    "actionDescription": "Passed turn",
+    "context": {
+      "phase": "PLAYING",
+      "isLeading": false,
+      "trickTopRank": 15,
+      "trickPoints": 35,
+      "botHandSize": 14,
+      "playerCardCounts": {
+        "0": 1,
+        "1": 14,
+        "2": 2,
+        "3": 7
+      }
+    }
+  },
+  {
+    "id": "YZCZ-1775419243000-4rua7a",
+    "timestamp": 1775419243781,
+    "rating": "up",
+    "botDifficulty": "hard",
+    "actionType": "pass",
+    "actionDescription": "Passed turn",
+    "context": {
+      "phase": "PLAYING",
+      "isLeading": false,
+      "trickTopRank": 15,
+      "trickPoints": 35,
+      "botHandSize": 2,
+      "playerCardCounts": {
+        "0": 1,
+        "1": 14,
+        "2": 2,
+        "3": 7
+      }
+    }
+  },
+  {
+    "id": "YZCZ-1775419244083-ofk21r",
+    "timestamp": 1775419244897,
+    "rating": "up",
+    "botDifficulty": "hard",
+    "actionType": "pass",
+    "actionDescription": "Passed turn",
+    "context": {
+      "phase": "PLAYING",
+      "isLeading": false,
+      "trickTopRank": 15,
+      "trickPoints": 35,
+      "botHandSize": 7,
+      "playerCardCounts": {
+        "0": 1,
+        "1": 14,
+        "2": 2,
+        "3": 7
+      }
+    }
+  },
+  {
+    "id": "YZCZ-1775419250815-ru2y89",
+    "timestamp": 1775419255548,
+    "rating": "up",
+    "botDifficulty": "hard",
+    "actionType": "play",
+    "actionDescription": "Played cards",
+    "context": {
+      "phase": "PLAYING",
+      "isLeading": false,
+      "trickTopRank": 6,
+      "trickPoints": 0,
+      "botHandSize": 14,
+      "playerCardCounts": {
+        "0": 0,
+        "1": 14,
+        "2": 2,
+        "3": 7
+      }
+    }
+  },
+  {
+    "id": "YZCZ-1775419255851-2vs0lc",
+    "timestamp": 1775419260137,
+    "rating": "up",
+    "botDifficulty": "hard",
+    "actionType": "play",
+    "actionDescription": "Played cards",
+    "context": {
+      "phase": "PLAYING",
+      "isLeading": false,
+      "trickTopRank": 13,
+      "trickPoints": 10,
+      "botHandSize": 2,
+      "playerCardCounts": {
+        "0": 0,
+        "1": 13,
+        "2": 2,
+        "3": 7
+      }
+    }
+  },
+  {
+    "id": "YZCZ-1775419260440-a3iy3d",
+    "timestamp": 1775419261881,
+    "rating": "up",
+    "botDifficulty": "hard",
+    "actionType": "pass",
+    "actionDescription": "Passed turn",
+    "context": {
+      "phase": "PLAYING",
+      "isLeading": false,
+      "trickTopRank": 14,
+      "trickPoints": 10,
+      "botHandSize": 7,
+      "playerCardCounts": {
+        "0": 0,
+        "1": 13,
+        "2": 1,
+        "3": 7
+      }
+    }
+  },
+  {
+    "id": "YZCZ-1775419262185-rc70c7",
+    "timestamp": 1775419263295,
+    "rating": "up",
+    "botDifficulty": "hard",
+    "actionType": "pass",
+    "actionDescription": "Passed turn",
+    "context": {
+      "phase": "PLAYING",
+      "isLeading": false,
+      "trickTopRank": 14,
+      "trickPoints": 10,
+      "botHandSize": 13,
+      "playerCardCounts": {
+        "0": 0,
+        "1": 13,
+        "2": 1,
+        "3": 7
+      }
+    }
+  },
+  {
+    "id": "YZCZ-1775419263598-o48era",
+    "timestamp": 1775419270097,
+    "rating": "up",
+    "botDifficulty": "hard",
+    "actionType": "play",
+    "actionDescription": "Played cards",
+    "context": {
+      "phase": "PLAYING",
+      "isLeading": true,
+      "trickTopRank": null,
+      "trickPoints": 0,
+      "botHandSize": 1,
+      "playerCardCounts": {
+        "0": 0,
+        "1": 13,
+        "2": 1,
+        "3": 7
+      }
+    }
+  }
+]
