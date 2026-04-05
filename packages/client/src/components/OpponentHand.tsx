@@ -16,7 +16,9 @@ export function OpponentHand({ player, position, isCurrentTurn, isTeammate }: Op
       <div className="opponent-info">
         <span className={`opponent-name ${isTeammate ? 'name-teammate' : 'name-opponent'}`}>{player.nickname}</span>
         {player.tichuCall !== 'none' && (
-          <span className="tichu-badge">{player.tichuCall === 'grand_tichu' ? 'GT' : 'T'}</span>
+          <span className={`tichu-badge ${player.tichuCall === 'grand_tichu' ? 'tichu-badge-grand' : ''}`}>
+            {player.tichuCall === 'grand_tichu' ? 'GRAND TICHU' : 'TICHU'}
+          </span>
         )}
         {player.isOut && (
           <span className="out-badge">#{player.finishOrder}</span>

@@ -307,7 +307,12 @@ export class SocketHandler {
     const action = this.findBotAction(room, engine, botAI);
     if (!action) return;
 
-    const delay = botAI.getDelay();
+    // Check if the human player is out (finished)
+    const humanPositions = ([0, 1, 2, 3] as PlayerPosition[]).filter(
+      (p) => !room.botPositions.has(p)
+    );
+    const humanIsOut = humanPositions.every((p) => engine.state.players[p].isOut);
+    const delay = botAI.getDelay(humanIsOut);
     setTimeout(() => {
       // Re-check room still exists
       const currentRoom = this.rooms.getRoom(roomCode);

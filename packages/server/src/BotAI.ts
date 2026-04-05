@@ -998,14 +998,20 @@ export class BotAI {
     return NR.ACE;
   }
 
-  getDelay(): number {
+  getDelay(humanIsOut = false): number {
+    let base: number;
     switch (this.difficulty) {
       case 'easy':
-        return 800 + Math.random() * 700;
+        base = 800 + Math.random() * 700;
+        break;
       case 'medium':
-        return 600 + Math.random() * 600;
+        base = 600 + Math.random() * 600;
+        break;
       case 'hard':
-        return 400 + Math.random() * 500;
+        base = 400 + Math.random() * 500;
+        break;
     }
+    // Slow down so the human can follow the action after they're out
+    return humanIsOut ? base + 1500 : base;
   }
 }

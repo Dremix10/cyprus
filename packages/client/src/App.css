@@ -847,13 +847,18 @@ body {
 }
 
 .tichu-badge {
-  background: var(--warning);
-  color: #333;
-  padding: 0.1rem 0.4rem;
+  background: #cc2222;
+  color: #fff;
+  padding: 0.15rem 0.5rem;
   border-radius: 4px;
-  font-size: 0.65rem;
+  font-size: 0.7rem;
   font-weight: 700;
   text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.tichu-badge-grand {
+  background: #8b0000;
 }
 
 .out-badge {

@@ -261,6 +261,11 @@ function PlayingLayout({
 
       {/* My hand */}
       <div className="my-hand-row">
+        {myInfo?.tichuCall !== 'none' && (
+          <span className={`tichu-badge ${myInfo.tichuCall === 'grand_tichu' ? 'tichu-badge-grand' : ''}`}>
+            {myInfo.tichuCall === 'grand_tichu' ? 'GRAND TICHU' : 'TICHU'}
+          </span>
+        )}
         <PlayerHand
           cards={gameState.myHand}
           selectedCards={selectedCards}
