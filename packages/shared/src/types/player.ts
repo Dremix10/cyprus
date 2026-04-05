@@ -13,6 +13,7 @@ export type PublicPlayerState = {
   tichuCall: TichuCall;
   isOut: boolean;
   finishOrder: number | null;
+  hand?: Card[];
 };
 
 export type PrivatePlayerState = PublicPlayerState & {

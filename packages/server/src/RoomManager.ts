@@ -101,7 +101,7 @@ export class RoomManager {
     this.socketToRoom.set(socketId, { roomCode: code, position: 0 });
 
     // Bots at positions 1, 2, 3
-    const botNames = ['Bot 1', 'Bot 2', 'Bot 3'];
+    const botNames = ['Bot 1', 'Teammate bot', 'Bot 3'];
     for (let i = 0; i < 3; i++) {
       const pos = (i + 1) as PlayerPosition;
       const bot: RoomPlayer = {

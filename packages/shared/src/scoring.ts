@@ -34,6 +34,21 @@ export type RoundScore = {
   teamPoints: [number, number];
   tichuBonuses: [number, number];
   totalRound: [number, number];
+  breakdown: RoundScoreBreakdown;
+};
+
+export type RoundScoreBreakdown = {
+  doubleVictory: 0 | 1 | null; // which team got 1-2, or null
+  cardPoints: [number, number]; // points from won tricks
+  lastPlayerHandPoints: number; // points transferred from last player's hand
+  lastPlayerHandTeam: 0 | 1 | null; // which team received the last player's hand
+  tichuResults: {
+    position: PlayerPosition;
+    call: 'tichu' | 'grand_tichu';
+    success: boolean;
+    points: number; // +100/+200 or -100/-200
+    team: 0 | 1;
+  }[];
 };
 
 /** Calculate round scores from a round result. */
@@ -43,22 +58,38 @@ export function calculateRoundScore(result: RoundResult): RoundScore {
 
   const first = finishOrder[0];
   const second = finishOrder[1];
+  const isDoubleVictory = sameTeam(first, second);
+
+  const breakdown: RoundScoreBreakdown = {
+    doubleVictory: null,
+    cardPoints: [0, 0],
+    lastPlayerHandPoints: 0,
+    lastPlayerHandTeam: null,
+    tichuResults: [],
+  };
 
   // Check for 1-2 (double victory): same team finishes 1st and 2nd
-  if (sameTeam(first, second)) {
-    teamPoints[getTeam(first)] = 200;
-    teamPoints[getTeam(first) === 0 ? 1 : 0] = 0;
+  if (isDoubleVictory) {
+    const winTeam = getTeam(first);
+    teamPoints[winTeam] = 200;
+    teamPoints[winTeam === 0 ? 1 : 0] = 0;
+    breakdown.doubleVictory = winTeam;
   } else {
     // Normal scoring
-    // Each team gets points from their won tricks
-    teamPoints[0] = sumCardPoints(trickPoints[0]);
-    teamPoints[1] = sumCardPoints(trickPoints[1]);
+    const cardPts0 = sumCardPoints(trickPoints[0]);
+    const cardPts1 = sumCardPoints(trickPoints[1]);
+    teamPoints[0] = cardPts0;
+    teamPoints[1] = cardPts1;
+    breakdown.cardPoints = [cardPts0, cardPts1];
 
     // Last player gives their hand to the opposing team
     const lastPlayer = finishOrder[3];
     const lastTeam = getTeam(lastPlayer);
     const opposingTeam = lastTeam === 0 ? 1 : 0;
-    teamPoints[opposingTeam] += sumCardPoints(lastPlayerHand);
+    const handPoints = sumCardPoints(lastPlayerHand);
+    teamPoints[opposingTeam] += handPoints;
+    breakdown.lastPlayerHandPoints = handPoints;
+    breakdown.lastPlayerHandTeam = opposingTeam;
   }
 
   // Tichu bonuses/penalties
@@ -69,11 +100,13 @@ export function calculateRoundScore(result: RoundResult): RoundScore {
     const wentOutFirst = finishOrder[0] === pos;
 
     if (call === 'tichu') {
-      tichuBonuses[team] += wentOutFirst ? TICHU_POINTS : -TICHU_POINTS;
+      const points = wentOutFirst ? TICHU_POINTS : -TICHU_POINTS;
+      tichuBonuses[team] += points;
+      breakdown.tichuResults.push({ position: pos, call: 'tichu', success: wentOutFirst, points, team });
     } else if (call === 'grand_tichu') {
-      tichuBonuses[team] += wentOutFirst
-        ? GRAND_TICHU_POINTS
-        : -GRAND_TICHU_POINTS;
+      const points = wentOutFirst ? GRAND_TICHU_POINTS : -GRAND_TICHU_POINTS;
+      tichuBonuses[team] += points;
+      breakdown.tichuResults.push({ position: pos, call: 'grand_tichu', success: wentOutFirst, points, team });
     }
   }
 
@@ -84,5 +117,6 @@ export function calculateRoundScore(result: RoundResult): RoundScore {
       teamPoints[0] + tichuBonuses[0],
       teamPoints[1] + tichuBonuses[1],
     ],
+    breakdown,
   };
 }

@@ -5,6 +5,7 @@ import type {
   PlayerPosition,
   NormalRank,
   GameEvent,
+  TichuCall,
 } from '@cyprus/shared';
 import { GamePhase, SpecialCardType, isSpecial } from '@cyprus/shared';
 import { RoomManager } from './RoomManager.js';
@@ -75,7 +76,8 @@ export class SocketHandler {
         if (info && info.room.engine) {
           const state = info.room.engine.getClientState(
             info.position,
-            info.room.code
+            info.room.code,
+            info.room.botPositions
           );
           socket.emit('game:state', state);
           // Notify others of reconnection
@@ -202,7 +204,7 @@ export class SocketHandler {
 
     const sockets = this.rooms.getSocketIdsForRoom(roomCode);
     for (const [position, socketId] of sockets) {
-      const state = room.engine.getClientState(position, roomCode);
+      const state = room.engine.getClientState(position, roomCode, room.botPositions);
       this.io.to(socketId).emit('game:state', state);
     }
 
@@ -300,11 +302,27 @@ export class SocketHandler {
       if (!room.botPositions.has(currentPlayer)) return null;
 
       const hand = engine.state.players[currentPlayer].hand;
+
+      // Build game context for hard mode
+      const gameContext = {
+        playerCardCounts: new Map<PlayerPosition, number>(
+          engine.state.players.map((p) => [p.position, p.hand.length])
+        ),
+        tichuCalls: {
+          0: engine.state.players[0].tichuCall,
+          1: engine.state.players[1].tichuCall,
+          2: engine.state.players[2].tichuCall,
+          3: engine.state.players[3].tichuCall,
+        } as Record<PlayerPosition, TichuCall>,
+        finishOrder: engine.state.finishOrder as PlayerPosition[],
+      };
+
       const cardIds = botAI.choosePlay(
         hand,
         engine.state.currentTrick,
         engine.state.wish,
-        currentPlayer
+        currentPlayer,
+        gameContext
       );
 
       if (cardIds) {

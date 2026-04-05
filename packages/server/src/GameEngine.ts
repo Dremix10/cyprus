@@ -9,6 +9,7 @@ import type {
   PlayerPosition,
   TichuCall,
   GameEvent,
+  RoundScoreBreakdown,
 } from '@cyprus/shared';
 import {
   GamePhase,
@@ -58,6 +59,7 @@ export class GameEngine {
   private events: GameEvent[] = [];
   private targetScore: number;
   private roundTrickCards: [Card[], Card[]] = [[], []];
+  private roundBreakdown: RoundScoreBreakdown | null = null;
 
   constructor(nicknames: [string, string, string, string], targetScore: number = WINNING_SCORE) {
     this.targetScore = targetScore;
@@ -105,6 +107,7 @@ export class GameEngine {
     }
 
     this.roundTrickCards = [[], []];
+    this.roundBreakdown = null;
     this.state.phase = GamePhase.GRAND_TICHU;
     this.state.currentTrick = { plays: [], currentWinner: null, passCount: 0 };
     this.state.wish = { active: false, wishedRank: null, wishedBy: null };
@@ -578,7 +581,14 @@ export class GameEngine {
       tichuCalls,
     });
 
+    // Include last player's hand in the opposing team's trick cards for display
+    if (!sameTeam(this.state.finishOrder[0], this.state.finishOrder[1])) {
+      const lastTeam = getTeam(lastPos);
+      const opposingTeam = lastTeam === 0 ? 1 : 0;
+      teamTricks[opposingTeam].push(...lastPlayer.hand);
+    }
     this.roundTrickCards = teamTricks;
+    this.roundBreakdown = result.breakdown;
     this.state.roundScores = result.totalRound;
     this.state.scores[0] += result.totalRound[0];
     this.state.scores[1] += result.totalRound[1];
@@ -617,8 +627,9 @@ export class GameEngine {
   }
 
   /** Get the game state as seen by a specific player. */
-  getClientState(position: PlayerPosition, roomCode: string): ClientGameState {
+  getClientState(position: PlayerPosition, roomCode: string, botPositions?: Set<PlayerPosition>): ClientGameState {
     const player = this.state.players[position];
+    const iAmOut = player.isOut;
     return {
       roomCode,
       phase: this.state.phase,
@@ -633,6 +644,8 @@ export class GameEngine {
         tichuCall: p.tichuCall,
         isOut: p.isOut,
         finishOrder: p.finishOrder,
+        // Reveal bot hands to the human player once they've finished
+        hand: iAmOut && botPositions?.has(p.position) && !p.isOut ? p.hand : undefined,
       })) as PublicPlayerState[],
       currentPlayer: this.state.currentPlayer,
       currentTrick: this.state.currentTrick,
@@ -644,6 +657,10 @@ export class GameEngine {
       roundTrickCards:
         this.state.phase === GamePhase.ROUND_SCORING || this.state.phase === GamePhase.GAME_OVER
           ? this.roundTrickCards
+          : undefined,
+      roundBreakdown:
+        this.state.phase === GamePhase.ROUND_SCORING || this.state.phase === GamePhase.GAME_OVER
+          ? this.roundBreakdown ?? undefined
           : undefined,
       grandTichuPending:
         this.state.phase === GamePhase.GRAND_TICHU && !player.grandTichuDecided,

@@ -1,6 +1,6 @@
 import { useGameStore } from '../stores/gameStore.js';
 import { GamePhase, SpecialCardType, getCardPoints } from '@cyprus/shared';
-import type { Card, PlayerPosition } from '@cyprus/shared';
+import type { Card, PlayerPosition, RoundScoreBreakdown } from '@cyprus/shared';
 import { CardComponent } from './CardComponent.js';
 import { PlayerHand } from './PlayerHand.js';
 import { OpponentHand } from './OpponentHand.js';
@@ -27,11 +27,11 @@ export function GameBoard() {
   return (
     <div className="game-board">
       <div className="game-info">
-        <span>
+        <span className="name-teammate">
           Team A: {gameState.scores[0]} / {gameState.targetScore}
         </span>
         <span className="phase-label">{formatPhase(gameState.phase)}</span>
-        <span>
+        <span className="name-opponent">
           Team B: {gameState.scores[1]} / {gameState.targetScore}
         </span>
       </div>
@@ -344,6 +344,39 @@ function PointCards({ cards, team }: { cards: Card[]; team: string }) {
   );
 }
 
+function ScoreBreakdown({ breakdown, players }: { breakdown: RoundScoreBreakdown; players: { position: number; nickname: string }[] }) {
+  const getName = (pos: number) => players[pos]?.nickname ?? `Player ${pos}`;
+  const teamName = (t: 0 | 1) => t === 0 ? 'Team A' : 'Team B';
+  const teamClass = (t: 0 | 1) => t === 0 ? 'name-teammate' : 'name-opponent';
+
+  return (
+    <div className="breakdown">
+      {breakdown.doubleVictory !== null ? (
+        <div className="breakdown-item breakdown-highlight">
+          <span className={teamClass(breakdown.doubleVictory)}>{teamName(breakdown.doubleVictory)}</span>
+          {' '}finished 1st and 2nd: <strong>+200</strong>
+        </div>
+      ) : (
+        <>
+          <div className="breakdown-item">
+            Card points: <span className={teamClass(0)}>Team A</span> <strong>{breakdown.cardPoints[0]}</strong> &mdash; <span className={teamClass(1)}>Team B</span> <strong>{breakdown.cardPoints[1]}</strong>
+          </div>
+          {breakdown.lastPlayerHandPoints !== 0 && breakdown.lastPlayerHandTeam !== null && (
+            <div className="breakdown-item">
+              Last player's remaining cards: <strong>{breakdown.lastPlayerHandPoints > 0 ? '+' : ''}{breakdown.lastPlayerHandPoints}</strong> to <span className={teamClass(breakdown.lastPlayerHandTeam)}>{teamName(breakdown.lastPlayerHandTeam)}</span>
+            </div>
+          )}
+        </>
+      )}
+      {breakdown.tichuResults.map((t, i) => (
+        <div key={i} className={`breakdown-item ${t.success ? 'breakdown-success' : 'breakdown-fail'}`}>
+          {getName(t.position)} {t.call === 'grand_tichu' ? 'Grand Tichu' : 'Tichu'}: {t.success ? 'Success' : 'Failed'} <strong>{t.points > 0 ? '+' : ''}{t.points}</strong> for <span className={teamClass(t.team)}>{teamName(t.team)}</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 function ScoringView() {
   const gameState = useGameStore((s) => s.gameState)!;
   const nextRound = useGameStore((s) => s.nextRound);
@@ -356,14 +389,19 @@ function ScoringView() {
 
       <div className="phase-view">
         <h3>Round Over</h3>
+
+        {gameState.roundBreakdown && (
+          <ScoreBreakdown breakdown={gameState.roundBreakdown} players={gameState.players} />
+        )}
+
         <div className="scores">
           <div className="score-row">
-            <span className="score-team">Team A</span>
+            <span className="score-team name-teammate">Team A</span>
             <span className="score-round">+{gameState.roundScores[0]}</span>
             <span className="score-total">{gameState.scores[0]}</span>
           </div>
           <div className="score-row">
-            <span className="score-team">Team B</span>
+            <span className="score-team name-opponent">Team B</span>
             <span className="score-round">+{gameState.roundScores[1]}</span>
             <span className="score-total">{gameState.scores[1]}</span>
           </div>
@@ -390,11 +428,11 @@ function GameOverView() {
       <p className="winner">{winner} wins!</p>
       <div className="scores">
         <div className="score-row">
-          <span className="score-team">Team A</span>
+          <span className="score-team name-teammate">Team A</span>
           <span className="score-total">{gameState.scores[0]}</span>
         </div>
         <div className="score-row">
-          <span className="score-team">Team B</span>
+          <span className="score-team name-opponent">Team B</span>
           <span className="score-total">{gameState.scores[1]}</span>
         </div>
       </div>

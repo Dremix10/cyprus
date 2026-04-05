@@ -1,6 +1,7 @@
 import type { Card, NormalRank } from './card.js';
 import type { Combination } from './combination.js';
 import type { PlayerPosition, PublicPlayerState } from './player.js';
+import type { RoundScoreBreakdown } from '../scoring.js';
 
 export enum GamePhase {
   WAITING = 'WAITING',
@@ -44,6 +45,7 @@ export type ClientGameState = {
   roundScores: [number, number];
   targetScore: number;
   roundTrickCards?: [Card[], Card[]];
+  roundBreakdown?: RoundScoreBreakdown;
   grandTichuPending?: boolean;
   hasPlayedCards?: boolean;
 };

@@ -585,6 +585,14 @@ body {
   align-items: center;
 }
 
+.revealed-hand {
+  display: flex;
+  gap: 2px;
+  flex-wrap: wrap;
+  justify-content: center;
+  max-width: 180px;
+}
+
 .card-count-num {
   font-size: 1.4rem;
   font-weight: 700;
@@ -745,6 +753,35 @@ body {
 .score-total {
   font-size: 1.2rem;
   font-weight: 700;
+}
+
+.breakdown {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  margin-bottom: 1rem;
+  padding: 0.75rem;
+  background: var(--surface);
+  border-radius: 8px;
+  font-size: 0.85rem;
+}
+
+.breakdown-item {
+  padding: 0.3rem 0.5rem;
+  border-radius: 4px;
+}
+
+.breakdown-highlight {
+  background: rgba(46, 204, 113, 0.1);
+  font-size: 0.95rem;
+}
+
+.breakdown-success {
+  color: var(--success);
+}
+
+.breakdown-fail {
+  color: var(--primary);
 }
 
 .winner {
