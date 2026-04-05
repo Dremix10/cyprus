@@ -1,0 +1,15 @@
+services:
+  cyprus:
+    build: .
+    container_name: cyprus
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:3001:3001"
+    environment:
+      - NODE_ENV=production
+      - PORT=3001
+    volumes:
+      - game-data:/app/packages/server/dist/data
+
+volumes:
+  game-data:
