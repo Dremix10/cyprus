@@ -311,6 +311,7 @@ export function Tutorial({ onBack }: { onBack: () => void }) {
   const [currentStep, setCurrentStep] = useState(0);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [solved, setSolved] = useState<Set<number>>(new Set());
+  const [visited, setVisited] = useState<Set<number>>(new Set([0]));
 
   const step = steps[currentStep];
 
@@ -345,8 +346,10 @@ export function Tutorial({ onBack }: { onBack: () => void }) {
       setSolved((prev) => new Set(prev).add(currentStep));
     }
     if (currentStep < steps.length - 1) {
-      setCurrentStep(currentStep + 1);
+      const next = currentStep + 1;
+      setCurrentStep(next);
       setSelected(new Set());
+      setVisited((prev) => new Set(prev).add(next));
     }
   }
 
@@ -360,12 +363,26 @@ export function Tutorial({ onBack }: { onBack: () => void }) {
   function goToStep(i: number) {
     setCurrentStep(i);
     setSelected(new Set());
+    setVisited((prev) => new Set(prev).add(i));
   }
+
+  // A step is "completed" if it's non-interactive and visited, or interactive and solved
+  const completedCount = steps.filter((s, i) => {
+    if (s.interactive && s.correctSelection) return solved.has(i);
+    return visited.has(i);
+  }).length;
+  const progressPercent = Math.round((completedCount / steps.length) * 100);
 
   return (
     <div className="tutorial-fullscreen">
       <div className="tutorial-sidebar">
         <h2 className="tutorial-sidebar-title">How to Play</h2>
+        <div className="tutorial-progress">
+          <div className="tutorial-progress-bar">
+            <div className="tutorial-progress-fill" style={{ width: `${progressPercent}%` }} />
+          </div>
+          <span className="tutorial-progress-label">{progressPercent}% complete</span>
+        </div>
         <nav className="tutorial-nav">
           {steps.map((s, i) => (
             <button

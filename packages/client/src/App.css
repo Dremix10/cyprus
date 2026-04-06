@@ -593,8 +593,10 @@ body {
 }
 
 .btn-back {
-  margin-top: 1.5rem;
+  margin-top: auto;
+  padding-top: 1rem;
   width: 100%;
+  flex-shrink: 0;
   background: transparent;
   border: 1px solid rgba(201, 168, 76, 0.4);
   color: #c9a84c;
@@ -634,6 +636,31 @@ body {
   padding-bottom: 0.75rem;
   padding-left: 0.5rem;
   border-bottom: 1px solid rgba(201, 168, 76, 0.3);
+}
+
+.tutorial-progress {
+  margin-bottom: 1rem;
+}
+
+.tutorial-progress-bar {
+  height: 6px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.tutorial-progress-fill {
+  height: 100%;
+  background: var(--success);
+  border-radius: 3px;
+  transition: width 0.3s ease;
+}
+
+.tutorial-progress-label {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  margin-top: 0.3rem;
+  display: block;
 }
 
 .tutorial-nav {
