@@ -577,6 +577,228 @@ body {
   text-align: center;
 }
 
+/* ─── Tutorial Button ────────────────────── */
+
+.btn-tutorial {
+  background: transparent;
+  border: 1px solid rgba(201, 168, 76, 0.4);
+  color: #c9a84c;
+  font-size: 0.85rem;
+  margin-top: 0.5rem;
+}
+
+.btn-tutorial:hover {
+  background: rgba(201, 168, 76, 0.1);
+  border-color: #c9a84c;
+}
+
+.btn-back {
+  margin-top: 1.5rem;
+  width: 100%;
+  background: transparent;
+  border: 1px solid rgba(201, 168, 76, 0.4);
+  color: #c9a84c;
+  font-size: 0.85rem;
+}
+
+.btn-back:hover {
+  background: rgba(201, 168, 76, 0.1);
+}
+
+/* ─── Tutorial ──────────────────────────── */
+
+.tutorial-fullscreen {
+  width: 100vw;
+  height: 100vh;
+  display: flex;
+  background: var(--bg);
+  color: var(--text);
+}
+
+.tutorial-sidebar {
+  width: 240px;
+  min-width: 240px;
+  background: rgba(0, 0, 0, 0.3);
+  border-right: 1px solid rgba(201, 168, 76, 0.2);
+  padding: 1.5rem 0.75rem;
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+}
+
+.tutorial-sidebar-title {
+  font-family: Georgia, 'Times New Roman', serif;
+  color: #c9a84c;
+  font-size: 1.3rem;
+  margin-bottom: 1rem;
+  padding-bottom: 0.75rem;
+  padding-left: 0.5rem;
+  border-bottom: 1px solid rgba(201, 168, 76, 0.3);
+}
+
+.tutorial-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  flex: 1;
+}
+
+.tutorial-nav-item {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  text-align: left;
+  padding: 0.35rem 0.6rem;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.78rem;
+  transition: all 0.15s;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.tutorial-nav-num {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.08);
+  font-size: 0.65rem;
+  font-weight: 600;
+  flex-shrink: 0;
+}
+
+.tutorial-nav-item:hover {
+  background: rgba(201, 168, 76, 0.1);
+  color: var(--text);
+}
+
+.tutorial-nav-active {
+  background: rgba(201, 168, 76, 0.15);
+  color: #c9a84c;
+  font-weight: 600;
+}
+
+.tutorial-nav-active .tutorial-nav-num {
+  background: rgba(201, 168, 76, 0.3);
+  color: #c9a84c;
+}
+
+.tutorial-nav-solved .tutorial-nav-num {
+  background: rgba(46, 204, 113, 0.25);
+  color: var(--success);
+}
+
+.tutorial-main {
+  flex: 1;
+  padding: 2rem 3rem;
+  overflow-y: auto;
+  max-width: 750px;
+}
+
+.tutorial-step-counter {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  margin-bottom: 0.25rem;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.tutorial-section-title {
+  font-family: Georgia, 'Times New Roman', serif;
+  color: #c9a84c;
+  font-size: 1.6rem;
+  margin-bottom: 1.5rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid rgba(201, 168, 76, 0.2);
+}
+
+.tutorial-content {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.tutorial-paragraph {
+  line-height: 1.7;
+  color: var(--text);
+  font-size: 0.95rem;
+}
+
+.tutorial-paragraph:first-child {
+  font-size: 1rem;
+}
+
+.tutorial-cards {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 1.25rem;
+  padding: 1rem;
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.tutorial-cards .card {
+  cursor: pointer;
+  transition: transform 0.15s;
+}
+
+.tutorial-cards .card:hover {
+  transform: translateY(-4px);
+}
+
+.tutorial-hint {
+  margin-top: 0.75rem;
+  color: var(--text-muted);
+  font-size: 0.85rem;
+  font-style: italic;
+}
+
+.tutorial-wrong {
+  margin-top: 0.75rem;
+  color: #e74c3c;
+  font-size: 0.85rem;
+}
+
+.tutorial-success {
+  margin-top: 0.75rem;
+  color: var(--success);
+  font-size: 0.9rem;
+  font-weight: 500;
+}
+
+.tutorial-page-nav {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 2rem;
+  padding-top: 1rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.btn-tutorial-prev,
+.btn-tutorial-next {
+  background: transparent;
+  border: 1px solid rgba(201, 168, 76, 0.4);
+  color: #c9a84c;
+  padding: 0.4rem 1.2rem;
+  font-size: 0.85rem;
+}
+
+.btn-tutorial-prev:hover,
+.btn-tutorial-next:hover {
+  background: rgba(201, 168, 76, 0.1);
+}
+
+.btn-tutorial-next:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
 /* ─── Game Board ────────────────────────── */
 
 .game-board {

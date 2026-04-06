@@ -47,7 +47,7 @@ function GreekColumn({ side }: { side: 'left' | 'right' }) {
   );
 }
 
-export function Lobby() {
+export function Lobby({ onTutorial }: { onTutorial: () => void }) {
   const [roomCode, setRoomCode] = useState('');
   const [difficulty, setDifficulty] = useState('medium');
   const nickname = useRoomStore((s) => s.nickname);
@@ -154,6 +154,10 @@ export function Lobby() {
             </div>
 
             {error && <p className="error">{error}</p>}
+
+            <button className="btn btn-olympus btn-tutorial" onClick={onTutorial}>
+              How to Play
+            </button>
           </div>
         </div>
 
