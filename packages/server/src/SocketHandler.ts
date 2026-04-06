@@ -399,24 +399,16 @@ export class SocketHandler {
 
     if (phase === GamePhase.PLAYING) {
       // First: check for pending Mahjong wish from a bot
-      const lastPlay =
-        engine.state.currentTrick.plays[
-          engine.state.currentTrick.plays.length - 1
-        ];
-      if (
-        lastPlay &&
-        room.botPositions.has(lastPlay.playerPosition) &&
-        lastPlay.combination.cards.some((c) =>
-          isSpecial(c, SpecialCardType.MAHJONG)
-        ) &&
-        !engine.state.wish.active
-      ) {
-        const wishPos = lastPlay.playerPosition;
+      if (engine.state.wishPending !== null && room.botPositions.has(engine.state.wishPending)) {
+        const wishPos = engine.state.wishPending;
         const hand = engine.state.players[wishPos].hand;
         const gameContext = this.buildGameContext(engine);
         const rank = botAI.chooseWish(hand, gameContext);
         return () => engine.setWish(wishPos, rank);
       }
+
+      // Block bot play while wish is pending (human hasn't chosen yet)
+      if (engine.state.wishPending !== null) return null;
 
       // Regular play
       const currentPlayer = engine.state.currentPlayer;

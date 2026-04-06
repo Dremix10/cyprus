@@ -19,6 +19,7 @@ import {
   isSpecial,
   detectCombination,
   canBeat,
+  findPlayableFromHand,
   getPhoenixSingleRank,
   calculateRoundScore,
   getTeam,
@@ -48,6 +49,7 @@ export type GameEngineState = {
   currentPlayer: PlayerPosition;
   currentTrick: TrickState;
   wish: WishState;
+  wishPending: PlayerPosition | null; // position of player who must choose a wish before play continues
   finishOrder: PlayerPosition[];
   scores: [number, number];
   roundScores: [number, number];
@@ -80,6 +82,7 @@ export class GameEngine {
       currentPlayer: 0,
       currentTrick: { plays: [], currentWinner: null, passCount: 0 },
       wish: { active: false, wishedRank: null, wishedBy: null },
+      wishPending: null,
       finishOrder: [],
       scores: [0, 0],
       roundScores: [0, 0],
@@ -111,6 +114,7 @@ export class GameEngine {
     this.state.phase = GamePhase.GRAND_TICHU;
     this.state.currentTrick = { plays: [], currentWinner: null, passCount: 0 };
     this.state.wish = { active: false, wishedRank: null, wishedBy: null };
+    this.state.wishPending = null;
     this.state.finishOrder = [];
     this.state.roundScores = [0, 0];
     this.state.dragonWinner = null;
@@ -259,6 +263,10 @@ export class GameEngine {
     this.events = [];
     this.assertPhase(GamePhase.PLAYING);
 
+    if (this.state.wishPending !== null) {
+      throw new Error('Waiting for Mahjong wish to be made');
+    }
+
     if (this.state.currentPlayer !== position) {
       throw new Error('Not your turn');
     }
@@ -321,11 +329,24 @@ export class GameEngine {
       }
     }
 
-    // Handle Mahjong wish
-    let wishRank: NormalRank | null = null;
-    if (cards.some((c) => isSpecial(c, SpecialCardType.MAHJONG))) {
-      // Wish will be set via a separate action after this play
-      // For now, mark that a wish is pending
+    // Server-side wish enforcement: if wish is active, validate the player respects it
+    if (this.state.wish.active && this.state.wish.wishedRank !== null) {
+      const currentTop = this.state.currentTrick.plays.length > 0
+        ? this.state.currentTrick.plays[this.state.currentTrick.plays.length - 1].combination
+        : null;
+      const playableWithWish = findPlayableFromHand(player.hand, currentTop, this.state.wish);
+      const mustPlayWish = playableWithWish.length > 0 &&
+        playableWithWish.every((combo) =>
+          combo.some((c) => c.type === 'normal' && c.rank === this.state.wish.wishedRank)
+        );
+      if (mustPlayWish) {
+        const hasWishedRank = cards.some(
+          (c) => c.type === 'normal' && c.rank === this.state.wish.wishedRank
+        );
+        if (!hasWishedRank) {
+          throw new Error('You must play a combination containing the wished rank');
+        }
+      }
     }
 
     // Remove cards from hand
@@ -350,6 +371,29 @@ export class GameEngine {
       data: { combination },
     });
 
+    // Cancel wish if the played rank is higher than the wished rank (no one can fulfill it now)
+    if (this.state.wish.active && this.state.wish.wishedRank !== null && !isBomb) {
+      const wishedRank = this.state.wish.wishedRank;
+      // Check if the wish was fulfilled by this play
+      const wishFulfilled = cards.some(
+        (c) => c.type === 'normal' && c.rank === wishedRank
+      );
+      if (wishFulfilled) {
+        this.state.wish = { active: false, wishedRank: null, wishedBy: null };
+        this.emit({ type: 'WISH_FULFILLED' });
+      } else if (combination.rank > wishedRank) {
+        // The played card is higher than the wish — next player must beat this,
+        // so they can't play the wished rank anymore. Cancel the wish.
+        this.state.wish = { active: false, wishedRank: null, wishedBy: null };
+        this.emit({ type: 'WISH_FULFILLED' });
+      }
+    }
+
+    // If the Mahjong was played, block play until the wish is made
+    if (cards.some((c) => isSpecial(c, SpecialCardType.MAHJONG))) {
+      this.state.wishPending = position;
+    }
+
     this.checkPlayerOut(player);
 
     // Move to next active player
@@ -372,6 +416,7 @@ export class GameEngine {
     }
 
     this.state.wish = { active: true, wishedRank: rank, wishedBy: position };
+    this.state.wishPending = null;
     this.emit({ type: 'WISH_MADE', playerPosition: position, data: { rank } });
 
     return this.events;
@@ -381,6 +426,10 @@ export class GameEngine {
   passTurn(position: PlayerPosition): GameEvent[] {
     this.events = [];
     this.assertPhase(GamePhase.PLAYING);
+
+    if (this.state.wishPending !== null) {
+      throw new Error('Waiting for Mahjong wish to be made');
+    }
 
     if (this.state.currentPlayer !== position) {
       throw new Error('Not your turn');
@@ -481,15 +530,10 @@ export class GameEngine {
       return;
     }
 
-    // Check wish fulfillment
-    if (this.state.wish.active && this.state.wish.wishedRank !== null) {
-      const wishFulfilled = trickCards.some(
-        (c) => c.type === 'normal' && c.rank === this.state.wish.wishedRank
-      );
-      if (wishFulfilled) {
-        this.state.wish = { active: false, wishedRank: null, wishedBy: null };
-        this.emit({ type: 'WISH_FULFILLED' });
-      }
+    // Clear wish when the trick ends — it only lasts for the trick it was made in
+    if (this.state.wish.active) {
+      this.state.wish = { active: false, wishedRank: null, wishedBy: null };
+      this.emit({ type: 'WISH_FULFILLED' });
     }
 
     // Winner collects trick cards
@@ -673,6 +717,7 @@ export class GameEngine {
       grandTichuPending:
         this.state.phase === GamePhase.GRAND_TICHU && !player.grandTichuDecided,
       hasPlayedCards: player.hasPlayedCards,
+      wishPending: this.state.wishPending,
     };
   }
 }

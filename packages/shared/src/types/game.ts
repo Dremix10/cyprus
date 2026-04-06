@@ -48,4 +48,5 @@ export type ClientGameState = {
   roundBreakdown?: RoundScoreBreakdown;
   grandTichuPending?: boolean;
   hasPlayedCards?: boolean;
+  wishPending?: PlayerPosition | null;
 };

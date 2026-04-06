@@ -1,5 +1,5 @@
 import { useGameStore } from '../stores/gameStore.js';
-import { GamePhase, SpecialCardType, getCardPoints } from '@cyprus/shared';
+import { GamePhase, SpecialCardType, getCardPoints, getRankLabel } from '@cyprus/shared';
 import type { Card, PlayerPosition, RoundScoreBreakdown } from '@cyprus/shared';
 import { CardComponent } from './CardComponent.js';
 import { PlayerHand } from './PlayerHand.js';
@@ -206,15 +206,10 @@ function PlayingLayout({
   const isDragonGive = gameState.phase === GamePhase.DRAGON_GIVE;
   const isTeammate = (pos: PlayerPosition) => pos % 2 === gameState.myPosition % 2;
 
-  // Check if we need to show the wish selector
-  const lastPlay = gameState.currentTrick.plays[gameState.currentTrick.plays.length - 1];
-  const showWishSelector =
-    lastPlay &&
-    lastPlay.playerPosition === gameState.myPosition &&
-    lastPlay.combination.cards.some(
-      (c) => c.type === 'special' && c.specialType === SpecialCardType.MAHJONG
-    ) &&
-    !gameState.wish.active;
+  // Check if we need to show the wish selector (I played the Mahjong and haven't wished yet)
+  const showWishSelector = gameState.wishPending === gameState.myPosition;
+  // Block play/pass while any player's wish is pending
+  const wishBlocking = gameState.wishPending !== null && gameState.wishPending !== undefined;
 
   return (
     <div className="playing-layout">
@@ -240,7 +235,7 @@ function PlayingLayout({
         <div className="trick-area">
           {gameState.wish.active && (
             <div className="wish-indicator">
-              Wish: {gameState.wish.wishedRank}
+              Wish: {gameState.wish.wishedRank !== null ? getRankLabel(gameState.wish.wishedRank) : ''}
             </div>
           )}
           {gameState.currentTrick.plays.length > 0 ? (
@@ -326,7 +321,7 @@ function PlayingLayout({
               ))}
           </>
         )}
-        {!isDragonGive && isMyTurn && (
+        {!isDragonGive && isMyTurn && !wishBlocking && (
           <div className="play-pass-group">
             <button
               className="btn btn-play"
