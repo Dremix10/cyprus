@@ -6,9 +6,10 @@ interface OpponentHandProps {
   position: 'left' | 'top' | 'right';
   isCurrentTurn: boolean;
   isTeammate?: boolean;
+  hasPassed?: boolean;
 }
 
-export function OpponentHand({ player, position, isCurrentTurn, isTeammate }: OpponentHandProps) {
+export function OpponentHand({ player, position, isCurrentTurn, isTeammate, hasPassed }: OpponentHandProps) {
   const hasRevealedHand = player.hand && player.hand.length > 0;
 
   return (
@@ -19,6 +20,9 @@ export function OpponentHand({ player, position, isCurrentTurn, isTeammate }: Op
           <span className={`tichu-badge ${player.tichuCall === 'grand_tichu' ? 'tichu-badge-grand' : ''}`}>
             {player.tichuCall === 'grand_tichu' ? 'GRAND TICHU' : 'TICHU'}
           </span>
+        )}
+        {hasPassed && !player.isOut && (
+          <span className="pass-badge">PASS</span>
         )}
         {player.isOut && (
           <span className="out-badge">#{player.finishOrder}</span>

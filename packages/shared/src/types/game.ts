@@ -23,6 +23,7 @@ export type TrickState = {
   plays: TrickPlay[];
   currentWinner: PlayerPosition | null;
   passCount: number;
+  passedPlayers: PlayerPosition[];
 };
 
 export type WishState = {

@@ -1111,6 +1111,16 @@ body {
   font-weight: 700;
 }
 
+.pass-badge {
+  background: rgba(255, 255, 255, 0.15);
+  color: var(--text-muted);
+  padding: 0.1rem 0.4rem;
+  border-radius: 4px;
+  font-size: 0.65rem;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
 .collected-pile {
   margin-top: 0.3rem;
 }

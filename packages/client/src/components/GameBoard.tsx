@@ -210,6 +210,8 @@ function PlayingLayout({
   const showWishSelector = gameState.wishPending === gameState.myPosition;
   // Block play/pass while any player's wish is pending
   const wishBlocking = gameState.wishPending !== null && gameState.wishPending !== undefined;
+  // Track which players passed in the current trick
+  const passedSet = new Set(gameState.currentTrick.passedPlayers ?? []);
 
   return (
     <div className="playing-layout">
@@ -220,6 +222,7 @@ function PlayingLayout({
           position="top"
           isCurrentTurn={gameState.currentPlayer === rel.top}
           isTeammate={isTeammate(rel.top)}
+          hasPassed={passedSet.has(rel.top)}
         />
       </div>
 
@@ -230,6 +233,7 @@ function PlayingLayout({
           position="left"
           isCurrentTurn={gameState.currentPlayer === rel.left}
           isTeammate={isTeammate(rel.left)}
+          hasPassed={passedSet.has(rel.left)}
         />
 
         <div className="trick-area">
@@ -265,6 +269,7 @@ function PlayingLayout({
           position="right"
           isCurrentTurn={gameState.currentPlayer === rel.right}
           isTeammate={isTeammate(rel.right)}
+          hasPassed={passedSet.has(rel.right)}
         />
       </div>
 
@@ -305,7 +310,7 @@ function PlayingLayout({
 
       {/* Action buttons */}
       <div className="btn-group">
-        {isDragonGive && (
+        {isDragonGive && gameState.currentTrick.currentWinner === gameState.myPosition && (
           <>
             <span className="info">Give the Dragon trick to:</span>
             {gameState.players
@@ -320,6 +325,11 @@ function PlayingLayout({
                 </button>
               ))}
           </>
+        )}
+        {isDragonGive && gameState.currentTrick.currentWinner !== gameState.myPosition && (
+          <span className="info">
+            {gameState.players[gameState.currentTrick.currentWinner!]?.nickname} is choosing who to give the Dragon trick to...
+          </span>
         )}
         {!isDragonGive && isMyTurn && !wishBlocking && (
           <div className="play-pass-group">

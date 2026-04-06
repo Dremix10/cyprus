@@ -615,6 +615,12 @@ export class BotAI {
       }
     }
 
+    // ── Lead with Mahjong first (it's the lowest card, hardest to get rid of later) ──
+    const mahjongPlay = combos.singles.find((c) => isSpecial(c[0], SpecialCardType.MAHJONG));
+    if (mahjongPlay) {
+      return mahjongPlay.map((c) => c.id);
+    }
+
     // ── Lead long combos first (hardest to beat) ──
     // Straights of 5+ are very hard to beat
     const longCombos = combos.multiCard.filter((c) => c.length >= 5);
@@ -647,13 +653,6 @@ export class BotAI {
     const singletons = this.findSingletonCards(hand, combos.nonSpecialSingles);
     if (singletons.length > 0) {
       return this.pickLowestCombo(singletons);
-    }
-
-    // ── Lead with Mahjong (to trigger wish) ──
-    // But only if we have a good wish (a rank we don't hold)
-    const mahjongPlay = combos.singles.find((c) => isSpecial(c[0], SpecialCardType.MAHJONG));
-    if (mahjongPlay) {
-      return mahjongPlay.map((c) => c.id);
     }
 
     // ── Lead lowest non-special single ──

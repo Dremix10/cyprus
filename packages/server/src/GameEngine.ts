@@ -80,7 +80,7 @@ export class GameEngine {
         wonTricks: [] as Card[][],
       })) as unknown as [PlayerState, PlayerState, PlayerState, PlayerState],
       currentPlayer: 0,
-      currentTrick: { plays: [], currentWinner: null, passCount: 0 },
+      currentTrick: { plays: [], currentWinner: null, passCount: 0, passedPlayers: [] },
       wish: { active: false, wishedRank: null, wishedBy: null },
       wishPending: null,
       finishOrder: [],
@@ -112,7 +112,7 @@ export class GameEngine {
     this.roundTrickCards = [[], []];
     this.roundBreakdown = null;
     this.state.phase = GamePhase.GRAND_TICHU;
-    this.state.currentTrick = { plays: [], currentWinner: null, passCount: 0 };
+    this.state.currentTrick = { plays: [], currentWinner: null, passCount: 0, passedPlayers: [] };
     this.state.wish = { active: false, wishedRank: null, wishedBy: null };
     this.state.wishPending = null;
     this.state.finishOrder = [];
@@ -360,6 +360,7 @@ export class GameEngine {
     });
     this.state.currentTrick.currentWinner = position;
     this.state.currentTrick.passCount = 0;
+    this.state.currentTrick.passedPlayers = [];
 
     const isBomb =
       combination.type === CombinationType.FOUR_OF_A_KIND_BOMB ||
@@ -441,6 +442,7 @@ export class GameEngine {
     }
 
     this.state.currentTrick.passCount++;
+    this.state.currentTrick.passedPlayers.push(position);
     this.emit({ type: 'PASS', playerPosition: position });
 
     // Check if trick is won (all other active players passed)
@@ -477,7 +479,7 @@ export class GameEngine {
     });
 
     // Clear trick and continue
-    this.state.currentTrick = { plays: [], currentWinner: null, passCount: 0 };
+    this.state.currentTrick = { plays: [], currentWinner: null, passCount: 0, passedPlayers: [] };
     this.state.dragonWinner = null;
     this.state.phase = GamePhase.PLAYING;
 
@@ -540,7 +542,7 @@ export class GameEngine {
     this.state.players[winner].wonTricks.push(trickCards);
 
     // Start new trick
-    this.state.currentTrick = { plays: [], currentWinner: null, passCount: 0 };
+    this.state.currentTrick = { plays: [], currentWinner: null, passCount: 0, passedPlayers: [] };
 
     // Winner leads next trick (or next active if out)
     if (this.state.players[winner].isOut) {
@@ -595,7 +597,7 @@ export class GameEngine {
       const trickCards = this.state.currentTrick.plays.flatMap((p) => p.combination.cards);
       const winner = this.state.currentTrick.currentWinner;
       this.state.players[winner].wonTricks.push(trickCards);
-      this.state.currentTrick = { plays: [], currentWinner: null, passCount: 0 };
+      this.state.currentTrick = { plays: [], currentWinner: null, passCount: 0, passedPlayers: [] };
     }
 
     // Mark all remaining players as out
