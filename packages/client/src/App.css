@@ -1083,6 +1083,25 @@ body {
   background: #8b0000;
 }
 
+.tichu-call-list {
+  display: flex;
+  gap: 1rem;
+  justify-content: center;
+  margin-bottom: 0.75rem;
+}
+
+.tichu-call-entry {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.tichu-call-name {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  font-weight: 500;
+}
+
 .out-badge {
   background: var(--success);
   color: #333;

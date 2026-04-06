@@ -94,6 +94,25 @@ function GrandTichuView() {
   );
 }
 
+function TichuCallBadges() {
+  const gameState = useGameStore((s) => s.gameState)!;
+  const callers = gameState.players.filter((p) => p.tichuCall !== 'none');
+  if (callers.length === 0) return null;
+
+  return (
+    <div className="tichu-call-list">
+      {callers.map((p) => (
+        <div key={p.position} className="tichu-call-entry">
+          <span className="tichu-call-name">{p.nickname}</span>
+          <span className={`tichu-badge ${p.tichuCall === 'grand_tichu' ? 'tichu-badge-grand' : ''}`}>
+            {p.tichuCall === 'grand_tichu' ? 'GRAND TICHU' : 'TICHU'}
+          </span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 function PassingView() {
   const gameState = useGameStore((s) => s.gameState)!;
   const selectedCards = useGameStore((s) => s.selectedCards);
@@ -105,7 +124,12 @@ function PassingView() {
   const canCallTichu = myInfo?.tichuCall === 'none' && !gameState.hasPlayedCards;
 
   if (hasPassed) {
-    return <p className="info">Waiting for others to pass cards...</p>;
+    return (
+      <div className="phase-view">
+        <TichuCallBadges />
+        <p className="info">Waiting for others to pass cards...</p>
+      </div>
+    );
   }
 
   const selectedArray = [...selectedCards];
@@ -113,6 +137,7 @@ function PassingView() {
 
   return (
     <div className="phase-view">
+      <TichuCallBadges />
       <h3>Pass Cards</h3>
       <p className="info">Select 3 cards: one for left, across, and right.</p>
       <PlayerHand
