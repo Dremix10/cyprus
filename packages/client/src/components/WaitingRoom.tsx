@@ -86,7 +86,10 @@ export function WaitingRoom() {
           </button>
         )}
         {!roomState.isStartable && (
-          <p className="info">Waiting for 4 players...</p>
+          <p className="info">Waiting for at least 2 players...</p>
+        )}
+        {roomState.isStartable && roomState.players.length < 4 && (
+          <p className="info">Empty seats will be filled by bots</p>
         )}
       </div>
 

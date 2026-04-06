@@ -8,6 +8,7 @@ export type RoomPlayer = {
   position: PlayerPosition;
   connected: boolean;
   disconnectedAt?: number;
+  avatar?: string;
 };
 
 export type Room = {
@@ -20,6 +21,16 @@ export type Room = {
   createdAt: number;
   lastActivity: number;
 };
+
+const BOT_PROFILES = [
+  { name: 'Bot Zeus', avatarBase: 'bot-zeus' },
+  { name: 'Bot Athena', avatarBase: 'bot-athena' },
+  { name: 'Bot Apollo', avatarBase: 'bot-apollo' },
+];
+
+function randomBotAvatar(base: string): string {
+  return `/${base}-${Math.random() < 0.5 ? 1 : 2}.png`;
+}
 
 const ROOM_CODE_CHARS = 'ABCDEFGHJKLMNPQRSTUVWXYZ'; // no I, O (ambiguous)
 const ROOM_CODE_LENGTH = 4;
@@ -101,14 +112,15 @@ export class RoomManager {
     this.socketToRoom.set(socketId, { roomCode: code, position: 0 });
 
     // Bots at positions 1, 2, 3
-    const botNames = ['Bot 1', 'Teammate bot', 'Bot 3'];
     for (let i = 0; i < 3; i++) {
       const pos = (i + 1) as PlayerPosition;
+      const profile = BOT_PROFILES[i];
       const bot: RoomPlayer = {
         socketId: `bot-${code}-${pos}`,
-        nickname: botNames[i],
+        nickname: profile.name,
         position: pos,
         connected: true,
+        avatar: randomBotAvatar(profile.avatarBase),
       };
       room.players.set(pos, bot);
     }
@@ -192,7 +204,26 @@ export class RoomManager {
     const room = this.rooms.get(info.roomCode);
     if (!room) return { error: 'Room not found' };
     if (room.engine) return { error: 'Game already started' };
-    if (room.players.size !== 4) return { error: 'Need 4 players' };
+    if (room.players.size < 2) return { error: 'Need at least 2 players' };
+
+    // Fill empty seats with hard bots
+    let botIndex = 0;
+    for (const pos of [0, 1, 2, 3] as PlayerPosition[]) {
+      if (!room.players.has(pos)) {
+        const profile = BOT_PROFILES[botIndex];
+        const bot: RoomPlayer = {
+          socketId: `bot-${room.code}-${pos}`,
+          nickname: profile.name,
+          position: pos,
+          connected: true,
+          avatar: randomBotAvatar(profile.avatarBase),
+        };
+        room.players.set(pos, bot);
+        room.botPositions.add(pos);
+        botIndex++;
+      }
+    }
+    room.botDifficulty = 'hard';
 
     const nicknames: [string, string, string, string] = [
       room.players.get(0)!.nickname,
@@ -259,8 +290,9 @@ export class RoomManager {
         nickname: p.nickname,
         position: p.position,
         connected: p.connected,
+        avatar: p.avatar,
       })),
-      isStartable: room.players.size === 4 && !room.engine,
+      isStartable: room.players.size >= 2 && !room.engine,
     };
   }
 

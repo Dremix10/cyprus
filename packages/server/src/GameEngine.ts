@@ -681,7 +681,7 @@ export class GameEngine {
   }
 
   /** Get the game state as seen by a specific player. */
-  getClientState(position: PlayerPosition, roomCode: string, botPositions?: Set<PlayerPosition>): ClientGameState {
+  getClientState(position: PlayerPosition, roomCode: string, botPositions?: Set<PlayerPosition>, avatars?: Map<PlayerPosition, string>): ClientGameState {
     const player = this.state.players[position];
     const iAmOut = player.isOut;
     return {
@@ -700,6 +700,7 @@ export class GameEngine {
         finishOrder: p.finishOrder,
         // Reveal bot hands to the human player once they've finished
         hand: iAmOut && botPositions?.has(p.position) && !p.isOut ? p.hand : undefined,
+        avatar: avatars?.get(p.position as PlayerPosition),
       })) as PublicPlayerState[],
       currentPlayer: this.state.currentPlayer,
       currentTrick: this.state.currentTrick,

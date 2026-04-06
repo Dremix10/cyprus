@@ -15,6 +15,9 @@ export function OpponentHand({ player, position, isCurrentTurn, isTeammate, hasP
   return (
     <div className={`opponent-panel opponent-${position} ${isCurrentTurn ? 'opponent-active' : ''}`}>
       <div className="opponent-info">
+        {player.avatar && (
+          <img className="player-avatar" src={player.avatar} alt={player.nickname} />
+        )}
         <span className={`opponent-name ${isTeammate ? 'name-teammate' : 'name-opponent'}`}>{player.nickname}</span>
         {player.tichuCall !== 'none' && (
           <span className={`tichu-badge ${player.tichuCall === 'grand_tichu' ? 'tichu-badge-grand' : ''}`}>

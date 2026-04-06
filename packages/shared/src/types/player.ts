@@ -14,6 +14,7 @@ export type PublicPlayerState = {
   isOut: boolean;
   finishOrder: number | null;
   hand?: Card[];
+  avatar?: string;
 };
 
 export type PrivatePlayerState = PublicPlayerState & {

@@ -1052,6 +1052,14 @@ body {
   gap: 0.4rem;
 }
 
+.player-avatar {
+  width: 62px;
+  height: 62px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+}
+
 .opponent-name {
   font-weight: 600;
   font-size: 0.9rem;

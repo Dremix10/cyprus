@@ -4,6 +4,7 @@ export type RoomPlayer = {
   nickname: string;
   position: PlayerPosition;
   connected: boolean;
+  avatar?: string;
 };
 
 export type RoomState = {

@@ -209,9 +209,15 @@ export class SocketHandler {
     const room = this.rooms.getRoom(roomCode);
     if (!room || !room.engine) return;
 
+    // Build avatar map from room players
+    const avatars = new Map<PlayerPosition, string>();
+    for (const [pos, player] of room.players) {
+      if (player.avatar) avatars.set(pos, player.avatar);
+    }
+
     const sockets = this.rooms.getSocketIdsForRoom(roomCode);
     for (const [position, socketId] of sockets) {
-      const state = room.engine.getClientState(position, roomCode, room.botPositions);
+      const state = room.engine.getClientState(position, roomCode, room.botPositions, avatars);
       this.io.to(socketId).emit('game:state', state);
     }
 
