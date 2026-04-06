@@ -1,0 +1,9 @@
+node_modules/
+dist/
+*.tsbuildinfo
+.git
+.gitignore
+.DS_Store
+.env
+*.md
+packages/server/data/
