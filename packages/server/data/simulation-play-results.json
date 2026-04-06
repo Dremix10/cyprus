@@ -1,0 +1,44 @@
+{
+  "timestamp": "2026-04-06T02:55:15.224Z",
+  "numGames": 10000,
+  "baseline": {
+    "label": "Hard Baseline",
+    "games": 10000,
+    "errors": 0,
+    "winRate": [
+      0.5069,
+      0.4931
+    ],
+    "avgScores": [
+      871.3575,
+      871.5825
+    ],
+    "avgRounds": 13.4165,
+    "playRate": 48,
+    "passRate": 52,
+    "bombsPerGame": 0,
+    "dragonsPerGame": 13.2,
+    "doubleVictoriesPerGame": 3.8,
+    "tichu": {
+      "callsPerGame": 1,
+      "successRate": 61.1,
+      "netPointsPerGame": 21.5
+    },
+    "grandTichu": {
+      "callsPerGame": 0.03,
+      "successRate": 51.5,
+      "netPointsPerGame": 0.2
+    },
+    "firstOutDistribution": [
+      25.1,
+      24.9,
+      24.9,
+      25
+    ]
+  },
+  "recommendations": [
+    "PASS RATE HIGH (52%): Bots pass too often. Consider lowering the threshold for playing cards — less passing means more control over tricks.",
+    "BOMBS LOW (0/game): Bots are too conservative with bombs. Lower the trickPoints threshold for bombing.",
+    "DOUBLE VICTORIES (3.8/game): High rate suggests good team coordination."
+  ]
+}

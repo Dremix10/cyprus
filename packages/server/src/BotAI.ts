@@ -285,7 +285,7 @@ export class BotAI {
         if (card.type === 'normal' && card.rank === NR.ACE) strength += 1.5;
         if (card.type === 'normal' && card.rank === NR.KING) strength += 1;
       }
-      return strength >= 8;
+      return strength >= 9;
     }
 
     // Hard: thorough hand analysis on 8 cards
@@ -335,7 +335,7 @@ export class BotAI {
     if (maxRun >= 5) strength += 2;
     else if (maxRun >= 4) strength += 1;
 
-    return strength >= 7;
+    return strength >= 9;
   }
 
   // ─── Regular Tichu ──────────────────────────────────────────────────
@@ -347,7 +347,7 @@ export class BotAI {
 
     if (this.difficulty === 'medium') {
       // Medium: call Tichu if very strong (few turns, many control)
-      return plan.turnsToOut <= 5 && plan.controlCount >= 4;
+      return plan.turnsToOut <= 4 && plan.controlCount >= 4;
     }
 
     // Hard: call Tichu with a nuanced evaluation
@@ -361,17 +361,22 @@ export class BotAI {
     // - We can go out in 7 or fewer turns
     // - We lose the lead at most 2 times (need control for the rest)
     // - We have at least 3 control cards
-    if (plan.turnsToOut <= 7 && losableTurns <= 2 && plan.controlCount >= 3) {
+    if (plan.turnsToOut <= 6 && losableTurns <= 1 && plan.controlCount >= 4) {
       return true;
     }
 
     // Very strong hands: few turns even with fewer control
+    if (plan.turnsToOut <= 5 && losableTurns <= 2 && plan.controlCount >= 3) {
+      return true;
+    }
+
+    // Compact hands
     if (plan.turnsToOut <= 4 && plan.controlCount >= 2) {
       return true;
     }
 
     // Bomb + strong hand
-    if (plan.hasBomb && plan.turnsToOut <= 6 && plan.controlCount >= 3) {
+    if (plan.hasBomb && plan.turnsToOut <= 5 && plan.controlCount >= 3) {
       return true;
     }
 
@@ -739,11 +744,11 @@ export class BotAI {
 
     // Don't waste Phoenix on worthless tricks (unless close to going out)
     if (lowestBeat.length === 1 && isSpecial(lowestBeat[0], SpecialCardType.PHOENIX)) {
-      if (trickPoints < 5 && hand.length > 4) return null;
+      if (trickPoints < 5 && hand.length > 6) return null;
     }
 
-    // Pass if cheapest beat is Ace+ on a pointless trick and we're not in endgame
-    if (lowestCombo && lowestCombo.rank >= NR.ACE && trickPoints <= 0 && hand.length > 5) {
+    // Pass if cheapest beat is Ace+ on a pointless trick and we're deep in the game
+    if (lowestCombo && lowestCombo.rank >= NR.ACE && trickPoints <= 0 && hand.length > 8) {
       return null;
     }
 
@@ -820,9 +825,9 @@ export class BotAI {
     opponentAboutToOut: boolean
   ): boolean {
     // Always bomb if close to going out
-    if (hand.length <= 5) return true;
-    // Bomb high-value tricks
-    if (trickPoints >= 10) return true;
+    if (hand.length <= 6) return true;
+    // Bomb any trick with points
+    if (trickPoints >= 5) return true;
     // Bomb to prevent opponent from going out
     if (opponentAboutToOut) return true;
     return false;

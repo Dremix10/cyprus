@@ -1,0 +1,35 @@
+{
+  "timestamp": "2026-04-06T02:45:16.412Z",
+  "numGames": 1000,
+  "results": {
+    "hardStats": {
+      "gamesPlayed": 500,
+      "teamAWins": 260,
+      "teamBWins": 240,
+      "avgScoreA": 875,
+      "avgScoreB": 864,
+      "avgRoundsPerGame": 13.3,
+      "tichuCalls": {
+        "total": 556,
+        "successful": 333,
+        "rate": 59.9
+      },
+      "grandTichuCalls": {
+        "total": 34,
+        "successful": 19,
+        "rate": 55.9
+      },
+      "avgTurnsToOut": [],
+      "firstOutCounts": [
+        1679,
+        1696,
+        1637,
+        1658
+      ],
+      "doubleVictories": 0,
+      "bombsPlayed": 1484,
+      "dragonTricksGiven": 6539
+    }
+  },
+  "recommendations": []
+}
