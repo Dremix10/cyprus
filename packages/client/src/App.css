@@ -1710,6 +1710,163 @@ body {
   to { opacity: 1; transform: translateY(0); }
 }
 
+/* ─── Score History ─────────────────────── */
+
+.history-btn {
+  background: none;
+  border: none;
+  font-size: 1rem;
+  cursor: pointer;
+  padding: 0.2rem 0.4rem;
+  border-radius: 4px;
+  opacity: 0.7;
+  transition: opacity 0.15s;
+  line-height: 1;
+}
+
+.history-btn:hover {
+  opacity: 1;
+}
+
+.history-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 50;
+  animation: fade-in 0.15s ease-out;
+}
+
+.history-modal {
+  background: var(--bg);
+  border: 1px solid var(--surface-light);
+  border-radius: 12px;
+  padding: 1.5rem;
+  max-width: 500px;
+  width: 90%;
+  max-height: 80vh;
+  overflow-y: auto;
+}
+
+@keyframes fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.score-history {
+  width: 100%;
+}
+
+.score-history-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.75rem;
+}
+
+.score-history-header h3 {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.score-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.8rem;
+}
+
+.score-table th {
+  padding: 0.4rem 0.6rem;
+  text-align: center;
+  font-weight: 600;
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--text-muted);
+  border-bottom: 1px solid var(--surface-light);
+}
+
+.score-table td {
+  padding: 0.4rem 0.6rem;
+  text-align: center;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.score-table tbody tr:nth-child(even) {
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.score-table tbody tr:last-child {
+  font-weight: 600;
+}
+
+.score-round-num {
+  color: var(--text-muted);
+  font-size: 0.75rem;
+}
+
+.score-cell {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.1rem;
+}
+
+.score-cell .score-delta {
+  font-weight: 600;
+  font-size: 0.8rem;
+}
+
+.score-cell .score-total {
+  font-size: 0.65rem;
+  color: var(--text-muted);
+}
+
+.score-positive .score-delta {
+  color: var(--success);
+}
+
+.score-negative .score-delta {
+  color: var(--primary);
+}
+
+.score-notes {
+  display: flex;
+  gap: 0.25rem;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.score-badge {
+  padding: 0.1rem 0.3rem;
+  border-radius: 3px;
+  font-size: 0.6rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.badge-team-a {
+  background: rgba(46, 204, 113, 0.2);
+  color: var(--success);
+}
+
+.badge-team-b {
+  background: rgba(233, 69, 96, 0.2);
+  color: var(--primary);
+}
+
+.badge-success {
+  background: rgba(46, 204, 113, 0.2);
+  color: var(--success);
+}
+
+.badge-fail {
+  background: rgba(233, 69, 96, 0.2);
+  color: var(--primary);
+}
+
 .connection-banner {
   position: fixed;
   top: 0;

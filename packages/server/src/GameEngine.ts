@@ -63,6 +63,13 @@ export class GameEngine {
   private targetScore: number;
   private roundTrickCards: [Card[], Card[]] = [[], []];
   private roundBreakdown: RoundScoreBreakdown | null = null;
+  private roundHistory: Array<{
+    round: number;
+    teamScores: [number, number];
+    runningTotals: [number, number];
+    doubleVictory: 0 | 1 | null;
+    tichuResults: { position: PlayerPosition; call: 'tichu' | 'grand_tichu'; success: boolean; team: 0 | 1 }[];
+  }> = [];
 
   constructor(nicknames: [string, string, string, string], targetScore: number = WINNING_SCORE) {
     this.targetScore = targetScore;
@@ -679,6 +686,20 @@ export class GameEngine {
     this.state.scores[0] += result.totalRound[0];
     this.state.scores[1] += result.totalRound[1];
 
+    // Record round history
+    this.roundHistory.push({
+      round: this.roundHistory.length + 1,
+      teamScores: [...result.totalRound] as [number, number],
+      runningTotals: [...this.state.scores] as [number, number],
+      doubleVictory: result.breakdown.doubleVictory,
+      tichuResults: result.breakdown.tichuResults.map((t) => ({
+        position: t.position,
+        call: t.call,
+        success: t.success,
+        team: t.team,
+      })),
+    });
+
     this.state.phase = GamePhase.ROUND_SCORING;
     this.emit({
       type: 'ROUND_END',
@@ -755,6 +776,7 @@ export class GameEngine {
       hasPlayedCards: player.hasPlayedCards,
       wishPending: this.state.wishPending,
       dogPending: this.state.dogPending || undefined,
+      roundHistory: this.roundHistory.length > 0 ? this.roundHistory : undefined,
     };
   }
 }

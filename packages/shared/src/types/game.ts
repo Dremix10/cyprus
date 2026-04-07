@@ -32,6 +32,19 @@ export type WishState = {
   wishedBy: PlayerPosition | null;
 };
 
+export type RoundHistoryEntry = {
+  round: number;
+  teamScores: [number, number];      // points scored this round
+  runningTotals: [number, number];    // cumulative scores after this round
+  doubleVictory: 0 | 1 | null;
+  tichuResults: {
+    position: PlayerPosition;
+    call: 'tichu' | 'grand_tichu';
+    success: boolean;
+    team: 0 | 1;
+  }[];
+};
+
 export type ClientGameState = {
   roomCode: string;
   phase: GamePhase;
@@ -52,4 +65,5 @@ export type ClientGameState = {
   wishPending?: PlayerPosition | null;
   dogPending?: boolean;
   turnDeadline?: number | null;
+  roundHistory?: RoundHistoryEntry[];
 };

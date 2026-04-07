@@ -7,6 +7,7 @@ import { CardComponent } from './CardComponent.js';
 import { PlayerHand } from './PlayerHand.js';
 import { OpponentHand } from './OpponentHand.js';
 import { WishSelector } from './WishSelector.js';
+import { ScoreHistory } from './ScoreHistory.js';
 import { isMuted, setMuted } from '../sounds.js';
 
 function getRelativePositions(myPos: PlayerPosition) {
@@ -36,12 +37,14 @@ export function GameBoard() {
   const gameState = useGameStore((s) => s.gameState);
   const error = useGameStore((s) => s.error);
   const roomNotification = useRoomStore((s) => s.error);
+  const [showHistory, setShowHistory] = useState(false);
 
   if (!gameState) {
     return <div className="game-board">Loading game...</div>;
   }
 
   const rel = getRelativePositions(gameState.myPosition);
+  const hasHistory = gameState.roundHistory && gameState.roundHistory.length > 0;
 
   return (
     <div className="game-board">
@@ -57,11 +60,24 @@ export function GameBoard() {
         <span className="phase-label">
           {formatPhase(gameState.phase)}
           <SoundToggle />
+          {hasHistory && (
+            <button className="history-btn" onClick={() => setShowHistory(true)} title="Score History">
+              {'\uD83D\uDCCA'}
+            </button>
+          )}
         </span>
         <span className="name-opponent">
           Team B: {gameState.scores[1]} / {gameState.targetScore}
         </span>
       </div>
+
+      {showHistory && gameState.roundHistory && (
+        <div className="history-modal-overlay" onClick={() => setShowHistory(false)}>
+          <div className="history-modal" onClick={(e) => e.stopPropagation()}>
+            <ScoreHistory history={gameState.roundHistory} onClose={() => setShowHistory(false)} />
+          </div>
+        </div>
+      )}
 
       {error && <p className="error">{error}</p>}
 
@@ -654,6 +670,11 @@ function ScoringView() {
             <span className="score-total">{gameState.scores[1]}</span>
           </div>
         </div>
+
+        {gameState.roundHistory && gameState.roundHistory.length > 1 && (
+          <ScoreHistory history={gameState.roundHistory} />
+        )}
+
         <button className="btn btn-primary" onClick={nextRound}>
           Next Round
         </button>
@@ -684,6 +705,10 @@ function GameOverView() {
           <span className="score-total">{gameState.scores[1]}</span>
         </div>
       </div>
+
+      {gameState.roundHistory && gameState.roundHistory.length > 0 && (
+        <ScoreHistory history={gameState.roundHistory} />
+      )}
     </div>
   );
 }

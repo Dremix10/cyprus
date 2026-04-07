@@ -665,6 +665,22 @@ export class BotAI {
       return mahjongPlay.map((c) => c.id);
     }
 
+    // ── Lead-back: lead low when partner called Tichu and has fewer cards ──
+    if (context) {
+      const partnerPos2 = ((botPosition + 2) % 4) as PlayerPosition;
+      const partnerCards2 = context.playerCardCounts.get(partnerPos2) ?? 14;
+      const partnerOut2 = context.finishOrder.includes(partnerPos2);
+      const partnerCalledTichu2 = context.tichuCalls[partnerPos2] === 'tichu' ||
+        context.tichuCalls[partnerPos2] === 'grand_tichu';
+
+      // If partner called Tichu, isn't out, and has fewer cards: lead low to let them win
+      if (!partnerOut2 && partnerCalledTichu2 && partnerCards2 < hand.length) {
+        if (combos.nonSpecialSingles.length > 0) {
+          return this.pickLowestCombo(combos.nonSpecialSingles);
+        }
+      }
+    }
+
     // ── Lead long combos first (hardest to beat) ──
     // Straights of 5+ are very hard to beat
     const longCombos = combos.multiCard.filter((c) => c.length >= 5);
@@ -739,9 +755,17 @@ export class BotAI {
     const trickPoints = this.estimateTrickPoints(currentTrick);
     const { bombs, regular } = this.splitBombs(playable);
 
+    // Who led this trick?
+    const trickLeader = currentTrick.plays.length > 0
+      ? currentTrick.plays[0].playerPosition
+      : null;
+    const partnerLed = trickLeader === partnerPos;
+
+    // Is there an opponent Tichu/Grand Tichu call we should save bombs for?
+    const opponentTichuActive = context ? this.hasOpponentTichuCall(botPosition, context) : false;
+
     // ── Endgame urgency: play to go out ──
     if (hand.length <= 3 && regular.length > 0) {
-      // Play whatever gets us closest to going out
       const sorted = this.sortByRank(regular);
       return sorted[0].map((c) => c.id);
     }
@@ -755,12 +779,29 @@ export class BotAI {
       if (opponentAboutToOut && bombs.length > 0) {
         return this.pickLowestCombo(bombs);
       }
+      // Partner is winning — let them have it
       return null;
+    }
+
+    // ── Lead-back: partner led but got beaten — play conservatively ──
+    if (partnerLed && !partnerWinning) {
+      // Partner led, someone beat them. Try to win back with minimal effort.
+      // If the trick has no points and we're not under pressure, pass to preserve cards
+      if (trickPoints <= 0 && !opponentAboutToOut && hand.length > 6) {
+        // Only play if we have a cheap option (low rank relative to our hand)
+        if (regular.length > 0) {
+          const sorted = this.sortByRank(regular);
+          const cheapest = sorted[0];
+          const cheapCombo = detectCombination(cheapest);
+          // Pass if cheapest beat costs us an Ace or higher
+          if (cheapCombo && cheapCombo.rank >= NR.KING) return null;
+        }
+      }
     }
 
     // ── No regular plays — consider bombing ──
     if (regular.length === 0) {
-      if (bombs.length > 0 && this.shouldUseBombHard(hand, trickPoints, opponentAboutToOut)) {
+      if (bombs.length > 0 && this.shouldUseBombHard(hand, trickPoints, opponentAboutToOut, opponentTichuActive, bombs.length)) {
         return this.pickLowestCombo(bombs);
       }
       return null;
@@ -861,14 +902,34 @@ export class BotAI {
   private shouldUseBombHard(
     hand: Card[],
     trickPoints: number,
-    opponentAboutToOut: boolean
+    opponentAboutToOut: boolean,
+    opponentTichuActive: boolean,
+    bombCount: number
   ): boolean {
     // Always bomb if close to going out
     if (hand.length <= 6) return true;
-    // Bomb any trick with points
-    if (trickPoints >= 5) return true;
     // Bomb to prevent opponent from going out
     if (opponentAboutToOut) return true;
+    // Bomb high-value tricks
+    if (trickPoints >= 10) return true;
+
+    // If opponent has an active Tichu call and we only have 1 bomb, save it
+    // to counter them when they're close to going out
+    if (opponentTichuActive && bombCount <= 1 && trickPoints < 10) return false;
+
+    // Bomb moderate-value tricks if no reason to save
+    if (trickPoints >= 5) return true;
+
+    return false;
+  }
+
+  private hasOpponentTichuCall(botPosition: PlayerPosition, context: GameContext): boolean {
+    for (const pos of [0, 1, 2, 3] as PlayerPosition[]) {
+      if (pos % 2 === botPosition % 2) continue; // skip teammates
+      if (context.finishOrder.includes(pos)) continue; // already out
+      const call = context.tichuCalls[pos];
+      if (call === 'tichu' || call === 'grand_tichu') return true;
+    }
     return false;
   }
 
