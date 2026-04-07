@@ -67,9 +67,17 @@ function runRound(engine: GameEngine, bots: BotAI[], stats: RoundStats): void {
     if (call) stats.grandTichuCalls++;
   }
 
+  // Build tichuCalls from current engine state for pass logic
+  const tichuCalls: Record<PlayerPosition, TichuCall> = {
+    0: engine.state.players[0].tichuCall,
+    1: engine.state.players[1].tichuCall,
+    2: engine.state.players[2].tichuCall,
+    3: engine.state.players[3].tichuCall,
+  };
+
   for (let pos = 0; pos < 4; pos++) {
     const p = pos as PlayerPosition;
-    const cards = bots[pos].choosePassCards(engine.state.players[p].hand);
+    const cards = bots[pos].choosePassCards(engine.state.players[p].hand, p, tichuCalls);
     engine.passCards(p, cards);
   }
 
@@ -78,6 +86,11 @@ function runRound(engine: GameEngine, bots: BotAI[], stats: RoundStats): void {
     (engine.state.phase === GamePhase.PLAYING || engine.state.phase === GamePhase.DRAGON_GIVE) &&
     ++safety < 500
   ) {
+    if (engine.state.dogPending) {
+      engine.resolveDog();
+      continue;
+    }
+
     if (engine.state.wishPending !== null) {
       const wishPos = engine.state.wishPending;
       const context = buildGameContext(engine);

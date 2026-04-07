@@ -6,9 +6,10 @@ interface PlayerHandProps {
   selectedCards: Set<string>;
   onToggle: (cardId: string) => void;
   interactive?: boolean;
+  lockedCards?: Set<string>;
 }
 
-export function PlayerHand({ cards, selectedCards, onToggle, interactive = true }: PlayerHandProps) {
+export function PlayerHand({ cards, selectedCards, onToggle, interactive = true, lockedCards }: PlayerHandProps) {
   return (
     <div className="player-hand">
       {cards.map((card, i) => {
@@ -25,7 +26,7 @@ export function PlayerHand({ cards, selectedCards, onToggle, interactive = true 
             <CardComponent
               card={card}
               selected={selectedCards.has(card.id)}
-              onClick={interactive ? () => onToggle(card.id) : undefined}
+              onClick={interactive && !lockedCards?.has(card.id) ? () => onToggle(card.id) : undefined}
             />
           </div>
         );

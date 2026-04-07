@@ -456,6 +456,20 @@ export class GameEngine {
       throw new Error('Cannot pass when leading');
     }
 
+    // Cannot pass when wish is active and player can play the wished rank
+    if (this.state.wish.active && this.state.wish.wishedRank !== null) {
+      const player = this.state.players[position];
+      const currentTop = this.state.currentTrick.plays[this.state.currentTrick.plays.length - 1].combination;
+      const playable = findPlayableFromHand(player.hand, currentTop, this.state.wish);
+      const mustPlayWish = playable.length > 0 &&
+        playable.some((combo) =>
+          combo.some((c) => c.type === 'normal' && c.rank === this.state.wish.wishedRank)
+        );
+      if (mustPlayWish) {
+        throw new Error('You must play a combination containing the wished rank');
+      }
+    }
+
     this.state.currentTrick.passCount++;
     this.state.currentTrick.passedPlayers.push(position);
     this.emit({ type: 'PASS', playerPosition: position });

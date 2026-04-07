@@ -29,6 +29,7 @@ interface GameStore {
   handleEvent: (event: GameEvent) => void;
 
   toggleCard: (cardId: string) => void;
+  setSelectedCards: (cards: Set<string>) => void;
   clearSelection: () => void;
 
   grandTichuDecision: (call: boolean) => void;
@@ -108,6 +109,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
     set({ selectedCards: selected });
   },
 
+  setSelectedCards: (cards) => set({ selectedCards: cards }),
   clearSelection: () => set({ selectedCards: new Set() }),
 
   grandTichuDecision: (call) => {

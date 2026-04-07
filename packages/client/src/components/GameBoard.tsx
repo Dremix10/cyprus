@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useGameStore } from '../stores/gameStore.js';
 import { useRoomStore } from '../stores/roomStore.js';
-import { GamePhase, SpecialCardType, getCardPoints, getRankLabel } from '@cyprus/shared';
+import { GamePhase, SpecialCardType, CombinationType, getCardPoints, getRankLabel, sortCards, findPlayableFromHand } from '@cyprus/shared';
 import type { Card, PlayerPosition, RoundScoreBreakdown } from '@cyprus/shared';
 import { CardComponent } from './CardComponent.js';
 import { PlayerHand } from './PlayerHand.js';
@@ -37,6 +37,7 @@ export function GameBoard() {
   const gameState = useGameStore((s) => s.gameState);
   const error = useGameStore((s) => s.error);
   const roomNotification = useRoomStore((s) => s.error);
+  const roomCode = useRoomStore((s) => s.roomCode);
   const [showHistory, setShowHistory] = useState(false);
 
   if (!gameState) {
@@ -58,6 +59,7 @@ export function GameBoard() {
           Team A: {gameState.scores[0]} / {gameState.targetScore}
         </span>
         <span className="phase-label">
+          {roomCode && <span className="room-code-badge">{roomCode}</span>}
           {formatPhase(gameState.phase)}
           <SoundToggle />
           {hasHistory && (
@@ -389,10 +391,56 @@ function PlayingLayout({
   const callTichu = useGameStore((s) => s.callTichu);
   const dragonGive = useGameStore((s) => s.dragonGive);
   const lastEvent = useGameStore((s) => s.lastEvent);
+  const setSelectedCards = useGameStore((s) => s.setSelectedCards);
 
   const [tichuConfirm, setTichuConfirm] = useState(false);
   const [bombShake, setBombShake] = useState(false);
   const [trickCollecting, setTrickCollecting] = useState(false);
+
+  // Wish enforcement: auto-play single or pre-select wished card for straights
+  useEffect(() => {
+    if (!gameState || gameState.currentPlayer !== gameState.myPosition) return;
+    if (!gameState.wish.active || gameState.wish.wishedRank === null) return;
+    const trick = gameState.currentTrick;
+    if (trick.plays.length === 0) return; // leading, not following
+
+    const trickType = trick.plays[0].combination.type;
+    const wishedRank = gameState.wish.wishedRank;
+    const hand = gameState.myHand;
+
+    // Check if player has the wished rank
+    const wishedCard = hand.find(
+      (c) => c.type === 'normal' && c.rank === wishedRank
+    );
+    if (!wishedCard) return; // don't have it, nothing to enforce
+
+    // Check if there are valid plays containing the wished rank
+    const currentTop = trick.plays[trick.plays.length - 1].combination;
+    const playable = findPlayableFromHand(hand, currentTop, gameState.wish);
+    const hasWishPlay = playable.some((cards) =>
+      cards.some((c) => c.type === 'normal' && c.rank === wishedRank)
+    );
+    if (!hasWishPlay) return; // can't play wished rank in a valid combo
+
+    if (trickType === CombinationType.SINGLE) {
+      // Auto-play: find the exact card to play from the playable combos
+      const singlePlay = playable.find(
+        (cards) => cards.length === 1 && cards.some((c) => c.type === 'normal' && c.rank === wishedRank)
+      );
+      if (singlePlay) {
+        // Small delay so user sees it happen
+        const t = setTimeout(() => {
+          setSelectedCards(new Set([singlePlay[0].id]));
+          // Auto-submit after selection is visible
+          setTimeout(() => playCards(), 300);
+        }, 200);
+        return () => clearTimeout(t);
+      }
+    } else if (trickType === CombinationType.STRAIGHT || trickType === CombinationType.STRAIGHT_FLUSH_BOMB) {
+      // Pre-select the wished card, let user pick the rest
+      setSelectedCards(new Set([wishedCard.id]));
+    }
+  }, [gameState?.currentPlayer, gameState?.wish.active, gameState?.wish.wishedRank]);
 
   // Bomb shake effect
   useEffect(() => {
@@ -425,6 +473,42 @@ function PlayingLayout({
   const wishBlocking = (gameState.wishPending !== null && gameState.wishPending !== undefined) || !!gameState.dogPending;
   // Track which players passed in the current trick
   const passedSet = new Set(gameState.currentTrick.passedPlayers ?? []);
+
+  // Locked cards: wished card that's pre-selected for a straight can't be deselected
+  const lockedCards = (() => {
+    if (!isMyTurn || !gameState.wish.active || !gameState.wish.wishedRank) return undefined;
+    const trick = gameState.currentTrick;
+    if (trick.plays.length === 0) return undefined;
+    const trickType = trick.plays[0].combination.type;
+    if (trickType !== CombinationType.STRAIGHT && trickType !== CombinationType.STRAIGHT_FLUSH_BOMB) return undefined;
+    const wishedCard = gameState.myHand.find(
+      (c) => c.type === 'normal' && c.rank === gameState.wish.wishedRank
+    );
+    if (!wishedCard) return undefined;
+    const currentTop = trick.plays[trick.plays.length - 1].combination;
+    const playable = findPlayableFromHand(gameState.myHand, currentTop, gameState.wish);
+    const hasWishPlay = playable.some((cards) =>
+      cards.some((c) => c.type === 'normal' && c.rank === gameState.wish.wishedRank)
+    );
+    if (!hasWishPlay) return undefined;
+    return new Set([wishedCard.id]);
+  })();
+
+  // Whether the wish forces the player to play (blocks pass button)
+  const wishForcesPlay = (() => {
+    if (!isMyTurn || !gameState.wish.active || !gameState.wish.wishedRank) return false;
+    const trick = gameState.currentTrick;
+    if (trick.plays.length === 0) return false;
+    const wishedCard = gameState.myHand.find(
+      (c) => c.type === 'normal' && c.rank === gameState.wish.wishedRank
+    );
+    if (!wishedCard) return false;
+    const currentTop = trick.plays[trick.plays.length - 1].combination;
+    const playable = findPlayableFromHand(gameState.myHand, currentTop, gameState.wish);
+    return playable.some((cards) =>
+      cards.some((c) => c.type === 'normal' && c.rank === gameState.wish.wishedRank)
+    );
+  })();
 
   return (
     <div className="playing-layout">
@@ -463,7 +547,7 @@ function PlayingLayout({
                     {gameState.players[play.playerPosition]?.nickname}
                   </span>
                   <div className="trick-combo">
-                    {play.combination.cards.map((c) => (
+                    {sortCards(play.combination.cards).map((c) => (
                       <CardComponent key={c.id} card={c} size="small" />
                     ))}
                   </div>
@@ -513,6 +597,7 @@ function PlayingLayout({
           cards={gameState.myHand}
           selectedCards={selectedCards}
           onToggle={toggleCard}
+          lockedCards={lockedCards}
         />
         {myInfo.collectedCards > 0 && (
           <div className="collected-pile my-collected">
@@ -558,10 +643,13 @@ function PlayingLayout({
             >
               Play
             </button>
-            {hasTrickOnTable && (
+            {hasTrickOnTable && !wishForcesPlay && (
               <button className="btn btn-pass" onClick={passTurn}>
                 Pass
               </button>
+            )}
+            {wishForcesPlay && (
+              <span className="wish-forced-label">Wish active — you must play!</span>
             )}
           </div>
         )}

@@ -22,6 +22,7 @@ export function ScoreHistory({ history, onClose }: ScoreHistoryProps) {
           <button className="btn btn-small" onClick={onClose}>Close</button>
         )}
       </div>
+      <div className="score-table-wrapper">
       <table className="score-table">
         <thead>
           <tr>
@@ -62,6 +63,7 @@ export function ScoreHistory({ history, onClose }: ScoreHistoryProps) {
           ))}
         </tbody>
       </table>
+      </div>
     </div>
   );
 }
