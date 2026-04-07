@@ -23,6 +23,13 @@ const PORT = process.env.PORT ?? 3001;
 
 const roomManager = new RoomManager();
 const socketHandler = new SocketHandler(io, roomManager);
+
+// Restore any persisted rooms from a previous server session
+const restored = socketHandler.loadPersistedRooms();
+if (restored > 0) {
+  console.log(`Restored ${restored} room(s) from disk`);
+}
+
 socketHandler.setup();
 
 app.get('/health', (_req, res) => {

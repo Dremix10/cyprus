@@ -27,18 +27,22 @@ export interface ClientToServerEvents {
   'room:create': (
     nickname: string,
     targetScore: number,
-    callback: (response: { roomCode: string } | { error: string }) => void
+    callback: (response: { roomCode: string; sessionId: string } | { error: string }) => void
   ) => void;
   'room:create_solo': (
     nickname: string,
     targetScore: number,
     difficulty: string,
-    callback: (response: { roomCode: string } | { error: string }) => void
+    callback: (response: { roomCode: string; sessionId: string } | { error: string }) => void
   ) => void;
   'room:join': (
     roomCode: string,
     nickname: string,
-    callback: (response: { success: true } | { error: string }) => void
+    callback: (response: { success: true; sessionId: string } | { error: string }) => void
+  ) => void;
+  'session:reconnect': (
+    sessionId: string,
+    callback: (response: { success: true; roomCode: string; nickname: string } | { error: string }) => void
   ) => void;
   'room:sit': (position: PlayerPosition) => void;
   'room:start': () => void;

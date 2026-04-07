@@ -35,6 +35,12 @@ body {
   justify-content: center;
 }
 
+.reconnecting-screen {
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 1.1rem;
+}
+
 /* ─── Inputs & Buttons ──────────────────── */
 
 .input {

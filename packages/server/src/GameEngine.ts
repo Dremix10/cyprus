@@ -748,6 +748,29 @@ export class GameEngine {
   }
 
   /** Get the game state as seen by a specific player. */
+  /** Serialize the full engine state for persistence. */
+  serialize(): string {
+    return JSON.stringify({
+      state: this.state,
+      targetScore: this.targetScore,
+      roundTrickCards: this.roundTrickCards,
+      roundBreakdown: this.roundBreakdown,
+      roundHistory: this.roundHistory,
+    });
+  }
+
+  /** Restore a GameEngine from a serialized snapshot. */
+  static restore(json: string): GameEngine {
+    const data = JSON.parse(json);
+    const nicknames = data.state.players.map((p: PlayerState) => p.nickname) as [string, string, string, string];
+    const engine = new GameEngine(nicknames, data.targetScore);
+    engine.state = data.state;
+    engine.roundTrickCards = data.roundTrickCards ?? [[], []];
+    engine.roundBreakdown = data.roundBreakdown ?? null;
+    engine.roundHistory = data.roundHistory ?? [];
+    return engine;
+  }
+
   getClientState(position: PlayerPosition, roomCode: string, botPositions?: Set<PlayerPosition>, avatars?: Map<PlayerPosition, string>, disconnected?: Set<PlayerPosition>): ClientGameState {
     const player = this.state.players[position];
     const iAmOut = player.isOut;

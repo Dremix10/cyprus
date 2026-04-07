@@ -39,12 +39,19 @@ export function useSocketEvents() {
       setTimeout(() => setRoomError(null), 3000);
     };
 
+    // On socket reconnect, try to rejoin via session
+    const onReconnect = () => {
+      const { trySessionReconnect } = useRoomStore.getState();
+      trySessionReconnect();
+    };
+
     socket.on('room:state', onRoomState);
     socket.on('game:state', onGameState);
     socket.on('game:event', onGameEvent);
     socket.on('game:error', onGameError);
     socket.on('room:player_disconnected', onPlayerDisconnected);
     socket.on('room:player_reconnected', onPlayerReconnected);
+    socket.io.on('reconnect', onReconnect);
 
     return () => {
       socket.off('room:state', onRoomState);
@@ -53,6 +60,7 @@ export function useSocketEvents() {
       socket.off('game:error', onGameError);
       socket.off('room:player_disconnected', onPlayerDisconnected);
       socket.off('room:player_reconnected', onPlayerReconnected);
+      socket.io.off('reconnect', onReconnect);
     };
   }, [setRoomState, setView, setGameState, handleEvent, setGameError, setRoomError]);
 }

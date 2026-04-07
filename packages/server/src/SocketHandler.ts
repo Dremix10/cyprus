@@ -14,12 +14,13 @@ import type { Room } from './RoomManager.js';
 import type { GameEngine } from './GameEngine.js';
 import { BotAI } from './BotAI.js';
 import type { BotDifficulty, GameContext } from './BotAI.js';
-import { writeFileSync, appendFileSync, mkdirSync } from 'node:fs';
+import { writeFileSync, appendFileSync, readFileSync, existsSync, mkdirSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const DATA_DIR = join(__dirname, '..', 'data');
+const ROOMS_PERSIST_FILE = join(DATA_DIR, 'persisted-rooms.json');
 
 type TypedServer = Server<ClientToServerEvents, ServerToClientEvents>;
 type TypedSocket = Socket<ClientToServerEvents, ServerToClientEvents>;
@@ -48,7 +49,7 @@ export class SocketHandler {
           return;
         }
         socket.join(result.roomCode);
-        callback({ roomCode: result.roomCode });
+        callback({ roomCode: result.roomCode, sessionId: result.sessionId });
         this.broadcastRoomState(result.roomCode);
       });
 
@@ -64,7 +65,7 @@ export class SocketHandler {
           return;
         }
         socket.join(result.roomCode);
-        callback({ roomCode: result.roomCode });
+        callback({ roomCode: result.roomCode, sessionId: result.sessionId });
 
         // Start the game immediately
         const startResult = this.rooms.startGame(socket.id);
@@ -83,7 +84,7 @@ export class SocketHandler {
           return;
         }
         socket.join(roomCode.toUpperCase());
-        callback({ success: true });
+        callback({ success: true, sessionId: result.sessionId });
 
         // If game is in progress (reconnect), send game state
         const info = this.rooms.getRoomForSocket(socket.id);
@@ -168,6 +169,35 @@ export class SocketHandler {
         this.handleGameAction(socket, (engine) => engine.nextRound());
       });
 
+      socket.on('session:reconnect', (sessionId, callback) => {
+        const result = this.rooms.reconnectBySession(socket.id, sessionId);
+        if ('error' in result) {
+          callback({ error: result.error });
+          return;
+        }
+        socket.join(result.roomCode);
+        callback({ success: true, roomCode: result.roomCode, nickname: result.nickname });
+
+        // Cancel any pending bot replacement
+        const timerKey = `${result.roomCode}-${result.position}`;
+        const existing = this.disconnectTimers.get(timerKey);
+        if (existing) {
+          clearTimeout(existing);
+          this.disconnectTimers.delete(timerKey);
+        }
+
+        // Notify others of reconnection
+        socket.to(result.roomCode).emit('room:player_reconnected', result.nickname);
+
+        // Broadcast game state if game is in progress
+        const room = this.rooms.getRoom(result.roomCode);
+        if (room?.engine) {
+          this.broadcastGameState(result.roomCode);
+        } else {
+          this.broadcastRoomState(result.roomCode);
+        }
+      });
+
       socket.on('disconnect', () => {
         // Get position before disconnect handling
         const info = this.rooms.getRoomForSocket(socket.id);
@@ -248,8 +278,9 @@ export class SocketHandler {
       this.io.to(socketId).emit('game:state', state);
     }
 
-    // Save latest game state for debugging
+    // Save latest game state for debugging + persist rooms for crash recovery
     this.saveGameState(roomCode, room);
+    this.persistRooms();
 
     // If Dog is pending, schedule delayed resolution
     if (room.engine.state.dogPending) {
@@ -623,5 +654,33 @@ export class SocketHandler {
     }
 
     return null;
+  }
+
+  // ─── Room Persistence ─────────────────────────────────────────────────
+
+  /** Save all active rooms with games to disk. */
+  persistRooms(): void {
+    try {
+      mkdirSync(DATA_DIR, { recursive: true });
+      const data = this.rooms.serializeRooms();
+      writeFileSync(ROOMS_PERSIST_FILE, JSON.stringify(data));
+    } catch {
+      // Don't crash if persistence fails
+    }
+  }
+
+  /** Load persisted rooms from disk (call on server startup, before setup). */
+  loadPersistedRooms(): number {
+    try {
+      if (!existsSync(ROOMS_PERSIST_FILE)) return 0;
+      const raw = readFileSync(ROOMS_PERSIST_FILE, 'utf-8');
+      const data = JSON.parse(raw);
+      const count = this.rooms.restoreRooms(data);
+      // Clear the file after loading so stale data isn't reloaded on next restart
+      writeFileSync(ROOMS_PERSIST_FILE, '[]');
+      return count;
+    } catch {
+      return 0;
+    }
   }
 }
