@@ -497,7 +497,8 @@ export function canBeat(
 
 /** Adjust Phoenix single rank based on the last played single. */
 export function getPhoenixSingleRank(lastPlayedRank: number): number {
-  // Phoenix is half a rank above the last played, but can't beat Dragon (15)
+  // Phoenix is half a rank above the last played, but can never beat Dragon (15)
+  if (lastPlayedRank >= 15) return 14.5; // Can't surpass Dragon
   return lastPlayedRank + 0.5;
 }
 

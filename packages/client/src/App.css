@@ -98,11 +98,19 @@ body {
   color: #333;
 }
 
+.confirm-label {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--warning);
+  align-self: center;
+}
+
 .btn-group {
   display: flex;
   gap: 0.75rem;
   flex-wrap: wrap;
   justify-content: center;
+  align-items: center;
   align-items: center;
 }
 
@@ -1245,11 +1253,31 @@ body {
 .turn-indicator {
   text-align: center;
   font-size: 0.9rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
 }
 
 .your-turn {
   color: var(--success);
   font-weight: 700;
+}
+
+.turn-timer {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--text);
+  background: var(--surface);
+  padding: 0.15rem 0.5rem;
+  border-radius: 6px;
+  min-width: 2.5rem;
+  text-align: center;
+}
+
+.turn-timer-urgent {
+  color: var(--primary);
+  background: rgba(233, 69, 96, 0.15);
 }
 
 /* ─── Scores ────────────────────────────── */
@@ -1320,35 +1348,145 @@ body {
 
 /* ─── Pass Preview ─────────────────────── */
 
-.pass-preview {
+/* ─── Pass Zones (Card Passing UI) ─── */
+
+.pass-zones {
   display: flex;
-  gap: 1.5rem;
+  gap: 1rem;
   justify-content: center;
-  align-items: flex-end;
-  margin-bottom: 0.5rem;
+  margin-bottom: 1rem;
 }
 
-.pass-slot {
+.pass-zone {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 0.3rem;
+  gap: 0.4rem;
+  padding: 0.6rem;
+  border-radius: 10px;
+  border: 2px dashed rgba(255, 255, 255, 0.15);
+  min-width: 100px;
+  transition: border-color 0.2s, background 0.2s;
+  cursor: default;
 }
 
-.pass-label {
-  font-size: 0.75rem;
+.pass-zone-active {
+  border-color: rgba(255, 255, 255, 0.5);
+  background: rgba(255, 255, 255, 0.05);
+  cursor: pointer;
+}
+
+.pass-zone-teammate {
+  border-color: rgba(46, 204, 113, 0.3);
+}
+
+.pass-zone-teammate.pass-zone-active {
+  border-color: rgba(46, 204, 113, 0.7);
+  background: rgba(46, 204, 113, 0.08);
+}
+
+.pass-zone-opponent {
+  border-color: rgba(233, 69, 96, 0.3);
+}
+
+.pass-zone-opponent.pass-zone-active {
+  border-color: rgba(233, 69, 96, 0.7);
+  background: rgba(233, 69, 96, 0.08);
+}
+
+.pass-zone-header {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.15rem;
+}
+
+.pass-zone-avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.pass-zone-name {
+  font-size: 0.8rem;
   font-weight: 600;
+}
+
+.pass-zone-relation {
+  font-size: 0.6rem;
   text-transform: uppercase;
+  opacity: 0.5;
+  letter-spacing: 0.05em;
 }
 
-.pass-teammate .card {
-  border-color: var(--success) !important;
-  box-shadow: 0 0 6px rgba(46, 204, 113, 0.4);
+.pass-zone-card {
+  min-height: 70px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
-.pass-opponent .card {
-  border-color: var(--primary) !important;
-  box-shadow: 0 0 6px rgba(233, 69, 96, 0.4);
+.pass-zone-empty {
+  font-size: 0.7rem;
+  opacity: 0.35;
+  padding: 1rem 0.5rem;
+}
+
+.pass-zone-assigned {
+  position: relative;
+  cursor: pointer;
+}
+
+.pass-zone-remove {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  background: var(--primary);
+  color: white;
+  border-radius: 50%;
+  width: 18px;
+  height: 18px;
+  font-size: 0.65rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+
+.pass-zone-assigned:hover .pass-zone-remove {
+  opacity: 1;
+}
+
+/* ─── Pass Hand (cards during passing) ─── */
+
+.pass-hand {
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+  margin-bottom: 0.75rem;
+}
+
+.pass-hand-card {
+  cursor: pointer;
+  transition: transform 0.15s, opacity 0.15s;
+}
+
+.pass-hand-card:hover {
+  transform: translateY(-4px);
+}
+
+.pass-hand-active {
+  transform: translateY(-8px);
+  filter: brightness(1.2);
+}
+
+.pass-hand-assigned {
+  opacity: 0.3;
+  pointer-events: none;
+  transform: scale(0.92);
 }
 
 /* ─── Wish Indicator ────────────────────── */

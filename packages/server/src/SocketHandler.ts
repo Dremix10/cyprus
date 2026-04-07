@@ -24,7 +24,12 @@ const DATA_DIR = join(__dirname, '..', 'data');
 type TypedServer = Server<ClientToServerEvents, ServerToClientEvents>;
 type TypedSocket = Socket<ClientToServerEvents, ServerToClientEvents>;
 
+const TURN_TIMEOUT_MS = 60_000;
+
 export class SocketHandler {
+  private turnTimers = new Map<string, NodeJS.Timeout>(); // roomCode -> timer
+  private turnDeadlines = new Map<string, number>(); // roomCode -> deadline timestamp
+
   constructor(
     private io: TypedServer,
     private rooms: RoomManager
@@ -215,14 +220,26 @@ export class SocketHandler {
       if (player.avatar) avatars.set(pos, player.avatar);
     }
 
+    // Schedule turn timer for human players
+    this.scheduleTurnTimer(roomCode);
+
+    const deadline = this.turnDeadlines.get(roomCode) ?? null;
+
     const sockets = this.rooms.getSocketIdsForRoom(roomCode);
     for (const [position, socketId] of sockets) {
       const state = room.engine.getClientState(position, roomCode, room.botPositions, avatars);
+      state.turnDeadline = deadline;
       this.io.to(socketId).emit('game:state', state);
     }
 
     // Save latest game state for debugging
     this.saveGameState(roomCode, room);
+
+    // If Dog is pending, schedule delayed resolution
+    if (room.engine.state.dogPending) {
+      this.scheduleDogResolve(roomCode);
+      return; // Don't schedule bot actions while Dog is pending
+    }
 
     // Schedule bot actions if this is a solo room
     this.scheduleBotAction(roomCode);
@@ -299,6 +316,94 @@ export class SocketHandler {
     } catch {
       // Don't crash the game if saving fails
     }
+  }
+
+  // ─── Dog Delay ─────────────────────────────────────────────────────────
+
+  private scheduleDogResolve(roomCode: string): void {
+    setTimeout(() => {
+      const room = this.rooms.getRoom(roomCode);
+      if (!room || !room.engine || !room.engine.state.dogPending) return;
+
+      try {
+        const events = room.engine.resolveDog();
+        for (const event of events) {
+          this.io.to(roomCode).emit('game:event', event);
+        }
+        this.broadcastGameState(roomCode);
+      } catch (err) {
+        console.error(`Dog resolve error in room ${roomCode}:`, err);
+      }
+    }, 1500);
+  }
+
+  // ─── Turn Timer ────────────────────────────────────────────────────────
+
+  private clearTurnTimer(roomCode: string): void {
+    const existing = this.turnTimers.get(roomCode);
+    if (existing) clearTimeout(existing);
+    this.turnTimers.delete(roomCode);
+    this.turnDeadlines.delete(roomCode);
+  }
+
+  private scheduleTurnTimer(roomCode: string): void {
+    // Always clear previous timer first
+    this.clearTurnTimer(roomCode);
+
+    const room = this.rooms.getRoom(roomCode);
+    if (!room || !room.engine) return;
+
+    // No timer in solo games (3 bots)
+    if (room.botPositions.size >= 3) return;
+
+    const engine = room.engine;
+    // Only run timer during PLAYING phase for human players
+    if (engine.state.phase !== GamePhase.PLAYING) return;
+    // Don't start timer while wish is pending
+    if (engine.state.wishPending !== null) return;
+
+    const currentPlayer = engine.state.currentPlayer;
+    // Don't time bots
+    if (room.botPositions.has(currentPlayer)) return;
+
+    const deadline = Date.now() + TURN_TIMEOUT_MS;
+    this.turnDeadlines.set(roomCode, deadline);
+
+    const timer = setTimeout(() => {
+      this.turnTimers.delete(roomCode);
+      this.turnDeadlines.delete(roomCode);
+
+      const currentRoom = this.rooms.getRoom(roomCode);
+      if (!currentRoom || !currentRoom.engine) return;
+
+      const eng = currentRoom.engine;
+      // Verify it's still this player's turn in PLAYING phase
+      if (eng.state.phase !== GamePhase.PLAYING) return;
+      if (eng.state.currentPlayer !== currentPlayer) return;
+
+      try {
+        let events;
+        const hasTrickOnTable = eng.state.currentTrick.plays.length > 0;
+        if (hasTrickOnTable) {
+          // Auto-pass
+          events = eng.passTurn(currentPlayer);
+        } else {
+          // Must lead — play the lowest single card
+          const player = eng.state.players[currentPlayer];
+          const lowestCard = player.hand[0]; // hand is sorted, first is lowest
+          events = eng.playCards(currentPlayer, [lowestCard.id]);
+        }
+
+        for (const event of events) {
+          this.io.to(roomCode).emit('game:event', event);
+        }
+        this.broadcastGameState(roomCode);
+      } catch (err) {
+        console.error(`Turn timer auto-action error in room ${roomCode}:`, err);
+      }
+    }, TURN_TIMEOUT_MS);
+
+    this.turnTimers.set(roomCode, timer);
   }
 
   // ─── Bot Turn Processing ──────────────────────────────────────────────
@@ -396,7 +501,13 @@ export class SocketHandler {
     if (phase === GamePhase.PASSING) {
       for (const pos of room.botPositions) {
         if (!engine.state.players[pos].passedCards) {
-          const cards = botAI.choosePassCards(engine.state.players[pos].hand);
+          const tichuCalls = {
+            0: engine.state.players[0].tichuCall,
+            1: engine.state.players[1].tichuCall,
+            2: engine.state.players[2].tichuCall,
+            3: engine.state.players[3].tichuCall,
+          } as Record<PlayerPosition, TichuCall>;
+          const cards = botAI.choosePassCards(engine.state.players[pos].hand, pos, tichuCalls);
           return () => engine.passCards(pos, cards);
         }
       }

@@ -1,3 +1,4 @@
+import { useState, useEffect } from 'react';
 import { useGameStore } from '../stores/gameStore.js';
 import { GamePhase, SpecialCardType, getCardPoints, getRankLabel } from '@cyprus/shared';
 import type { Card, PlayerPosition, RoundScoreBreakdown } from '@cyprus/shared';
@@ -67,6 +68,7 @@ function GrandTichuView() {
   const grandTichuDecision = useGameStore((s) => s.grandTichuDecision);
   const selectedCards = useGameStore((s) => s.selectedCards);
   const toggleCard = useGameStore((s) => s.toggleCard);
+  const [confirming, setConfirming] = useState(false);
 
   if (!gameState.grandTichuPending) {
     return <p className="info">Waiting for other players to decide...</p>;
@@ -83,12 +85,26 @@ function GrandTichuView() {
         interactive={false}
       />
       <div className="btn-group">
-        <button className="btn btn-tichu" onClick={() => grandTichuDecision(true)}>
-          Call Grand Tichu!
-        </button>
-        <button className="btn btn-secondary" onClick={() => grandTichuDecision(false)}>
-          Pass
-        </button>
+        {confirming ? (
+          <>
+            <span className="confirm-label">Call Grand Tichu?</span>
+            <button className="btn btn-tichu" onClick={() => grandTichuDecision(true)}>
+              Yes, call it!
+            </button>
+            <button className="btn btn-secondary" onClick={() => setConfirming(false)}>
+              Cancel
+            </button>
+          </>
+        ) : (
+          <>
+            <button className="btn btn-tichu" onClick={() => setConfirming(true)}>
+              Call Grand Tichu!
+            </button>
+            <button className="btn btn-secondary" onClick={() => grandTichuDecision(false)}>
+              Pass
+            </button>
+          </>
+        )}
       </div>
     </div>
   );
@@ -115,13 +131,26 @@ function TichuCallBadges() {
 
 function PassingView() {
   const gameState = useGameStore((s) => s.gameState)!;
-  const selectedCards = useGameStore((s) => s.selectedCards);
-  const toggleCard = useGameStore((s) => s.toggleCard);
   const passCards = useGameStore((s) => s.passCards);
   const callTichu = useGameStore((s) => s.callTichu);
   const hasPassed = gameState.players[gameState.myPosition]?.hasPassed;
   const myInfo = gameState.players[gameState.myPosition];
   const canCallTichu = myInfo?.tichuCall === 'none' && !gameState.hasPlayedCards;
+
+  const rel = getRelativePositions(gameState.myPosition);
+  const leftPlayer = gameState.players[rel.left];
+  const acrossPlayer = gameState.players[rel.top];
+  const rightPlayer = gameState.players[rel.right];
+
+  const [tichuConfirm, setTichuConfirm] = useState(false);
+
+  // Local state for card assignments
+  const [assignments, setAssignments] = useState<{
+    left: string | null;
+    across: string | null;
+    right: string | null;
+  }>({ left: null, across: null, right: null });
+  const [activeCard, setActiveCard] = useState<string | null>(null);
 
   if (hasPassed) {
     return (
@@ -132,57 +161,176 @@ function PassingView() {
     );
   }
 
-  const selectedArray = [...selectedCards];
-  const canPass = selectedArray.length === 3;
+  const assignedCardIds = new Set(
+    [assignments.left, assignments.across, assignments.right].filter(Boolean) as string[]
+  );
+
+  const handleCardClick = (cardId: string) => {
+    // If card is already assigned, unassign it
+    if (assignments.left === cardId) {
+      setAssignments((a) => ({ ...a, left: null }));
+      setActiveCard(null);
+      return;
+    }
+    if (assignments.across === cardId) {
+      setAssignments((a) => ({ ...a, across: null }));
+      setActiveCard(null);
+      return;
+    }
+    if (assignments.right === cardId) {
+      setAssignments((a) => ({ ...a, right: null }));
+      setActiveCard(null);
+      return;
+    }
+    // Select or deselect the card
+    setActiveCard(activeCard === cardId ? null : cardId);
+  };
+
+  const handleSlotClick = (slot: 'left' | 'across' | 'right') => {
+    if (!activeCard) return;
+    // If this slot already has a card, swap it out
+    setAssignments((a) => ({ ...a, [slot]: activeCard }));
+    setActiveCard(null);
+  };
+
+  const handleSlotRemove = (slot: 'left' | 'across' | 'right') => {
+    setAssignments((a) => ({ ...a, [slot]: null }));
+  };
+
+  const canPass = assignments.left && assignments.across && assignments.right;
+  const isTeammate = (pos: PlayerPosition) => pos % 2 === gameState.myPosition % 2;
 
   return (
     <div className="phase-view">
       <TichuCallBadges />
       <h3>Pass Cards</h3>
-      <p className="info">Select 3 cards: one for left, across, and right.</p>
-      <PlayerHand
-        cards={gameState.myHand}
-        selectedCards={selectedCards}
-        onToggle={toggleCard}
-      />
-      {canPass && (
-        <div className="pass-preview">
-          <div className="pass-slot pass-opponent">
-            <span className="pass-label name-opponent">Left</span>
-            <CardComponent card={gameState.myHand.find(c => c.id === selectedArray[0])!} size="small" />
-          </div>
-          <div className="pass-slot pass-teammate">
-            <span className="pass-label name-teammate">Partner</span>
-            <CardComponent card={gameState.myHand.find(c => c.id === selectedArray[1])!} size="small" />
-          </div>
-          <div className="pass-slot pass-opponent">
-            <span className="pass-label name-opponent">Right</span>
-            <CardComponent card={gameState.myHand.find(c => c.id === selectedArray[2])!} size="small" />
-          </div>
-        </div>
-      )}
+      <p className="info">
+        {activeCard
+          ? 'Now click a player slot to assign this card'
+          : 'Click a card from your hand, then click a player to give it to'}
+      </p>
+
+      {/* Drop zone slots */}
+      <div className="pass-zones">
+        {([
+          { slot: 'left' as const, player: leftPlayer, pos: rel.left },
+          { slot: 'across' as const, player: acrossPlayer, pos: rel.top },
+          { slot: 'right' as const, player: rightPlayer, pos: rel.right },
+        ]).map(({ slot, player, pos }) => {
+          const assignedId = assignments[slot];
+          const assignedCard = assignedId
+            ? gameState.myHand.find((c) => c.id === assignedId)
+            : null;
+          const teammate = isTeammate(pos);
+
+          return (
+            <div
+              key={slot}
+              className={`pass-zone ${teammate ? 'pass-zone-teammate' : 'pass-zone-opponent'} ${activeCard && !assignedId ? 'pass-zone-active' : ''}`}
+              onClick={() => !assignedId && handleSlotClick(slot)}
+            >
+              <div className="pass-zone-header">
+                {player.avatar && (
+                  <img className="pass-zone-avatar" src={player.avatar} alt={player.nickname} />
+                )}
+                <span className={`pass-zone-name ${teammate ? 'name-teammate' : 'name-opponent'}`}>
+                  {player.nickname}
+                </span>
+                <span className="pass-zone-relation">
+                  {teammate ? 'Partner' : 'Opponent'}
+                </span>
+              </div>
+              <div className="pass-zone-card">
+                {assignedCard ? (
+                  <div className="pass-zone-assigned" onClick={(e) => { e.stopPropagation(); handleSlotRemove(slot); }}>
+                    <CardComponent card={assignedCard} size="small" />
+                    <span className="pass-zone-remove">✕</span>
+                  </div>
+                ) : (
+                  <div className="pass-zone-empty">
+                    {activeCard ? 'Click to assign' : 'Empty'}
+                  </div>
+                )}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Player hand */}
+      <div className="pass-hand">
+        {gameState.myHand.map((card) => {
+          const isAssigned = assignedCardIds.has(card.id);
+          const isActive = activeCard === card.id;
+          return (
+            <div
+              key={card.id}
+              className={`pass-hand-card ${isAssigned ? 'pass-hand-assigned' : ''} ${isActive ? 'pass-hand-active' : ''}`}
+              onClick={() => !isAssigned && handleCardClick(card.id)}
+            >
+              <CardComponent card={card} size="normal" />
+            </div>
+          );
+        })}
+      </div>
+
       <div className="btn-group">
         {canPass && (
           <button
             className="btn btn-primary"
             onClick={() =>
               passCards({
-                left: selectedArray[0],
-                across: selectedArray[1],
-                right: selectedArray[2],
+                left: assignments.left!,
+                across: assignments.across!,
+                right: assignments.right!,
               })
             }
           >
             Pass Cards
           </button>
         )}
-        {canCallTichu && (
-          <button className="btn btn-tichu" onClick={callTichu}>
+        {canCallTichu && !tichuConfirm && (
+          <button className="btn btn-tichu" onClick={() => setTichuConfirm(true)}>
             Tichu!
           </button>
         )}
+        {canCallTichu && tichuConfirm && (
+          <>
+            <span className="confirm-label">Call Tichu?</span>
+            <button className="btn btn-tichu" onClick={callTichu}>
+              Yes, call it!
+            </button>
+            <button className="btn btn-secondary" onClick={() => setTichuConfirm(false)}>
+              Cancel
+            </button>
+          </>
+        )}
       </div>
     </div>
+  );
+}
+
+function TurnTimer({ deadline }: { deadline: number }) {
+  const [secondsLeft, setSecondsLeft] = useState(() =>
+    Math.max(0, Math.ceil((deadline - Date.now()) / 1000))
+  );
+
+  useEffect(() => {
+    setSecondsLeft(Math.max(0, Math.ceil((deadline - Date.now()) / 1000)));
+    const interval = setInterval(() => {
+      const remaining = Math.max(0, Math.ceil((deadline - Date.now()) / 1000));
+      setSecondsLeft(remaining);
+      if (remaining <= 0) clearInterval(interval);
+    }, 250);
+    return () => clearInterval(interval);
+  }, [deadline]);
+
+  const urgent = secondsLeft <= 10;
+
+  return (
+    <span className={`turn-timer ${urgent ? 'turn-timer-urgent' : ''}`}>
+      {secondsLeft}s
+    </span>
   );
 }
 
@@ -199,6 +347,8 @@ function PlayingLayout({
   const callTichu = useGameStore((s) => s.callTichu);
   const dragonGive = useGameStore((s) => s.dragonGive);
 
+  const [tichuConfirm, setTichuConfirm] = useState(false);
+
   const isMyTurn = gameState.currentPlayer === gameState.myPosition;
   const myInfo = gameState.players[gameState.myPosition];
   const canCallTichu = myInfo?.tichuCall === 'none' && !gameState.hasPlayedCards;
@@ -208,8 +358,8 @@ function PlayingLayout({
 
   // Check if we need to show the wish selector (I played the Mahjong and haven't wished yet)
   const showWishSelector = gameState.wishPending === gameState.myPosition;
-  // Block play/pass while any player's wish is pending
-  const wishBlocking = gameState.wishPending !== null && gameState.wishPending !== undefined;
+  // Block play/pass while any player's wish is pending or Dog is resolving
+  const wishBlocking = (gameState.wishPending !== null && gameState.wishPending !== undefined) || !!gameState.dogPending;
   // Track which players passed in the current trick
   const passedSet = new Set(gameState.currentTrick.passedPlayers ?? []);
 
@@ -276,7 +426,12 @@ function PlayingLayout({
       {/* Turn indicator */}
       <div className="turn-indicator">
         {isMyTurn ? (
-          <span className="your-turn">Your turn</span>
+          <>
+            <span className="your-turn">Your turn</span>
+            {gameState.turnDeadline && (
+              <TurnTimer deadline={gameState.turnDeadline} />
+            )}
+          </>
         ) : (
           <span className="info">
             {gameState.players[gameState.currentPlayer]?.nickname}'s turn
@@ -347,10 +502,21 @@ function PlayingLayout({
             )}
           </div>
         )}
-        {canCallTichu && (
-          <button className="btn btn-tichu" onClick={callTichu}>
+        {canCallTichu && !tichuConfirm && (
+          <button className="btn btn-tichu" onClick={() => setTichuConfirm(true)}>
             Tichu!
           </button>
+        )}
+        {canCallTichu && tichuConfirm && (
+          <>
+            <span className="confirm-label">Call Tichu?</span>
+            <button className="btn btn-tichu" onClick={callTichu}>
+              Yes, call it!
+            </button>
+            <button className="btn btn-secondary" onClick={() => setTichuConfirm(false)}>
+              Cancel
+            </button>
+          </>
         )}
       </div>
     </div>

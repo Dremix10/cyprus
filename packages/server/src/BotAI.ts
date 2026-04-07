@@ -387,6 +387,8 @@ export class BotAI {
 
   choosePassCards(
     hand: Card[],
+    botPosition?: PlayerPosition,
+    tichuCalls?: Record<PlayerPosition, TichuCall>,
   ): { left: string; across: string; right: string } {
     if (this.difficulty === 'easy') {
       const shuffled = [...hand].sort(() => Math.random() - 0.5);
@@ -401,7 +403,7 @@ export class BotAI {
       return this.passCardsMedium(hand);
     }
 
-    return this.passCardsHard(hand);
+    return this.passCardsHard(hand, botPosition!, tichuCalls!);
   }
 
   private passCardsMedium(hand: Card[]): { left: string; across: string; right: string } {
@@ -426,14 +428,30 @@ export class BotAI {
     return { left: toLeft, across: toAcross, right: toRight };
   }
 
-  private passCardsHard(hand: Card[]): { left: string; across: string; right: string } {
+  private passCardsHard(
+    hand: Card[],
+    botPosition: PlayerPosition,
+    tichuCalls: Record<PlayerPosition, TichuCall>,
+  ): { left: string; across: string; right: string } {
     const normalCards = hand.filter(isNormalCard);
     const rankCounts = new Map<number, number>();
     for (const c of normalCards) {
       rankCounts.set(c.rank, (rankCounts.get(c.rank) || 0) + 1);
     }
 
+    // Relative positions: left = (pos+3)%4, across/partner = (pos+2)%4, right = (pos+1)%4
+    const leftPos = ((botPosition + 3) % 4) as PlayerPosition;
+    const acrossPos = ((botPosition + 2) % 4) as PlayerPosition; // partner
+    const rightPos = ((botPosition + 1) % 4) as PlayerPosition;
+
+    const partnerCalledGrand = tichuCalls[acrossPos] === 'grand_tichu';
+    const leftCalledGrand = tichuCalls[leftPos] === 'grand_tichu';
+    const rightCalledGrand = tichuCalls[rightPos] === 'grand_tichu';
+
+    const hasDog = hand.some((c) => isSpecial(c, SpecialCardType.DOG));
+
     // Never pass Dragon, Phoenix, or bomb cards
+    // If partner called Grand Tichu, also never pass the Dog (keep it to support them)
     const bombRanks = new Set<number>();
     for (const [rank, count] of rankCounts) {
       if (count >= 4) bombRanks.add(rank);
@@ -443,6 +461,8 @@ export class BotAI {
       if (isSpecial(c, SpecialCardType.DRAGON)) return false;
       if (isSpecial(c, SpecialCardType.PHOENIX)) return false;
       if (isNormalCard(c) && bombRanks.has(c.rank)) return false;
+      // Keep Dog when partner called Grand Tichu
+      if (isSpecial(c, SpecialCardType.DOG) && partnerCalledGrand) return false;
       return true;
     });
 
@@ -471,8 +491,27 @@ export class BotAI {
     scored.sort((a, b) => a.value - b.value);
 
     // Opponents get weakest cards, partner gets strongest spare
-    const toLeft = scored[0]?.card.id ?? hand[0].id;
-    const toRight = scored[1]?.card.id ?? hand[1].id;
+    let toLeft = scored[0]?.card.id ?? hand[0].id;
+    let toRight = scored[1]?.card.id ?? hand[1].id;
+
+    // Strategy: pass Dog to opponent who called Grand Tichu (disrupts them)
+    if (hasDog && !partnerCalledGrand) {
+      const dogId = hand.find((c) => isSpecial(c, SpecialCardType.DOG))!.id;
+      const dogInPassable = scored.some((s) => s.card.id === dogId);
+      if (dogInPassable) {
+        if (leftCalledGrand) {
+          // Force Dog to left opponent
+          toLeft = dogId;
+          const otherScored = scored.filter((s) => s.card.id !== dogId);
+          toRight = otherScored[0]?.card.id ?? hand[1].id;
+        } else if (rightCalledGrand) {
+          // Force Dog to right opponent
+          toRight = dogId;
+          const otherScored = scored.filter((s) => s.card.id !== dogId);
+          toLeft = otherScored[0]?.card.id ?? hand[0].id;
+        }
+      }
+    }
 
     const forPartner = scored
       .filter((s) => s.card.id !== toLeft && s.card.id !== toRight)
@@ -614,8 +653,8 @@ export class BotAI {
       const partnerCalledTichu = context.tichuCalls[partnerPos] === 'tichu' ||
         context.tichuCalls[partnerPos] === 'grand_tichu';
 
-      // Play Dog if partner called Tichu, or has few cards and isn't out
-      if (!partnerOut && (partnerCalledTichu || (partnerCards <= 5 && partnerCards > 0))) {
+      // Play Dog if partner called Tichu, partner has few cards, or bot has ≤6 cards (avoid holding Dog late)
+      if (!partnerOut && (partnerCalledTichu || (partnerCards <= 5 && partnerCards > 0) || hand.length <= 6)) {
         return dogPlay.map((c) => c.id);
       }
     }

@@ -50,6 +50,7 @@ export type GameEngineState = {
   currentTrick: TrickState;
   wish: WishState;
   wishPending: PlayerPosition | null; // position of player who must choose a wish before play continues
+  dogPending: boolean; // Dog was played, waiting for visual delay before resolving
   finishOrder: PlayerPosition[];
   scores: [number, number];
   roundScores: [number, number];
@@ -83,6 +84,7 @@ export class GameEngine {
       currentTrick: { plays: [], currentWinner: null, passCount: 0, passedPlayers: [] },
       wish: { active: false, wishedRank: null, wishedBy: null },
       wishPending: null,
+      dogPending: false,
       finishOrder: [],
       scores: [0, 0],
       roundScores: [0, 0],
@@ -263,6 +265,10 @@ export class GameEngine {
     this.events = [];
     this.assertPhase(GamePhase.PLAYING);
 
+    if (this.state.dogPending) {
+      throw new Error('Waiting for Dog to resolve');
+    }
+
     if (this.state.wishPending !== null) {
       throw new Error('Waiting for Mahjong wish to be made');
     }
@@ -292,20 +298,18 @@ export class GameEngine {
       if (this.state.currentTrick.plays.length > 0) {
         throw new Error('Dog can only be led');
       }
-      // Dog passes lead to partner
+      // Dog passes lead to partner — but keep it visible for a delay
       this.removeCardsFromHand(player, cardIds);
       player.hasPlayedCards = true;
 
       this.emit({ type: 'PLAY', playerPosition: position, data: { combination } });
 
-      // Lead goes to partner
-      const partner = getPartner(position);
-      if (this.state.players[partner].isOut) {
-        // Partner is out, lead goes to next active player from partner
-        this.state.currentPlayer = this.getNextActivePlayer(partner);
-      } else {
-        this.state.currentPlayer = partner;
-      }
+      // Add to trick so it's visible on table
+      this.state.currentTrick.plays.push({
+        playerPosition: position,
+        combination,
+      });
+      this.state.dogPending = true;
 
       this.checkPlayerOut(player);
       return this.events;
@@ -428,6 +432,10 @@ export class GameEngine {
     this.events = [];
     this.assertPhase(GamePhase.PLAYING);
 
+    if (this.state.dogPending) {
+      throw new Error('Waiting for Dog to resolve');
+    }
+
     if (this.state.wishPending !== null) {
       throw new Error('Waiting for Mahjong wish to be made');
     }
@@ -451,6 +459,30 @@ export class GameEngine {
       this.resolveTrick();
     } else {
       this.state.currentPlayer = this.getNextActivePlayer(position);
+    }
+
+    return this.events;
+  }
+
+  /** Resolve Dog after visual delay — clear trick, pass lead to partner. */
+  resolveDog(): GameEvent[] {
+    this.events = [];
+    if (!this.state.dogPending) return this.events;
+
+    // Find who played the Dog (last play in the trick)
+    const dogPlay = this.state.currentTrick.plays[this.state.currentTrick.plays.length - 1];
+    const position = dogPlay.playerPosition;
+
+    // Clear the trick
+    this.state.currentTrick = { plays: [], currentWinner: null, passCount: 0, passedPlayers: [] };
+    this.state.dogPending = false;
+
+    // Lead goes to partner
+    const partner = getPartner(position);
+    if (this.state.players[partner].isOut) {
+      this.state.currentPlayer = this.getNextActivePlayer(partner);
+    } else {
+      this.state.currentPlayer = partner;
     }
 
     return this.events;
@@ -721,6 +753,7 @@ export class GameEngine {
         this.state.phase === GamePhase.GRAND_TICHU && !player.grandTichuDecided,
       hasPlayedCards: player.hasPlayedCards,
       wishPending: this.state.wishPending,
+      dogPending: this.state.dogPending || undefined,
     };
   }
 }

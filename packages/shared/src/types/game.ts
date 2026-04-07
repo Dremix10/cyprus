@@ -50,4 +50,6 @@ export type ClientGameState = {
   grandTichuPending?: boolean;
   hasPlayedCards?: boolean;
   wishPending?: PlayerPosition | null;
+  dogPending?: boolean;
+  turnDeadline?: number | null;
 };
