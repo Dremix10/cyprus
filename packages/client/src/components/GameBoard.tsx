@@ -2,7 +2,23 @@ import { useState, useEffect, useCallback } from 'react';
 import { useGameStore } from '../stores/gameStore.js';
 import { useRoomStore } from '../stores/roomStore.js';
 import { GamePhase, SpecialCardType, CombinationType, getCardPoints, getRankLabel, sortCards, findPlayableFromHand } from '@cyprus/shared';
-import type { Card, PlayerPosition, RoundScoreBreakdown } from '@cyprus/shared';
+import type { Card, Combination, PlayerPosition, RoundScoreBreakdown } from '@cyprus/shared';
+
+/** Sort cards for display: full houses show triple first, everything else by rank. */
+function sortForDisplay(combo: Combination): Card[] {
+  if (combo.type === CombinationType.FULL_HOUSE) {
+    const rankCounts = new Map<number, Card[]>();
+    for (const c of combo.cards) {
+      const rank = c.type === 'normal' ? c.rank : 0;
+      const group = rankCounts.get(rank) ?? [];
+      group.push(c);
+      rankCounts.set(rank, group);
+    }
+    const groups = [...rankCounts.values()].sort((a, b) => b.length - a.length);
+    return groups.flat();
+  }
+  return sortCards(combo.cards);
+}
 import { CardComponent } from './CardComponent.js';
 import { PlayerHand } from './PlayerHand.js';
 import { OpponentHand } from './OpponentHand.js';
@@ -38,7 +54,9 @@ export function GameBoard() {
   const error = useGameStore((s) => s.error);
   const roomNotification = useRoomStore((s) => s.error);
   const roomCode = useRoomStore((s) => s.roomCode);
+  const reset = useRoomStore((s) => s.reset);
   const [showHistory, setShowHistory] = useState(false);
+  const [leaveConfirm, setLeaveConfirm] = useState(false);
 
   if (!gameState) {
     return <div className="game-board">Loading game...</div>;
@@ -67,6 +85,9 @@ export function GameBoard() {
               {'\uD83D\uDCCA'}
             </button>
           )}
+          <button className="leave-btn" onClick={() => setLeaveConfirm(true)}>
+            Exit
+          </button>
         </span>
         <span className="name-opponent">
           Team B: {gameState.scores[1]} / {gameState.targetScore}
@@ -77,6 +98,18 @@ export function GameBoard() {
         <div className="history-modal-overlay" onClick={() => setShowHistory(false)}>
           <div className="history-modal" onClick={(e) => e.stopPropagation()}>
             <ScoreHistory history={gameState.roundHistory} onClose={() => setShowHistory(false)} />
+          </div>
+        </div>
+      )}
+
+      {leaveConfirm && (
+        <div className="history-modal-overlay" onClick={() => setLeaveConfirm(false)}>
+          <div className="leave-modal" onClick={(e) => e.stopPropagation()}>
+            <p>Are you sure you want to leave the game?</p>
+            <div className="leave-modal-buttons">
+              <button className="btn btn-danger" onClick={reset}>Yes, leave</button>
+              <button className="btn btn-secondary" onClick={() => setLeaveConfirm(false)}>Cancel</button>
+            </div>
           </div>
         </div>
       )}
@@ -423,18 +456,12 @@ function PlayingLayout({
     if (!hasWishPlay) return; // can't play wished rank in a valid combo
 
     if (trickType === CombinationType.SINGLE) {
-      // Auto-play: find the exact card to play from the playable combos
+      // Pre-select the wished card, user must click Play (can call Tichu first)
       const singlePlay = playable.find(
         (cards) => cards.length === 1 && cards.some((c) => c.type === 'normal' && c.rank === wishedRank)
       );
       if (singlePlay) {
-        // Small delay so user sees it happen
-        const t = setTimeout(() => {
-          setSelectedCards(new Set([singlePlay[0].id]));
-          // Auto-submit after selection is visible
-          setTimeout(() => playCards(), 300);
-        }, 200);
-        return () => clearTimeout(t);
+        setSelectedCards(new Set([singlePlay[0].id]));
       }
     } else if (trickType === CombinationType.STRAIGHT || trickType === CombinationType.STRAIGHT_FLUSH_BOMB) {
       // Pre-select the wished card, let user pick the rest
@@ -474,13 +501,13 @@ function PlayingLayout({
   // Track which players passed in the current trick
   const passedSet = new Set(gameState.currentTrick.passedPlayers ?? []);
 
-  // Locked cards: wished card that's pre-selected for a straight can't be deselected
+  // Locked cards: wished card that's pre-selected can't be deselected
   const lockedCards = (() => {
     if (!isMyTurn || !gameState.wish.active || !gameState.wish.wishedRank) return undefined;
     const trick = gameState.currentTrick;
     if (trick.plays.length === 0) return undefined;
     const trickType = trick.plays[0].combination.type;
-    if (trickType !== CombinationType.STRAIGHT && trickType !== CombinationType.STRAIGHT_FLUSH_BOMB) return undefined;
+    if (trickType !== CombinationType.SINGLE && trickType !== CombinationType.STRAIGHT && trickType !== CombinationType.STRAIGHT_FLUSH_BOMB) return undefined;
     const wishedCard = gameState.myHand.find(
       (c) => c.type === 'normal' && c.rank === gameState.wish.wishedRank
     );
@@ -547,7 +574,7 @@ function PlayingLayout({
                     {gameState.players[play.playerPosition]?.nickname}
                   </span>
                   <div className="trick-combo">
-                    {sortCards(play.combination.cards).map((c) => (
+                    {sortForDisplay(play.combination).map((c) => (
                       <CardComponent key={c.id} card={c} size="small" />
                     ))}
                   </div>
@@ -598,6 +625,7 @@ function PlayingLayout({
           selectedCards={selectedCards}
           onToggle={toggleCard}
           lockedCards={lockedCards}
+          receivedCards={gameState.receivedCards}
         />
         {myInfo.collectedCards > 0 && (
           <div className="collected-pile my-collected">

@@ -45,6 +45,11 @@ export type RoundHistoryEntry = {
   }[];
 };
 
+export type ReceivedCard = {
+  cardId: string;
+  fromTeammate: boolean;
+};
+
 export type ClientGameState = {
   roomCode: string;
   phase: GamePhase;
@@ -66,4 +71,5 @@ export type ClientGameState = {
   dogPending?: boolean;
   turnDeadline?: number | null;
   roundHistory?: RoundHistoryEntry[];
+  receivedCards?: ReceivedCard[];
 };

@@ -43,6 +43,11 @@ export type PlayerState = {
   wonTricks: Card[][];
 };
 
+export type ReceivedCardInfo = {
+  cardId: string;
+  fromPosition: PlayerPosition;
+};
+
 export type GameEngineState = {
   phase: GamePhase;
   players: [PlayerState, PlayerState, PlayerState, PlayerState];
@@ -55,6 +60,7 @@ export type GameEngineState = {
   scores: [number, number];
   roundScores: [number, number];
   dragonWinner: PlayerPosition | null;
+  receivedCards: Record<PlayerPosition, ReceivedCardInfo[]>; // cards received during passing
 };
 
 export class GameEngine {
@@ -96,6 +102,7 @@ export class GameEngine {
       scores: [0, 0],
       roundScores: [0, 0],
       dragonWinner: null,
+      receivedCards: { 0: [], 1: [], 2: [], 3: [] },
     };
   }
 
@@ -200,8 +207,8 @@ export class GameEngine {
   }
 
   private resolveCardPassing(): void {
-    // Collect cards to distribute
-    const toGive: Map<PlayerPosition, Card[]>[] = [];
+    // Reset received cards tracking
+    this.state.receivedCards = { 0: [], 1: [], 2: [], 3: [] };
 
     for (const p of this.state.players) {
       const passed = p.passedCards!;
@@ -218,12 +225,15 @@ export class GameEngine {
         (c) => c.id !== passed.left && c.id !== passed.across && c.id !== passed.right
       );
 
-      // Queue cards for recipients
-      if (!toGive[p.position]) toGive[p.position] = new Map();
-      // Store: this player gives to left, across, right
+      // Give cards to recipients and track who received what
       this.state.players[leftPos].hand.push(leftCard);
+      this.state.receivedCards[leftPos].push({ cardId: leftCard.id, fromPosition: p.position });
+
       this.state.players[acrossPos].hand.push(acrossCard);
+      this.state.receivedCards[acrossPos].push({ cardId: acrossCard.id, fromPosition: p.position });
+
       this.state.players[rightPos].hand.push(rightCard);
+      this.state.receivedCards[rightPos].push({ cardId: rightCard.id, fromPosition: p.position });
     }
 
     // Sort hands
@@ -814,6 +824,12 @@ export class GameEngine {
       wishPending: this.state.wishPending,
       dogPending: this.state.dogPending || undefined,
       roundHistory: this.roundHistory.length > 0 ? this.roundHistory : undefined,
+      receivedCards: !player.hasPlayedCards && this.state.receivedCards[position]?.length > 0
+        ? this.state.receivedCards[position].map((rc) => ({
+            cardId: rc.cardId,
+            fromTeammate: sameTeam(position, rc.fromPosition),
+          }))
+        : undefined,
     };
   }
 }

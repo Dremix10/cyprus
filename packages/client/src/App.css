@@ -1044,6 +1044,36 @@ body {
   transition: transform 0.15s;
   animation: card-deal-in 0.3s ease-out both;
   animation-delay: calc(var(--card-index) * 0.04s);
+  position: relative;
+}
+
+.received-dot {
+  position: absolute;
+  top: -6px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  z-index: 10;
+  border: 1px solid rgba(0, 0, 0, 0.3);
+  animation: dot-fade-in 0.3s ease-out;
+  pointer-events: none;
+}
+
+.received-teammate {
+  background: var(--success);
+  box-shadow: 0 0 4px rgba(46, 204, 113, 0.5);
+}
+
+.received-opponent {
+  background: var(--team-b);
+  box-shadow: 0 0 4px rgba(231, 76, 60, 0.5);
+}
+
+@keyframes dot-fade-in {
+  from { opacity: 0; transform: scale(0); }
+  to { opacity: 1; transform: scale(1); }
 }
 
 .hand-card-wrapper:first-child {
@@ -1750,6 +1780,57 @@ body {
 
 .history-btn:hover {
   opacity: 1;
+}
+
+.leave-btn {
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  font-size: 0.65rem;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 0.15rem 0.45rem;
+  border-radius: 4px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  transition: background 0.15s, color 0.15s;
+  line-height: 1.2;
+}
+
+.leave-btn:hover {
+  background: rgba(231, 76, 60, 0.2);
+  color: var(--team-b);
+  border-color: var(--team-b);
+}
+
+.leave-modal {
+  background: var(--bg);
+  border: 1px solid var(--surface-light);
+  border-radius: 12px;
+  padding: 1.5rem;
+  text-align: center;
+  max-width: 320px;
+  width: 90%;
+}
+
+.leave-modal p {
+  margin: 0 0 1.25rem;
+  font-size: 1rem;
+}
+
+.leave-modal-buttons {
+  display: flex;
+  gap: 0.75rem;
+  justify-content: center;
+}
+
+.btn-danger {
+  background: var(--team-b);
+  color: #fff;
+}
+
+.btn-danger:hover {
+  filter: brightness(1.1);
 }
 
 .history-modal-overlay {

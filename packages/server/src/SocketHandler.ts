@@ -8,7 +8,7 @@ import type {
   TichuCall,
   Card,
 } from '@cyprus/shared';
-import { GamePhase, SpecialCardType, isSpecial } from '@cyprus/shared';
+import { GamePhase, SpecialCardType, isSpecial, findPlayableFromHand } from '@cyprus/shared';
 import { RoomManager } from './RoomManager.js';
 import type { Room } from './RoomManager.js';
 import type { GameEngine } from './GameEngine.js';
@@ -464,8 +464,22 @@ export class SocketHandler {
         let events;
         const hasTrickOnTable = eng.state.currentTrick.plays.length > 0;
         if (hasTrickOnTable) {
-          // Auto-pass
-          events = eng.passTurn(currentPlayer);
+          // Check if wish forces a play before trying to pass
+          if (eng.state.wish.active && eng.state.wish.wishedRank !== null) {
+            const player = eng.state.players[currentPlayer];
+            const currentTop = eng.state.currentTrick.plays[eng.state.currentTrick.plays.length - 1].combination;
+            const playable = findPlayableFromHand(player.hand, currentTop, eng.state.wish);
+            const wishedPlay = playable.find((cards) =>
+              cards.some((c) => c.type === 'normal' && c.rank === eng.state.wish.wishedRank)
+            );
+            if (wishedPlay) {
+              events = eng.playCards(currentPlayer, wishedPlay.map((c) => c.id));
+            } else {
+              events = eng.passTurn(currentPlayer);
+            }
+          } else {
+            events = eng.passTurn(currentPlayer);
+          }
         } else {
           // Must lead — play the lowest single card
           const player = eng.state.players[currentPlayer];
@@ -622,7 +636,7 @@ export class SocketHandler {
       const hand = player.hand;
       const gameContext = this.buildGameContext(engine);
 
-      const cardIds = botAI.choosePlay(
+      let cardIds = botAI.choosePlay(
         hand,
         engine.state.currentTrick,
         engine.state.wish,
@@ -630,8 +644,22 @@ export class SocketHandler {
         gameContext
       );
 
+      // If bot wants to pass but wish forces a play, find a valid wished-rank combo
+      if (!cardIds && engine.state.wish.active && engine.state.wish.wishedRank !== null) {
+        const currentTop = engine.state.currentTrick.plays.length > 0
+          ? engine.state.currentTrick.plays[engine.state.currentTrick.plays.length - 1].combination
+          : null;
+        const playable = findPlayableFromHand(hand, currentTop, engine.state.wish);
+        const wishedPlay = playable.find((cards) =>
+          cards.some((c) => c.type === 'normal' && c.rank === engine.state.wish.wishedRank)
+        );
+        if (wishedPlay) {
+          cardIds = wishedPlay.map((c) => c.id);
+        }
+      }
+
       if (cardIds) {
-        return () => engine.playCards(currentPlayer, cardIds);
+        return () => engine.playCards(currentPlayer, cardIds!);
       } else {
         return () => engine.passTurn(currentPlayer);
       }
