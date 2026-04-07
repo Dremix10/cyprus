@@ -55,6 +55,8 @@ export class RoomManager {
   }
 
   createRoom(socketId: string, nickname: string, targetScore: number = 1000): { roomCode: string; sessionId: string } | { error: string } {
+    const nickErr = this.validateNickname(nickname);
+    if (nickErr) return { error: nickErr };
     if (targetScore < 250) targetScore = 250;
     const code = this.generateCode();
     const room: Room = {
@@ -90,6 +92,8 @@ export class RoomManager {
     targetScore: number = 1000,
     difficulty: BotDifficulty = 'medium'
   ): { roomCode: string; sessionId: string } | { error: string } {
+    const nickErr = this.validateNickname(nickname);
+    if (nickErr) return { error: nickErr };
     if (targetScore < 250) targetScore = 250;
     const code = this.generateCode();
 
@@ -140,6 +144,8 @@ export class RoomManager {
     roomCode: string,
     nickname: string
   ): { success: true; position: PlayerPosition; sessionId: string } | { error: string } {
+    const nickErr = this.validateNickname(nickname);
+    if (nickErr) return { error: nickErr };
     const code = roomCode.toUpperCase();
     const room = this.rooms.get(code);
     if (!room) return { error: 'Room not found' };
@@ -218,6 +224,10 @@ export class RoomManager {
       return { error: 'You were replaced by a bot' };
     }
 
+    // Clean up old socket mapping if it still exists
+    if (player.socketId) {
+      this.socketToRoom.delete(player.socketId);
+    }
     player.socketId = socketId;
     player.connected = true;
     delete player.disconnectedAt;
@@ -393,6 +403,14 @@ export class RoomManager {
     room.engine.state.players[position].nickname = profile.name;
 
     return true;
+  }
+
+  private validateNickname(nickname: string): string | null {
+    if (!nickname || typeof nickname !== 'string') return 'Invalid nickname';
+    const trimmed = nickname.trim();
+    if (trimmed.length < 1 || trimmed.length > 20) return 'Nickname must be 1-20 characters';
+    if (!/^[\w\s\-\u00C0-\u024F]+$/u.test(trimmed)) return 'Nickname contains invalid characters';
+    return null;
   }
 
   private generateCode(): string {

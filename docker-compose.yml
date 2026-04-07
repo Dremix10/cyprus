@@ -8,6 +8,8 @@ services:
     environment:
       - NODE_ENV=production
       - PORT=3001
+      # Override default admin password (recommended):
+      # - ADMIN_PASSWORD=your_secure_password_here
     volumes:
       - game-data:/app/packages/server/dist/data
 

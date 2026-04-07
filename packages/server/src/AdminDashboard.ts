@@ -1,0 +1,308 @@
+import express, { type Request, type Response, type NextFunction } from 'express';
+import { createHash, timingSafeEqual, randomBytes } from 'node:crypto';
+import type { TrackerDB } from './Database.js';
+
+// SHA-256 hash of default password — override with ADMIN_PASSWORD env var
+const DEFAULT_HASH = '11b6968ce0b6e99c8952c32e0b65320e7b4c6119aebd56cc361158e20333636f';
+
+function getExpectedHash(): string {
+  if (process.env.ADMIN_PASSWORD) {
+    return createHash('sha256').update(process.env.ADMIN_PASSWORD).digest('hex');
+  }
+  return DEFAULT_HASH;
+}
+
+function verifyPassword(input: string): boolean {
+  const inputHash = createHash('sha256').update(input).digest('hex');
+  const expected = getExpectedHash();
+  try {
+    return timingSafeEqual(Buffer.from(inputHash, 'hex'), Buffer.from(expected, 'hex'));
+  } catch {
+    return false;
+  }
+}
+
+function parseCookies(req: Request): Record<string, string> {
+  const cookies: Record<string, string> = {};
+  const header = req.headers.cookie;
+  if (!header) return cookies;
+  for (const pair of header.split(';')) {
+    const [key, ...vals] = pair.trim().split('=');
+    if (key) cookies[key] = vals.join('=');
+  }
+  return cookies;
+}
+
+export function createAdminRouter(db: TrackerDB): express.Router {
+  const router = express.Router();
+
+  // Parse form bodies for login
+  router.use(express.urlencoded({ extended: false }));
+
+  function requireAuth(req: Request, res: Response, next: NextFunction): void {
+    const token = parseCookies(req)['admin_token'];
+    if (token && db.validateAdminSession(token)) {
+      next();
+    } else {
+      res.redirect('/admin/login');
+    }
+  }
+
+  // ─── Login ────────────────────────────────────────────────────────
+
+  router.get('/login', (_req, res) => {
+    res.type('html').send(LOGIN_HTML);
+  });
+
+  router.post('/login', (req, res) => {
+    const password = (req.body?.password as string) || '';
+
+    if (verifyPassword(password)) {
+      const token = randomBytes(32).toString('hex');
+      db.createAdminSession(token);
+      res.setHeader('Set-Cookie', `admin_token=${token}; HttpOnly; Path=/admin; SameSite=Lax; Max-Age=86400`);
+      res.redirect('/admin');
+    } else {
+      res.type('html').send(LOGIN_HTML.replace('<!--ERROR-->', '<p class="error">Invalid password</p>'));
+    }
+  });
+
+  router.get('/logout', (_req, res) => {
+    res.setHeader('Set-Cookie', 'admin_token=; HttpOnly; Path=/admin; Max-Age=0');
+    res.redirect('/admin/login');
+  });
+
+  // ─── Dashboard ──────────────────────────────────────────────────
+
+  router.get('/', requireAuth, (_req, res) => {
+    res.type('html').send(DASHBOARD_HTML);
+  });
+
+  // ─── API Endpoints ──────────────────────────────────────────────
+
+  router.get('/api/stats', requireAuth, (_req, res) => {
+    res.json(db.getStats());
+  });
+
+  router.get('/api/connections', requireAuth, (req, res) => {
+    const limit = Math.min(Number(req.query.limit) || 50, 500);
+    res.json(db.getRecentConnections(limit));
+  });
+
+  router.get('/api/players', requireAuth, (req, res) => {
+    const limit = Math.min(Number(req.query.limit) || 100, 500);
+    res.json(db.getPlayers(limit));
+  });
+
+  router.get('/api/games', requireAuth, (req, res) => {
+    const limit = Math.min(Number(req.query.limit) || 50, 500);
+    res.json(db.getRecentGames(limit));
+  });
+
+  router.get('/api/events', requireAuth, (req, res) => {
+    const limit = Math.min(Number(req.query.limit) || 100, 500);
+    res.json(db.getRecentEvents(limit));
+  });
+
+  router.get('/api/requests', requireAuth, (req, res) => {
+    const limit = Math.min(Number(req.query.limit) || 100, 500);
+    res.json(db.getRecentHttpRequests(limit));
+  });
+
+  router.get('/api/traffic', requireAuth, (req, res) => {
+    const hours = Math.min(Number(req.query.hours) || 24, 168);
+    res.json(db.getHourlyTraffic(hours));
+  });
+
+  router.get('/api/top-ips', requireAuth, (req, res) => {
+    const limit = Math.min(Number(req.query.limit) || 20, 100);
+    res.json(db.getTopIPs(limit));
+  });
+
+  return router;
+}
+
+// ─── HTML Templates ──────────────────────────────────────────────────
+
+const LOGIN_HTML = `<!DOCTYPE html>
+<html lang="en"><head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Cyprus Admin - Login</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: #0f0f1a; color: #e0e0e0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; display: flex; align-items: center; justify-content: center; min-height: 100vh; }
+  .login-card { background: #1a1a2e; border: 1px solid #2a2a4a; border-radius: 12px; padding: 2.5rem; width: 100%; max-width: 380px; }
+  h1 { font-size: 1.5rem; margin-bottom: 0.5rem; color: #c9a84c; }
+  .sub { color: #888; font-size: 0.85rem; margin-bottom: 1.5rem; }
+  label { display: block; font-size: 0.85rem; color: #aaa; margin-bottom: 0.4rem; }
+  input[type="password"] { width: 100%; padding: 0.7rem; background: #12121f; border: 1px solid #333; border-radius: 6px; color: #fff; font-size: 1rem; margin-bottom: 1rem; }
+  input[type="password"]:focus { outline: none; border-color: #c9a84c; }
+  button { width: 100%; padding: 0.7rem; background: #c9a84c; color: #000; border: none; border-radius: 6px; font-size: 1rem; font-weight: 600; cursor: pointer; }
+  button:hover { background: #d4b45e; }
+  .error { color: #e74c3c; font-size: 0.85rem; margin-bottom: 1rem; }
+</style>
+</head><body>
+<div class="login-card">
+  <h1>Cyprus Admin</h1>
+  <p class="sub">Tichu Server Dashboard</p>
+  <!--ERROR-->
+  <form method="POST" action="/admin/login">
+    <label for="password">Password</label>
+    <input type="password" id="password" name="password" placeholder="Enter admin password" autofocus>
+    <button type="submit">Log In</button>
+  </form>
+</div>
+</body></html>`;
+
+const DASHBOARD_HTML = `<!DOCTYPE html>
+<html lang="en"><head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Cyprus Admin Dashboard</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: #0f0f1a; color: #e0e0e0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
+  .topbar { background: #1a1a2e; border-bottom: 1px solid #2a2a4a; padding: 1rem 2rem; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 10; }
+  .topbar h1 { font-size: 1.3rem; color: #c9a84c; }
+  .topbar .links { display: flex; gap: 1rem; align-items: center; }
+  .topbar a { color: #888; text-decoration: none; font-size: 0.85rem; }
+  .topbar a:hover { color: #c9a84c; }
+  .container { max-width: 1400px; margin: 0 auto; padding: 1.5rem; }
+  .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 1rem; margin-bottom: 1.5rem; }
+  .stat-card { background: #1a1a2e; border: 1px solid #2a2a4a; border-radius: 10px; padding: 1.2rem; }
+  .stat-card .label { font-size: 0.75rem; color: #888; text-transform: uppercase; letter-spacing: 0.5px; }
+  .stat-card .value { font-size: 1.8rem; font-weight: 700; color: #c9a84c; margin-top: 0.3rem; }
+  .tabs { display: flex; gap: 0; margin-bottom: 0; border-bottom: 1px solid #2a2a4a; }
+  .tab { padding: 0.7rem 1.2rem; background: transparent; border: none; color: #888; cursor: pointer; font-size: 0.9rem; border-bottom: 2px solid transparent; }
+  .tab:hover { color: #ccc; }
+  .tab.active { color: #c9a84c; border-bottom-color: #c9a84c; }
+  .panel { display: none; }
+  .panel.active { display: block; }
+  .table-wrap { background: #1a1a2e; border: 1px solid #2a2a4a; border-radius: 0 0 10px 10px; overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+  th { background: #16213e; color: #c9a84c; padding: 0.7rem 1rem; text-align: left; font-weight: 600; white-space: nowrap; position: sticky; top: 0; }
+  td { padding: 0.6rem 1rem; border-top: 1px solid #1f1f35; white-space: nowrap; max-width: 300px; overflow: hidden; text-overflow: ellipsis; }
+  tr:hover td { background: #16213e33; }
+  .badge { display: inline-block; padding: 0.15rem 0.5rem; border-radius: 4px; font-size: 0.75rem; font-weight: 600; }
+  .badge-green { background: #1a3a2a; color: #4caf50; }
+  .badge-red { background: #3a1a1a; color: #e74c3c; }
+  .badge-blue { background: #1a2a3a; color: #42a5f5; }
+  .badge-yellow { background: #3a3a1a; color: #c9a84c; }
+  .refresh-info { color: #555; font-size: 0.75rem; }
+  #last-refresh { color: #888; }
+  .empty { padding: 2rem; text-align: center; color: #555; }
+</style>
+</head><body>
+<div class="topbar">
+  <h1>Cyprus Admin</h1>
+  <div class="links">
+    <span class="refresh-info">Updated: <span id="last-refresh">-</span></span>
+    <a href="#" onclick="refresh()">Refresh</a>
+    <a href="/admin/logout">Logout</a>
+  </div>
+</div>
+<div class="container">
+  <div class="stats" id="stats"></div>
+  <div class="tabs">
+    <button class="tab active" onclick="showTab('connections')">Connections</button>
+    <button class="tab" onclick="showTab('players')">Players</button>
+    <button class="tab" onclick="showTab('games')">Games</button>
+    <button class="tab" onclick="showTab('events')">Events</button>
+    <button class="tab" onclick="showTab('requests')">HTTP Requests</button>
+    <button class="tab" onclick="showTab('ips')">Top IPs</button>
+  </div>
+  <div class="table-wrap">
+    <div id="panel-connections" class="panel active"></div>
+    <div id="panel-players" class="panel"></div>
+    <div id="panel-games" class="panel"></div>
+    <div id="panel-events" class="panel"></div>
+    <div id="panel-requests" class="panel"></div>
+    <div id="panel-ips" class="panel"></div>
+  </div>
+</div>
+<script>
+const api = path => fetch('/admin/api/' + path).then(r => r.json());
+let currentTab = 'connections';
+
+function showTab(name) {
+  currentTab = name;
+  document.querySelectorAll('.tab').forEach((t,i) => t.classList.toggle('active', t.textContent.toLowerCase().replace(' ','').includes(name.slice(0,4))));
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  document.getElementById('panel-' + name).classList.add('active');
+  loadTab(name);
+}
+
+function esc(s) { if (s == null) return '-'; const d = document.createElement('div'); d.textContent = String(s); return d.innerHTML; }
+function ago(dt) {
+  if (!dt) return '-';
+  const ms = Date.now() - new Date(dt + 'Z').getTime();
+  if (ms < 60000) return Math.floor(ms/1000) + 's ago';
+  if (ms < 3600000) return Math.floor(ms/60000) + 'm ago';
+  if (ms < 86400000) return Math.floor(ms/3600000) + 'h ago';
+  return Math.floor(ms/86400000) + 'd ago';
+}
+
+async function loadStats() {
+  const s = await api('stats');
+  document.getElementById('stats').innerHTML = [
+    ['Active Now', s.activeConnections, 'green'],
+    ['Total Players', s.totalPlayers, 'blue'],
+    ['Total Games', s.totalGames, 'yellow'],
+    ['Games In Progress', s.gamesInProgress, 'green'],
+    ['Total Connections', s.totalConnections, 'blue'],
+    ['Unique IPs', s.uniqueIPs, 'yellow'],
+    ['HTTP Requests', s.totalHttpRequests, 'blue'],
+  ].map(([l,v]) => '<div class="stat-card"><div class="label">' + l + '</div><div class="value">' + v + '</div></div>').join('');
+}
+
+async function loadTab(name) {
+  const panel = document.getElementById('panel-' + name);
+  try {
+    if (name === 'connections') {
+      const data = await api('connections?limit=100');
+      if (!data.length) { panel.innerHTML = '<div class="empty">No connections yet</div>'; return; }
+      panel.innerHTML = '<table><tr><th>IP</th><th>Nickname</th><th>Room</th><th>User Agent</th><th>Connected</th><th>Status</th></tr>' +
+        data.map(r => '<tr><td>' + esc(r.ip) + '</td><td>' + esc(r.nickname) + '</td><td>' + esc(r.room_code) + '</td><td title="'+esc(r.user_agent)+'">' + esc(r.user_agent?.slice(0,60)) + '</td><td title="'+esc(r.connected_at)+'">' + ago(r.connected_at) + '</td><td>' + (r.disconnected_at ? '<span class="badge badge-red">Disconnected</span>' : '<span class="badge badge-green">Active</span>') + '</td></tr>').join('') + '</table>';
+    }
+    else if (name === 'players') {
+      const data = await api('players?limit=100');
+      if (!data.length) { panel.innerHTML = '<div class="empty">No players yet</div>'; return; }
+      panel.innerHTML = '<table><tr><th>Nickname</th><th>IP</th><th>Games Played</th><th>Games Won</th><th>Win Rate</th><th>First Seen</th><th>Last Seen</th></tr>' +
+        data.map(r => '<tr><td><strong>' + esc(r.nickname) + '</strong></td><td>' + esc(r.ip) + '</td><td>' + r.games_played + '</td><td>' + r.games_won + '</td><td>' + (r.games_played ? Math.round(r.games_won/r.games_played*100) + '%' : '-') + '</td><td title="'+esc(r.first_seen)+'">' + ago(r.first_seen) + '</td><td title="'+esc(r.last_seen)+'">' + ago(r.last_seen) + '</td></tr>').join('') + '</table>';
+    }
+    else if (name === 'games') {
+      const data = await api('games?limit=50');
+      if (!data.length) { panel.innerHTML = '<div class="empty">No games yet</div>'; return; }
+      panel.innerHTML = '<table><tr><th>Room</th><th>Players</th><th>Score</th><th>Winner</th><th>Rounds</th><th>Type</th><th>Started</th><th>Status</th></tr>' +
+        data.map(r => '<tr><td><span class="badge badge-yellow">' + esc(r.room_code) + '</span></td><td>' + esc(r.players) + '</td><td>' + (r.final_score_02!=null ? r.final_score_02 + ' - ' + r.final_score_13 : '-') + '</td><td>' + esc(r.winner_team) + '</td><td>' + (r.rounds_played||'-') + '</td><td>' + (r.is_solo ? '<span class="badge badge-blue">Solo</span>' : '<span class="badge badge-green">Multi</span>') + '</td><td title="'+esc(r.started_at)+'">' + ago(r.started_at) + '</td><td>' + (r.ended_at ? '<span class="badge badge-red">Ended</span>' : '<span class="badge badge-green">Live</span>') + '</td></tr>').join('') + '</table>';
+    }
+    else if (name === 'events') {
+      const data = await api('events?limit=200');
+      if (!data.length) { panel.innerHTML = '<div class="empty">No events yet</div>'; return; }
+      panel.innerHTML = '<table><tr><th>Time</th><th>Room</th><th>Event</th><th>Player</th><th>Data</th></tr>' +
+        data.map(r => '<tr><td title="'+esc(r.created_at)+'">' + ago(r.created_at) + '</td><td>' + esc(r.room_code) + '</td><td><span class="badge badge-blue">' + esc(r.event_type) + '</span></td><td>' + (r.player_position!=null ? 'P'+r.player_position : '-') + '</td><td title="'+esc(r.data)+'">' + esc(r.data?.slice(0,80)) + '</td></tr>').join('') + '</table>';
+    }
+    else if (name === 'requests') {
+      const data = await api('requests?limit=200');
+      if (!data.length) { panel.innerHTML = '<div class="empty">No requests yet</div>'; return; }
+      panel.innerHTML = '<table><tr><th>Time</th><th>Method</th><th>Path</th><th>IP</th><th>Status</th><th>Time (ms)</th></tr>' +
+        data.map(r => '<tr><td title="'+esc(r.created_at)+'">' + ago(r.created_at) + '</td><td>' + esc(r.method) + '</td><td>' + esc(r.path) + '</td><td>' + esc(r.ip) + '</td><td><span class="badge ' + (r.status_code<400?'badge-green':'badge-red') + '">' + r.status_code + '</span></td><td>' + (r.response_time_ms||'-') + '</td></tr>').join('') + '</table>';
+    }
+    else if (name === 'ips') {
+      const data = await api('top-ips?limit=30');
+      if (!data.length) { panel.innerHTML = '<div class="empty">No data yet</div>'; return; }
+      panel.innerHTML = '<table><tr><th>IP Address</th><th>Connections</th><th>Nicknames Used</th><th>Last Seen</th></tr>' +
+        data.map(r => '<tr><td><strong>' + esc(r.ip) + '</strong></td><td>' + r.connection_count + '</td><td>' + esc(r.nicknames) + '</td><td title="'+esc(r.last_seen)+'">' + ago(r.last_seen) + '</td></tr>').join('') + '</table>';
+    }
+  } catch(e) { panel.innerHTML = '<div class="empty">Error loading data</div>'; }
+}
+
+async function refresh() {
+  await loadStats();
+  await loadTab(currentTab);
+  document.getElementById('last-refresh').textContent = new Date().toLocaleTimeString();
+}
+
+refresh();
+setInterval(refresh, 30000);
+</script>
+</body></html>`;
