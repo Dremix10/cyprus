@@ -15,6 +15,7 @@ export type PublicPlayerState = {
   finishOrder: number | null;
   hand?: Card[];
   avatar?: string;
+  connected?: boolean;
 };
 
 export type PrivatePlayerState = PublicPlayerState & {

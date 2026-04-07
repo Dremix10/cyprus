@@ -6,11 +6,24 @@ import type {
   NormalRank,
 } from '@cyprus/shared';
 import { socket } from '../socket.js';
+import {
+  playCardSound,
+  playPassSound,
+  playBombSound,
+  playTichuCallSound,
+  playTrickWonSound,
+  playPlayerOutSound,
+  playDragonGiveSound,
+  playWishSound,
+  playRoundEndSound,
+  playYourTurnSound,
+} from '../sounds.js';
 
 interface GameStore {
   gameState: ClientGameState | null;
   selectedCards: Set<string>;
   error: string | null;
+  lastEvent: GameEvent | null;
 
   setGameState: (state: ClientGameState) => void;
   handleEvent: (event: GameEvent) => void;
@@ -35,12 +48,54 @@ export const useGameStore = create<GameStore>((set, get) => ({
   gameState: null,
   selectedCards: new Set<string>(),
   error: null,
+  lastEvent: null,
 
-  setGameState: (state) => set({ gameState: state, error: null }),
+  setGameState: (state) => {
+    const prev = get().gameState;
+    // Play "your turn" sound when turn changes to me during playing phase
+    if (
+      state.phase === 'PLAYING' &&
+      state.currentPlayer === state.myPosition &&
+      (!prev || prev.currentPlayer !== state.myPosition || prev.phase !== 'PLAYING')
+    ) {
+      playYourTurnSound();
+    }
+    set({ gameState: state, error: null });
+  },
 
-  handleEvent: (_event) => {
-    // Events can be used for animations/sounds later
-    // Game state is updated via the full state broadcast
+  handleEvent: (event) => {
+    set({ lastEvent: event });
+    switch (event.type) {
+      case 'PLAY':
+        playCardSound();
+        break;
+      case 'BOMB':
+        playBombSound();
+        break;
+      case 'PASS':
+        playPassSound();
+        break;
+      case 'TICHU_CALL':
+      case 'GRAND_TICHU_CALL':
+        playTichuCallSound();
+        break;
+      case 'TRICK_WON':
+        playTrickWonSound();
+        break;
+      case 'PLAYER_OUT':
+        playPlayerOutSound();
+        break;
+      case 'DRAGON_GIVEN':
+        playDragonGiveSound();
+        break;
+      case 'WISH_MADE':
+        playWishSound();
+        break;
+      case 'ROUND_END':
+      case 'GAME_OVER':
+        playRoundEndSound();
+        break;
+    }
   },
 
   toggleCard: (cardId) => {
@@ -92,5 +147,5 @@ export const useGameStore = create<GameStore>((set, get) => ({
   },
 
   setError: (error) => set({ error }),
-  reset: () => set({ gameState: null, selectedCards: new Set(), error: null }),
+  reset: () => set({ gameState: null, selectedCards: new Set(), error: null, lastEvent: null }),
 }));

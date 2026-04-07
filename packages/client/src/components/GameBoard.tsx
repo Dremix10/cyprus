@@ -1,11 +1,13 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useGameStore } from '../stores/gameStore.js';
+import { useRoomStore } from '../stores/roomStore.js';
 import { GamePhase, SpecialCardType, getCardPoints, getRankLabel } from '@cyprus/shared';
 import type { Card, PlayerPosition, RoundScoreBreakdown } from '@cyprus/shared';
 import { CardComponent } from './CardComponent.js';
 import { PlayerHand } from './PlayerHand.js';
 import { OpponentHand } from './OpponentHand.js';
 import { WishSelector } from './WishSelector.js';
+import { isMuted, setMuted } from '../sounds.js';
 
 function getRelativePositions(myPos: PlayerPosition) {
   return {
@@ -15,9 +17,25 @@ function getRelativePositions(myPos: PlayerPosition) {
   };
 }
 
+function SoundToggle() {
+  const [muted, setMutedState] = useState(isMuted);
+  const toggle = useCallback(() => {
+    const next = !muted;
+    setMuted(next);
+    setMutedState(next);
+  }, [muted]);
+
+  return (
+    <button className="sound-toggle" onClick={toggle} title={muted ? 'Unmute' : 'Mute'}>
+      {muted ? '\uD83D\uDD07' : '\uD83D\uDD0A'}
+    </button>
+  );
+}
+
 export function GameBoard() {
   const gameState = useGameStore((s) => s.gameState);
   const error = useGameStore((s) => s.error);
+  const roomNotification = useRoomStore((s) => s.error);
 
   if (!gameState) {
     return <div className="game-board">Loading game...</div>;
@@ -27,11 +45,19 @@ export function GameBoard() {
 
   return (
     <div className="game-board">
+      {roomNotification && (
+        <div className={`game-toast ${roomNotification.includes('disconnected') ? 'game-toast-warn' : 'game-toast-info'}`}>
+          {roomNotification}
+        </div>
+      )}
       <div className="game-info">
         <span className="name-teammate">
           Team A: {gameState.scores[0]} / {gameState.targetScore}
         </span>
-        <span className="phase-label">{formatPhase(gameState.phase)}</span>
+        <span className="phase-label">
+          {formatPhase(gameState.phase)}
+          <SoundToggle />
+        </span>
         <span className="name-opponent">
           Team B: {gameState.scores[1]} / {gameState.targetScore}
         </span>
@@ -346,8 +372,29 @@ function PlayingLayout({
   const passTurn = useGameStore((s) => s.passTurn);
   const callTichu = useGameStore((s) => s.callTichu);
   const dragonGive = useGameStore((s) => s.dragonGive);
+  const lastEvent = useGameStore((s) => s.lastEvent);
 
   const [tichuConfirm, setTichuConfirm] = useState(false);
+  const [bombShake, setBombShake] = useState(false);
+  const [trickCollecting, setTrickCollecting] = useState(false);
+
+  // Bomb shake effect
+  useEffect(() => {
+    if (lastEvent?.type === 'BOMB') {
+      setBombShake(true);
+      const t = setTimeout(() => setBombShake(false), 500);
+      return () => clearTimeout(t);
+    }
+  }, [lastEvent]);
+
+  // Trick-won collection animation
+  useEffect(() => {
+    if (lastEvent?.type === 'TRICK_WON') {
+      setTrickCollecting(true);
+      const t = setTimeout(() => setTrickCollecting(false), 400);
+      return () => clearTimeout(t);
+    }
+  }, [lastEvent]);
 
   const isMyTurn = gameState.currentPlayer === gameState.myPosition;
   const myInfo = gameState.players[gameState.myPosition];
@@ -386,7 +433,7 @@ function PlayingLayout({
           hasPassed={passedSet.has(rel.left)}
         />
 
-        <div className="trick-area">
+        <div className={`trick-area ${bombShake ? 'trick-bomb-shake' : ''} ${trickCollecting ? 'trick-collecting' : ''}`}>
           {gameState.wish.active && (
             <div className="wish-indicator">
               Wish: {gameState.wish.wishedRank !== null ? getRankLabel(gameState.wish.wishedRank) : ''}

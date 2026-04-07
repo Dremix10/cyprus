@@ -856,11 +856,30 @@ body {
   font-size: 0.9rem;
 }
 
+.sound-toggle {
+  background: none;
+  border: none;
+  font-size: 1.1rem;
+  cursor: pointer;
+  padding: 0.2rem 0.4rem;
+  border-radius: 4px;
+  opacity: 0.7;
+  transition: opacity 0.15s;
+  line-height: 1;
+}
+
+.sound-toggle:hover {
+  opacity: 1;
+}
+
 .phase-label {
   color: var(--text-muted);
   font-size: 0.8rem;
   text-transform: uppercase;
   letter-spacing: 0.05em;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
 }
 
 .phase-view {
@@ -1006,10 +1025,23 @@ body {
 .hand-card-wrapper {
   margin-left: -12px;
   transition: transform 0.15s;
+  animation: card-deal-in 0.3s ease-out both;
+  animation-delay: calc(var(--card-index) * 0.04s);
 }
 
 .hand-card-wrapper:first-child {
   margin-left: 0;
+}
+
+@keyframes card-deal-in {
+  from {
+    opacity: 0;
+    transform: translateY(30px) rotate(calc(var(--fan-offset) + 5deg)) scale(0.8);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) rotate(var(--fan-offset)) scale(1);
+  }
 }
 
 /* ─── Playing Layout ────────────────────── */
@@ -1052,6 +1084,26 @@ body {
 
 .opponent-active {
   border-color: var(--warning);
+}
+
+.opponent-disconnected {
+  opacity: 0.5;
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+.avatar-disconnected {
+  filter: grayscale(1);
+}
+
+.disconnect-badge {
+  background: rgba(255, 60, 60, 0.3);
+  color: #ff6b6b;
+  padding: 0.1rem 0.35rem;
+  border-radius: 4px;
+  font-size: 0.55rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  animation: badge-pop 0.2s ease-out;
 }
 
 .opponent-info {
@@ -1162,6 +1214,12 @@ body {
   font-size: 0.65rem;
   font-weight: 700;
   text-transform: uppercase;
+  animation: badge-pop 0.2s ease-out;
+}
+
+@keyframes badge-pop {
+  from { opacity: 0; transform: scale(0.6); }
+  to { opacity: 1; transform: scale(1); }
 }
 
 .collected-pile {
@@ -1229,6 +1287,18 @@ body {
   display: flex;
   align-items: center;
   gap: 0.5rem;
+  animation: trick-slide-in 0.25s ease-out;
+}
+
+@keyframes trick-slide-in {
+  from {
+    opacity: 0;
+    transform: translateY(20px) scale(0.9);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
 }
 
 .trick-player {
@@ -1246,6 +1316,39 @@ body {
 .no-trick {
   color: var(--text-muted);
   font-style: italic;
+}
+
+/* ─── Trick Animations ─────────────────── */
+
+.trick-bomb-shake {
+  animation: bomb-shake 0.5s ease-out;
+}
+
+@keyframes bomb-shake {
+  0%, 100% { transform: translateX(0); }
+  10% { transform: translateX(-8px) rotate(-2deg); }
+  20% { transform: translateX(8px) rotate(2deg); }
+  30% { transform: translateX(-6px) rotate(-1deg); }
+  40% { transform: translateX(6px) rotate(1deg); }
+  50% { transform: translateX(-4px); }
+  60% { transform: translateX(4px); }
+  70% { transform: translateX(-2px); }
+  80% { transform: translateX(2px); }
+}
+
+.trick-collecting .trick-cards {
+  animation: trick-collect 0.4s ease-in forwards;
+}
+
+@keyframes trick-collect {
+  0% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(0.5);
+  }
 }
 
 /* ─── Turn Indicator ────────────────────── */
@@ -1578,6 +1681,35 @@ body {
 
 /* ─── Connection Banner ─────────────────── */
 
+/* ─── Game Toast ───────────────────────── */
+
+.game-toast {
+  text-align: center;
+  padding: 0.4rem 1rem;
+  border-radius: 8px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+  animation: toast-in 0.3s ease-out;
+}
+
+.game-toast-warn {
+  background: rgba(255, 60, 60, 0.2);
+  color: #ff6b6b;
+  border: 1px solid rgba(255, 60, 60, 0.3);
+}
+
+.game-toast-info {
+  background: rgba(46, 204, 113, 0.2);
+  color: var(--success);
+  border: 1px solid rgba(46, 204, 113, 0.3);
+}
+
+@keyframes toast-in {
+  from { opacity: 0; transform: translateY(-10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
 .connection-banner {
   position: fixed;
   top: 0;
@@ -1620,37 +1752,263 @@ body {
   text-align: center;
 }
 
-/* ─── Responsive ────────────────────────── */
+/* ─── Responsive: Tablet (≤768px) ──────── */
 
-@media (max-width: 600px) {
+@media (max-width: 768px) {
   .card {
-    width: 48px;
-    height: 68px;
+    width: 52px;
+    height: 74px;
   }
 
   .card-sm {
-    width: 36px;
-    height: 50px;
-  }
-
-  .card-rank {
-    font-size: 0.75rem;
-  }
-
-  .card-suit-lg {
-    font-size: 1.2rem;
+    width: 38px;
+    height: 54px;
   }
 
   .hand-card-wrapper {
-    margin-left: -16px;
+    margin-left: -14px;
+  }
+
+  .player-avatar {
+    width: 48px;
+    height: 48px;
+  }
+
+  .opponent-panel {
+    padding: 0.5rem 0.75rem;
+    min-width: 80px;
+  }
+
+  .opponent-name {
+    font-size: 0.8rem;
+  }
+
+  .card-count-num {
+    font-size: 1.1rem;
+  }
+
+  .trick-area {
+    min-width: 220px;
+    padding: 0.75rem;
+    min-height: 100px;
+  }
+
+  .layout-middle {
+    gap: 0.5rem;
+  }
+
+  .playing-layout {
+    gap: 0.5rem;
+  }
+
+  .game-info {
+    padding: 0.4rem 0.75rem;
+    font-size: 0.8rem;
+  }
+
+  .pass-zones {
+    gap: 0.6rem;
+  }
+
+  .pass-zone {
+    min-width: 85px;
+    padding: 0.4rem;
+  }
+
+  .pass-zone-avatar {
+    width: 28px;
+    height: 28px;
+  }
+}
+
+/* ─── Responsive: Phone (≤480px) ──────── */
+
+@media (max-width: 480px) {
+  .app {
+    align-items: flex-start;
+  }
+
+  .game-board {
+    padding: 0.4rem;
+  }
+
+  .card {
+    width: 42px;
+    height: 60px;
+  }
+
+  .card-sm {
+    width: 32px;
+    height: 45px;
+  }
+
+  .card-rank {
+    font-size: 0.7rem;
+  }
+
+  .card-suit {
+    font-size: 0.55rem;
+  }
+
+  .card-suit-lg {
+    font-size: 1rem;
+  }
+
+  .card-corner {
+    padding: 2px 3px;
+  }
+
+  .hand-card-wrapper {
+    margin-left: -18px;
+  }
+
+  .player-avatar {
+    width: 36px;
+    height: 36px;
+  }
+
+  .opponent-panel {
+    padding: 0.3rem 0.5rem;
+    min-width: 65px;
+    gap: 0.15rem;
+  }
+
+  .opponent-name {
+    font-size: 0.7rem;
+  }
+
+  .card-count-num {
+    font-size: 0.95rem;
+  }
+
+  .card-count-label {
+    font-size: 0.6rem;
   }
 
   .layout-middle {
     flex-direction: column;
+    gap: 0.4rem;
   }
 
   .trick-area {
     min-width: auto;
     width: 100%;
+    padding: 0.6rem;
+    min-height: 80px;
+  }
+
+  .trick-player {
+    font-size: 0.7rem;
+    min-width: 45px;
+  }
+
+  .playing-layout {
+    gap: 0.3rem;
+  }
+
+  .game-info {
+    padding: 0.3rem 0.5rem;
+    font-size: 0.75rem;
+    margin-bottom: 0.4rem;
+  }
+
+  .btn {
+    padding: 0.6rem 1rem;
+    font-size: 0.85rem;
+  }
+
+  .btn-small {
+    padding: 0.3rem 0.6rem;
+    font-size: 0.75rem;
+  }
+
+  .btn-group {
+    gap: 0.4rem;
+  }
+
+  .phase-view h3 {
+    font-size: 1rem;
+  }
+
+  .info {
+    font-size: 0.8rem;
+  }
+
+  .turn-indicator {
+    font-size: 0.8rem;
+  }
+
+  .tichu-badge {
+    font-size: 0.55rem;
+    padding: 0.15rem 0.35rem;
+  }
+
+  .pass-badge {
+    font-size: 0.55rem;
+  }
+
+  /* Stack pass zones vertically on small screens */
+  .pass-zones {
+    flex-direction: column;
+    gap: 0.5rem;
+    align-items: center;
+  }
+
+  .pass-zone {
+    flex-direction: row;
+    min-width: auto;
+    width: 100%;
+    max-width: 280px;
+    gap: 0.5rem;
+    padding: 0.4rem 0.6rem;
+  }
+
+  .pass-zone-header {
+    flex-direction: row;
+    gap: 0.3rem;
+    min-width: 90px;
+  }
+
+  .pass-zone-avatar {
+    width: 24px;
+    height: 24px;
+  }
+
+  .pass-zone-card {
+    min-height: auto;
+  }
+
+  .pass-hand {
+    gap: 0.1rem;
+  }
+
+  .my-hand-row {
+    gap: 0.3rem;
+  }
+
+  .revealed-hand {
+    max-width: 120px;
+  }
+
+  .wish-grid {
+    max-width: 280px;
+  }
+
+  .wish-btn {
+    min-width: 30px;
+    font-size: 0.8rem;
+  }
+
+  .collected-count {
+    font-size: 0.7rem;
+  }
+
+  .sound-toggle {
+    font-size: 0.9rem;
+    padding: 0.1rem 0.3rem;
+  }
+
+  .confirm-label {
+    font-size: 0.75rem;
   }
 }

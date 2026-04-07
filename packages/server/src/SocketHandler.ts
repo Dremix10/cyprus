@@ -25,10 +25,12 @@ type TypedServer = Server<ClientToServerEvents, ServerToClientEvents>;
 type TypedSocket = Socket<ClientToServerEvents, ServerToClientEvents>;
 
 const TURN_TIMEOUT_MS = 60_000;
+const DISCONNECT_REPLACE_MS = 120_000; // 2 minutes before replacing with bot
 
 export class SocketHandler {
   private turnTimers = new Map<string, NodeJS.Timeout>(); // roomCode -> timer
   private turnDeadlines = new Map<string, number>(); // roomCode -> deadline timestamp
+  private disconnectTimers = new Map<string, NodeJS.Timeout>(); // "roomCode-position" -> timer
 
   constructor(
     private io: TypedServer,
@@ -86,14 +88,17 @@ export class SocketHandler {
         // If game is in progress (reconnect), send game state
         const info = this.rooms.getRoomForSocket(socket.id);
         if (info && info.room.engine) {
-          const state = info.room.engine.getClientState(
-            info.position,
-            info.room.code,
-            info.room.botPositions
-          );
-          socket.emit('game:state', state);
+          // Cancel any pending bot replacement
+          const timerKey = `${info.room.code}-${info.position}`;
+          const existing = this.disconnectTimers.get(timerKey);
+          if (existing) {
+            clearTimeout(existing);
+            this.disconnectTimers.delete(timerKey);
+          }
           // Notify others of reconnection
           socket.to(info.room.code).emit('room:player_reconnected', nickname);
+          // Broadcast full game state to all players (updates connected status)
+          this.broadcastGameState(info.room.code);
         } else {
           this.broadcastRoomState(roomCode.toUpperCase());
         }
@@ -164,12 +169,21 @@ export class SocketHandler {
       });
 
       socket.on('disconnect', () => {
+        // Get position before disconnect handling
+        const info = this.rooms.getRoomForSocket(socket.id);
         const result = this.rooms.handleDisconnect(socket.id);
         if (result) {
           this.io
             .to(result.roomCode)
             .emit('room:player_disconnected', result.nickname);
           this.broadcastRoomState(result.roomCode);
+
+          // If a game is in progress, show updated disconnect status and schedule bot replacement
+          const room = this.rooms.getRoom(result.roomCode);
+          if (room?.engine && info) {
+            this.broadcastGameState(result.roomCode);
+            this.scheduleDisconnectReplace(result.roomCode, info.position, result.nickname);
+          }
         }
       });
     });
@@ -214,10 +228,12 @@ export class SocketHandler {
     const room = this.rooms.getRoom(roomCode);
     if (!room || !room.engine) return;
 
-    // Build avatar map from room players
+    // Build avatar map and disconnected set from room players
     const avatars = new Map<PlayerPosition, string>();
+    const disconnected = new Set<PlayerPosition>();
     for (const [pos, player] of room.players) {
       if (player.avatar) avatars.set(pos, player.avatar);
+      if (!player.connected) disconnected.add(pos);
     }
 
     // Schedule turn timer for human players
@@ -227,7 +243,7 @@ export class SocketHandler {
 
     const sockets = this.rooms.getSocketIdsForRoom(roomCode);
     for (const [position, socketId] of sockets) {
-      const state = room.engine.getClientState(position, roomCode, room.botPositions, avatars);
+      const state = room.engine.getClientState(position, roomCode, room.botPositions, avatars, disconnected);
       state.turnDeadline = deadline;
       this.io.to(socketId).emit('game:state', state);
     }
@@ -316,6 +332,38 @@ export class SocketHandler {
     } catch {
       // Don't crash the game if saving fails
     }
+  }
+
+  // ─── Disconnect → Bot Replacement ──────────────────────────────────────
+
+  private scheduleDisconnectReplace(roomCode: string, position: PlayerPosition, nickname: string): void {
+    const timerKey = `${roomCode}-${position}`;
+    // Clear existing timer for this slot if any
+    const existing = this.disconnectTimers.get(timerKey);
+    if (existing) clearTimeout(existing);
+
+    const timer = setTimeout(() => {
+      this.disconnectTimers.delete(timerKey);
+
+      const replaced = this.rooms.replacePlayerWithBot(roomCode, position);
+      if (!replaced) return;
+
+      const room = this.rooms.getRoom(roomCode);
+      if (!room) return;
+
+      const botPlayer = room.players.get(position);
+      const botName = botPlayer?.nickname ?? 'Bot';
+
+      // Notify players
+      this.io.to(roomCode).emit('room:player_disconnected',
+        `${nickname} was replaced by ${botName}`
+      );
+
+      // Broadcast updated game state (bot now plays for them)
+      this.broadcastGameState(roomCode);
+    }, DISCONNECT_REPLACE_MS);
+
+    this.disconnectTimers.set(timerKey, timer);
   }
 
   // ─── Dog Delay ─────────────────────────────────────────────────────────

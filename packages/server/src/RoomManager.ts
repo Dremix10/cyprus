@@ -309,6 +309,38 @@ export class RoomManager {
     return result;
   }
 
+  replacePlayerWithBot(roomCode: string, position: PlayerPosition): boolean {
+    const room = this.rooms.get(roomCode);
+    if (!room || !room.engine) return false;
+
+    const player = room.players.get(position);
+    if (!player || player.connected) return false; // already reconnected
+    if (room.botPositions.has(position)) return false; // already a bot
+
+    // Pick a bot profile not already in use
+    const usedNames = new Set(
+      [...room.players.values()].filter((p) => room.botPositions.has(p.position)).map((p) => p.nickname)
+    );
+    const available = BOT_PROFILES.filter((bp) => !usedNames.has(bp.name));
+    const profile = available[0] ?? BOT_PROFILES[0];
+
+    // Replace the player with a bot
+    room.players.set(position, {
+      socketId: `bot-${position}`,
+      nickname: profile.name,
+      position,
+      connected: true,
+      avatar: randomBotAvatar(profile.avatarBase),
+    });
+
+    room.botPositions.add(position);
+
+    // Update the engine's player nickname
+    room.engine.state.players[position].nickname = profile.name;
+
+    return true;
+  }
+
   private generateCode(): string {
     let code: string;
     do {
