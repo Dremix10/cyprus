@@ -194,8 +194,8 @@ body {
   position: absolute;
   inset: 0;
   background-image: url('/zeus.png');
-  background-size: cover;
-  background-position: 30% 15%;
+  background-size: contain;
+  background-position: 25% center;
   background-repeat: no-repeat;
   opacity: 0.35;
   z-index: 1;
