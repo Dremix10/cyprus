@@ -3,9 +3,13 @@ import { socket } from '../socket.js';
 
 export function ConnectionStatus() {
   const [connected, setConnected] = useState(socket.connected);
+  const [wasConnected, setWasConnected] = useState(false);
 
   useEffect(() => {
-    const onConnect = () => setConnected(true);
+    const onConnect = () => {
+      setConnected(true);
+      setWasConnected(true);
+    };
     const onDisconnect = () => setConnected(false);
 
     socket.on('connect', onConnect);
@@ -17,7 +21,8 @@ export function ConnectionStatus() {
     };
   }, []);
 
-  if (connected) return null;
+  // Only show banner if we were connected before and lost connection
+  if (connected || !wasConnected) return null;
 
   return (
     <div className="connection-banner">

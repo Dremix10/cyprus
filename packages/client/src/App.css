@@ -173,7 +173,7 @@ body {
   min-height: 100vh;
   display: flex;
   align-items: center;
-  justify-content: center;
+  justify-content: flex-end;
   overflow: hidden;
 }
 
@@ -195,19 +195,19 @@ body {
   inset: 0;
   background-image: url('/zeus.png');
   background-size: cover;
-  background-position: center 15%;
+  background-position: 30% 15%;
   background-repeat: no-repeat;
-  opacity: 0.25;
+  opacity: 0.35;
   z-index: 1;
   animation: bg-lightning 6s ease-in-out infinite;
 }
 
-/* Overlay gradient to blend Zeus into the dark theme */
+/* Overlay gradient to blend Zeus into the dark theme — lighter on left to reveal Zeus */
 .lobby-bg-overlay {
   position: absolute;
   inset: 0;
   background:
-    radial-gradient(ellipse at center 30%, transparent 0%, rgba(13, 21, 32, 0.6) 60%, rgba(13, 21, 32, 0.95) 100%),
+    linear-gradient(90deg, rgba(13, 21, 32, 0.2) 0%, rgba(13, 21, 32, 0.5) 40%, rgba(13, 21, 32, 0.85) 70%),
     linear-gradient(180deg, rgba(13, 21, 32, 0.3) 0%, transparent 30%, transparent 60%, rgba(13, 21, 32, 0.8) 100%);
   z-index: 2;
 }
@@ -271,7 +271,7 @@ body {
   text-align: center;
   width: 100%;
   max-width: 400px;
-  padding: 2rem 1.5rem;
+  padding: 2rem 4rem 2rem 1.5rem;
 }
 
 .lobby-header {
@@ -532,13 +532,13 @@ body {
 
 /* Lightning flicker on background */
 @keyframes bg-lightning {
-  0%, 100% { opacity: 0.25; }
-  48% { opacity: 0.25; }
-  50% { opacity: 0.35; }
-  52% { opacity: 0.25; }
-  78% { opacity: 0.25; }
-  80% { opacity: 0.3; }
-  81% { opacity: 0.25; }
+  0%, 100% { opacity: 0.35; }
+  48% { opacity: 0.35; }
+  50% { opacity: 0.5; }
+  52% { opacity: 0.35; }
+  78% { opacity: 0.35; }
+  80% { opacity: 0.42; }
+  81% { opacity: 0.35; }
 }
 
 /* ─── Waiting Room ──────────────────────── */
@@ -2196,6 +2196,14 @@ body {
 /* ─── Responsive: Phone (≤480px) ──────── */
 
 @media (max-width: 480px) {
+  .lobby-fullscreen {
+    justify-content: center;
+  }
+
+  .lobby-content {
+    padding: 2rem 1.5rem;
+  }
+
   .app {
     align-items: flex-start;
   }
