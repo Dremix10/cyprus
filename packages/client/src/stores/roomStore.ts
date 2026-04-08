@@ -156,30 +156,52 @@ export const useRoomStore = create<RoomStore>((set, get) => ({
 
       if (!socket.connected) socket.connect();
 
-      // Timeout: if server never responds, fall back to lobby
-      const timeout = setTimeout(() => {
-        clearSession();
-        set({ reconnecting: false });
-        resolve(false);
-      }, 8_000);
+      const doReconnect = (attempt: number) => {
+        // Timeout: if server never responds, fall back to lobby
+        const timeout = setTimeout(() => {
+          if (attempt < 2) {
+            doReconnect(attempt + 1);
+          } else {
+            clearSession();
+            set({ reconnecting: false });
+            resolve(false);
+          }
+        }, 8_000);
 
-      socket.emit('session:reconnect', session.sessionId, (response) => {
-        clearTimeout(timeout);
-        if ('error' in response) {
-          clearSession();
-          set({ reconnecting: false });
-          resolve(false);
-          return;
+        // Wait for socket to be connected before emitting
+        const emitReconnect = () => {
+          socket.emit('session:reconnect', session.sessionId, (response) => {
+            clearTimeout(timeout);
+            if ('error' in response) {
+              if (attempt < 2) {
+                // Retry once after a short delay
+                setTimeout(() => doReconnect(attempt + 1), 1000);
+              } else {
+                clearSession();
+                set({ reconnecting: false });
+                resolve(false);
+              }
+              return;
+            }
+            set({
+              nickname: session.nickname,
+              roomCode: response.roomCode,
+              view: response.hasGame ? 'game' : 'waiting',
+              error: null,
+              reconnecting: false,
+            });
+            resolve(true);
+          });
+        };
+
+        if (socket.connected) {
+          emitReconnect();
+        } else {
+          socket.once('connect', emitReconnect);
         }
-        set({
-          nickname: session.nickname,
-          roomCode: response.roomCode,
-          view: response.hasGame ? 'game' : 'waiting',
-          error: null,
-          reconnecting: false,
-        });
-        resolve(true);
-      });
+      };
+
+      doReconnect(0);
     });
   },
 

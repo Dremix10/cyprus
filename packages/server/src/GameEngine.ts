@@ -53,6 +53,7 @@ export type GameEngineState = {
   players: [PlayerState, PlayerState, PlayerState, PlayerState];
   currentPlayer: PlayerPosition;
   currentTrick: TrickState;
+  lastTrick: TrickState | null; // last trick before round end, for display
   wish: WishState;
   wishPending: PlayerPosition | null; // position of player who must choose a wish before play continues
   dogPending: boolean; // Dog was played, waiting for visual delay before resolving
@@ -95,6 +96,7 @@ export class GameEngine {
       })) as unknown as [PlayerState, PlayerState, PlayerState, PlayerState],
       currentPlayer: 0,
       currentTrick: { plays: [], currentWinner: null, passCount: 0, passedPlayers: [] },
+      lastTrick: null,
       wish: { active: false, wishedRank: null, wishedBy: null },
       wishPending: null,
       dogPending: false,
@@ -129,6 +131,8 @@ export class GameEngine {
     this.roundBreakdown = null;
     this.state.phase = GamePhase.GRAND_TICHU;
     this.state.currentTrick = { plays: [], currentWinner: null, passCount: 0, passedPlayers: [] };
+    this.state.lastTrick = null;
+    this.state.dogPending = false;
     this.state.wish = { active: false, wishedRank: null, wishedBy: null };
     this.state.wishPending = null;
     this.state.finishOrder = [];
@@ -605,6 +609,9 @@ export class GameEngine {
     // Winner collects trick cards
     this.state.players[winner].wonTricks.push(trickCards);
 
+    // Save last trick for display before clearing
+    this.state.lastTrick = { ...this.state.currentTrick };
+
     // Start new trick
     this.state.currentTrick = { plays: [], currentWinner: null, passCount: 0, passedPlayers: [] };
 
@@ -793,9 +800,10 @@ export class GameEngine {
     return engine;
   }
 
-  getClientState(position: PlayerPosition, roomCode: string, botPositions?: Set<PlayerPosition>, avatars?: Map<PlayerPosition, string>, disconnected?: Set<PlayerPosition>): ClientGameState {
+  getClientState(position: PlayerPosition, roomCode: string, botPositions?: Set<PlayerPosition>, avatars?: Map<PlayerPosition, string>, disconnected?: Set<PlayerPosition>, isSolo?: boolean): ClientGameState {
     const player = this.state.players[position];
     const iAmOut = player.isOut;
+    const isTeammate = (pos: PlayerPosition) => (pos % 2) === (position % 2);
     return {
       roomCode,
       phase: this.state.phase,
@@ -810,13 +818,16 @@ export class GameEngine {
         tichuCall: p.tichuCall,
         isOut: p.isOut,
         finishOrder: p.finishOrder,
-        // Reveal bot hands to the human player once they've finished
-        hand: iAmOut && botPositions?.has(p.position) && !p.isOut ? p.hand : undefined,
+        // Solo: reveal all hands when out. Multiplayer: only reveal teammate's hand when out.
+        hand: iAmOut && !p.isOut && (isSolo ? botPositions?.has(p.position) : isTeammate(p.position as PlayerPosition)) ? p.hand : undefined,
         avatar: avatars?.get(p.position as PlayerPosition),
         connected: disconnected?.has(p.position as PlayerPosition) ? false : true,
       })) as PublicPlayerState[],
       currentPlayer: this.state.currentPlayer,
       currentTrick: this.state.currentTrick,
+      lastTrick: (this.state.phase === GamePhase.ROUND_SCORING || this.state.phase === GamePhase.GAME_OVER)
+        ? this.state.lastTrick ?? undefined
+        : undefined,
       wish: this.state.wish,
       finishOrder: this.state.finishOrder as PlayerPosition[],
       scores: this.state.scores,

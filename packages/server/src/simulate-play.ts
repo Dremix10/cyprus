@@ -9,6 +9,7 @@ import {
   GamePhase,
   SpecialCardType,
   isSpecial,
+  findPlayableFromHand,
   type PlayerPosition,
   type Card,
   type TichuCall,
@@ -133,6 +134,21 @@ function runRound(engine: GameEngine, bots: BotAI[], stats: RoundStats): void {
       engine.playCards(cp, cardIds);
       stats.turnsPlayed++;
     } else {
+      // Wish enforcement: if bot wants to pass but wish forces a play, find a valid combo
+      if (engine.state.wish.active && engine.state.wish.wishedRank !== null) {
+        const currentTop = engine.state.currentTrick.plays.length > 0
+          ? engine.state.currentTrick.plays[engine.state.currentTrick.plays.length - 1].combination
+          : null;
+        const playable = findPlayableFromHand(player.hand, currentTop, engine.state.wish);
+        const wishedPlay = playable.find((cards) =>
+          cards.some((c) => c.type === 'normal' && c.rank === engine.state.wish.wishedRank)
+        );
+        if (wishedPlay) {
+          engine.playCards(cp, wishedPlay.map((c) => c.id));
+          stats.turnsPlayed++;
+          continue;
+        }
+      }
       engine.passTurn(cp);
       stats.passCount++;
     }
@@ -207,6 +223,7 @@ function runBatch(numGames: number, difficulty: BotDifficulty, label: string) {
   let firstOutCounts = [0, 0, 0, 0];
   let errors = 0;
   let totalGames = 0;
+  const errorBreakdown = new Map<string, number>();
 
   const startTime = Date.now();
 
@@ -228,8 +245,11 @@ function runBatch(numGames: number, difficulty: BotDifficulty, label: string) {
       totalGTSuccess += result.stats.grandTichuSuccess;
       for (const pos of result.firstOutPositions) firstOutCounts[pos]++;
       totalGames++;
-    } catch {
+    } catch (e) {
       errors++;
+      const msg = (e as Error).message?.slice(0, 100) ?? 'unknown';
+      if (!errorBreakdown.has(msg)) errorBreakdown.set(msg, 0);
+      errorBreakdown.set(msg, errorBreakdown.get(msg)! + 1);
     }
 
     if ((i + 1) % 1000 === 0) {
@@ -277,6 +297,13 @@ function runBatch(numGames: number, difficulty: BotDifficulty, label: string) {
     },
     firstOutDistribution: firstOutCounts.map((c) => Math.round(c / (totalRounds) * 1000) / 10),
   };
+
+  if (errorBreakdown.size > 0) {
+    console.log('\nError breakdown:');
+    for (const [msg, count] of [...errorBreakdown.entries()].sort((a, b) => b[1] - a[1])) {
+      console.log(`  ${count}x: ${msg}`);
+    }
+  }
 
   return report;
 }

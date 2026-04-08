@@ -26,6 +26,12 @@ export function useSocketEvents() {
     };
 
     const onGameError = (message: string) => {
+      // If we get "No active game", try to reconnect the session
+      if (message === 'No active game') {
+        const { trySessionReconnect } = useRoomStore.getState();
+        trySessionReconnect();
+        return;
+      }
       setGameError(message);
     };
 

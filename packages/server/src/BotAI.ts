@@ -450,14 +450,34 @@ export class BotAI {
 
     const hasDog = hand.some((c) => isSpecial(c, SpecialCardType.DOG));
 
-    // Never pass Dragon, Phoenix, or bomb cards
-    // If partner called Grand Tichu, also never pass the Dog (keep it to support them)
+    // Never pass bomb cards
     const bombRanks = new Set<number>();
     for (const [rank, count] of rankCounts) {
       if (count >= 4) bombRanks.add(rank);
     }
 
+    // If partner called Grand Tichu, pick the best card to pass them:
+    // Dragon > Phoenix > highest normal card
+    let partnerGift: string | null = null;
+    if (partnerCalledGrand) {
+      const dragon = hand.find((c) => isSpecial(c, SpecialCardType.DRAGON));
+      const phoenix = hand.find((c) => isSpecial(c, SpecialCardType.PHOENIX));
+      if (dragon) {
+        partnerGift = dragon.id;
+      } else if (phoenix) {
+        partnerGift = phoenix.id;
+      } else {
+        // Pass highest normal card (not from a bomb)
+        const sortedNormals = normalCards
+          .filter((c) => !bombRanks.has(c.rank))
+          .sort((a, b) => b.rank - a.rank);
+        if (sortedNormals.length > 0) partnerGift = sortedNormals[0].id;
+      }
+    }
+
+    // Cards passable to opponents (never Dragon, Phoenix, or bomb cards)
     const passable = hand.filter((c) => {
+      if (c.id === partnerGift) return false; // reserved for partner
       if (isSpecial(c, SpecialCardType.DRAGON)) return false;
       if (isSpecial(c, SpecialCardType.PHOENIX)) return false;
       if (isNormalCard(c) && bombRanks.has(c.rank)) return false;
@@ -490,7 +510,7 @@ export class BotAI {
 
     scored.sort((a, b) => a.value - b.value);
 
-    // Opponents get weakest cards, partner gets strongest spare
+    // Opponents get weakest cards
     let toLeft = scored[0]?.card.id ?? hand[0].id;
     let toRight = scored[1]?.card.id ?? hand[1].id;
 
@@ -513,11 +533,16 @@ export class BotAI {
       }
     }
 
-    const forPartner = scored
-      .filter((s) => s.card.id !== toLeft && s.card.id !== toRight)
-      .sort((a, b) => b.value - a.value);
-
-    const toAcross = forPartner[0]?.card.id ?? hand[2].id;
+    // Partner gets the reserved gift card, or strongest spare
+    let toAcross: string;
+    if (partnerGift) {
+      toAcross = partnerGift;
+    } else {
+      const forPartner = scored
+        .filter((s) => s.card.id !== toLeft && s.card.id !== toRight)
+        .sort((a, b) => b.value - a.value);
+      toAcross = forPartner[0]?.card.id ?? hand[2].id;
+    }
 
     return { left: toLeft, across: toAcross, right: toRight };
   }
@@ -544,8 +569,8 @@ export class BotAI {
     }
 
     if (this.difficulty === 'medium') {
-      if (isLeading) return this.chooseLeadMedium(hand, playable);
-      return this.chooseFollowMedium(hand, playable, currentTrick, botPosition);
+      if (isLeading) return this.chooseLeadMedium(hand, playable, botPosition, context);
+      return this.chooseFollowMedium(hand, playable, currentTrick, botPosition, context);
     }
 
     // Hard mode
@@ -569,14 +594,30 @@ export class BotAI {
 
   // ─── Medium Leading ──────────────────────────────────────────────
 
-  private chooseLeadMedium(hand: Card[], playable: Card[][]): string[] {
-    const multiCard = playable.filter((c) => c.length > 1);
+  private chooseLeadMedium(hand: Card[], playable: Card[][], botPosition?: PlayerPosition, context?: GameContext): string[] {
+    // Filter out multi-card combos that waste aces (pairs/trips/full houses of aces)
+    const multiCard = playable.filter((c) => c.length > 1).filter((combo) => {
+      const aceCount = combo.filter((c) => isNormalCard(c) && c.rank === NR.ACE).length;
+      // Don't lead pairs/trips/full houses containing aces (save aces as singles)
+      if (aceCount > 0 && combo.length <= 5) return false;
+      return true;
+    });
     const singles = playable.filter((c) => c.length === 1);
     const nonSpecialSingles = singles.filter(
       (c) =>
         !isSpecial(c[0], SpecialCardType.DOG) &&
         !isSpecial(c[0], SpecialCardType.DRAGON)
     );
+
+    // Counter opponent Tichu: lead high to steal tricks
+    if (context && botPosition !== undefined && this.hasOpponentTichuCall(botPosition, context)) {
+      const highSingles = nonSpecialSingles.filter(
+        (c) => isNormalCard(c[0]) && c[0].rank >= NR.KING
+      );
+      if (highSingles.length > 0) {
+        return this.pickHighestCombo(highSingles);
+      }
+    }
 
     if (multiCard.length > 0 && Math.random() < 0.6) {
       return this.pickLowestCombo(multiCard);
@@ -595,17 +636,31 @@ export class BotAI {
     hand: Card[],
     playable: Card[][],
     currentTrick: TrickState,
-    botPosition: PlayerPosition
+    botPosition: PlayerPosition,
+    context?: GameContext
   ): string[] | null {
     const partnerPos = ((botPosition + 2) % 4) as PlayerPosition;
     const partnerWinning = currentTrick.currentWinner === partnerPos;
 
     const { bombs, regular } = this.splitBombs(playable);
 
-    if (partnerWinning && Math.random() < 0.5) return null;
+    // Bomb if opponent called Tichu and is winning this trick with few cards left
+    if (bombs.length > 0 && !partnerWinning && context) {
+      const winner = currentTrick.currentWinner;
+      if (winner !== null && winner % 2 !== botPosition % 2) {
+        const winnerCards = context.playerCardCounts.get(winner) ?? 14;
+        const winnerCall = context.tichuCalls[winner];
+        if ((winnerCall === 'tichu' || winnerCall === 'grand_tichu') && winnerCards <= 5) {
+          return this.pickLowestCombo(bombs);
+        }
+      }
+    }
+
+    // Partner is winning — don't play on top of them
+    if (partnerWinning) return null;
 
     if (regular.length === 0) {
-      if (!partnerWinning && hand.length <= 5 && bombs.length > 0) {
+      if (hand.length <= 5 && bombs.length > 0) {
         return this.pickLowestCombo(bombs);
       }
       return null;
@@ -681,9 +736,49 @@ export class BotAI {
       }
     }
 
+    // ── Counter opponent Tichu: lead high to steal tricks from them ──
+    if (context && this.hasOpponentTichuCall(botPosition, context)) {
+      // Lead Dragon if we have it — guaranteed trick win
+      const dragonPlay = combos.singles.find((c) => isSpecial(c[0], SpecialCardType.DRAGON));
+      if (dragonPlay) {
+        return dragonPlay.map((c) => c.id);
+      }
+      // Lead aces as singles
+      const aceSingles = combos.nonSpecialSingles.filter(
+        (c) => isNormalCard(c[0]) && c[0].rank === NR.ACE
+      );
+      if (aceSingles.length > 0) {
+        return aceSingles[0].map((c) => c.id);
+      }
+      // Lead high singles (King+) to pressure them
+      const highSingles = combos.nonSpecialSingles.filter(
+        (c) => isNormalCard(c[0]) && c[0].rank >= NR.KING
+      );
+      if (highSingles.length > 0) {
+        return this.pickHighestCombo(highSingles);
+      }
+      // Lead strong multi-card combos (high rank, hard to beat)
+      if (combos.multiCard.length > 0) {
+        const sorted = [...combos.multiCard].sort((a, b) => {
+          const ra = detectCombination(a)?.rank ?? 0;
+          const rb = detectCombination(b)?.rank ?? 0;
+          return rb - ra; // highest rank first
+        });
+        return sorted[0].map((c) => c.id);
+      }
+    }
+
+    // ── Prefer aces as singles — filter out non-straight combos containing aces ──
+    const noAceCombos = combos.multiCard.filter((combo) => {
+      const aceCount = combo.filter((c) => isNormalCard(c) && c.rank === NR.ACE).length;
+      // Allow aces in straights (5+ cards), but not in pairs/trips/full houses
+      if (aceCount > 0 && combo.length <= 4) return false;
+      return true;
+    });
+
     // ── Lead long combos first (hardest to beat) ──
     // Straights of 5+ are very hard to beat
-    const longCombos = combos.multiCard.filter((c) => c.length >= 5);
+    const longCombos = noAceCombos.filter((c) => c.length >= 5);
     if (longCombos.length > 0) {
       // Lead the longest, lowest-rank one
       const sorted = [...longCombos].sort((a, b) => {
@@ -694,15 +789,15 @@ export class BotAI {
     }
 
     // ── Lead isolated multi-card combos ──
-    const isolatedMulti = this.findIsolatedMultiCardCombos(hand, combos.multiCard);
+    const isolatedMulti = this.findIsolatedMultiCardCombos(hand, noAceCombos);
     if (isolatedMulti.length > 0) {
       const sorted = [...isolatedMulti].sort((a, b) => b.length - a.length);
       return sorted[0].map((c) => c.id);
     }
 
     // ── Lead multi-card combos (longest first) ──
-    if (combos.multiCard.length > 0) {
-      const sorted = [...combos.multiCard].sort((a, b) => {
+    if (noAceCombos.length > 0) {
+      const sorted = [...noAceCombos].sort((a, b) => {
         if (b.length !== a.length) return b.length - a.length;
         return (detectCombination(a)?.rank ?? 0) - (detectCombination(b)?.rank ?? 0);
       });
@@ -773,6 +868,19 @@ export class BotAI {
     // ── Check if opponent is about to go out ──
     const opponentAboutToOut = context ? this.isOpponentAboutToOut(botPosition, context) : false;
 
+    // ── Bomb opponent Tichu caller who's winning and close to going out ──
+    if (bombs.length > 0 && !partnerWinning && context) {
+      const winner = currentTrick.currentWinner;
+      if (winner !== null && winner % 2 !== botPosition % 2) {
+        const winnerCards = context.playerCardCounts.get(winner) ?? 14;
+        const winnerCall = context.tichuCalls[winner];
+        // Bomb if Tichu caller is winning and has ≤5 cards
+        if ((winnerCall === 'tichu' || winnerCall === 'grand_tichu') && winnerCards <= 5) {
+          return this.pickLowestCombo(bombs);
+        }
+      }
+    }
+
     // ── Partner winning ──
     if (partnerWinning) {
       // Bomb only if opponent is about to go out (prevent them)
@@ -817,8 +925,8 @@ export class BotAI {
     const lowestBeat = sorted[0];
     const lowestCombo = detectCombination(lowestBeat);
 
-    // Dragon always wins singles — always play it
-    if (lowestBeat.length === 1 && isSpecial(lowestBeat[0], SpecialCardType.DRAGON)) {
+    // Dragon always wins singles — play it (but never over a teammate)
+    if (lowestBeat.length === 1 && isSpecial(lowestBeat[0], SpecialCardType.DRAGON) && !partnerWinning) {
       return lowestBeat.map((c) => c.id);
     }
 
@@ -876,6 +984,8 @@ export class BotAI {
           if (count === 1) score -= 3;  // singleton — expendable
           if (count >= 3) score += 5;   // part of triple/bomb — protect
           if (count === 2) score += 1;  // part of pair
+          // Penalize using aces in multi-card combos (save them as singles)
+          if (c.rank === NR.ACE && play.length > 1) score += 8;
         }
       }
 
@@ -913,9 +1023,15 @@ export class BotAI {
     // Bomb high-value tricks
     if (trickPoints >= 10) return true;
 
-    // If opponent has an active Tichu call and we only have 1 bomb, save it
-    // to counter them when they're close to going out
-    if (opponentTichuActive && bombCount <= 1 && trickPoints < 10) return false;
+    // If opponent has Tichu, bomb more aggressively to deny them tricks
+    if (opponentTichuActive) {
+      // Always bomb if trick has any points
+      if (trickPoints >= 5) return true;
+      // Bomb even pointless tricks if we have multiple bombs (can afford to spend one)
+      if (bombCount >= 2) return true;
+      // With 1 bomb, bomb if opponent is getting close (but not yet "about to out")
+      return false;
+    }
 
     // Bomb moderate-value tricks if no reason to save
     if (trickPoints >= 5) return true;
@@ -1031,6 +1147,11 @@ export class BotAI {
   private pickLowestCombo(combos: Card[][]): string[] {
     const sorted = this.sortByRank(combos);
     return sorted[0].map((c) => c.id);
+  }
+
+  private pickHighestCombo(combos: Card[][]): string[] {
+    const sorted = this.sortByRank(combos);
+    return sorted[sorted.length - 1].map((c) => c.id);
   }
 
   // ─── Dragon Give ─────────────────────────────────────────────────

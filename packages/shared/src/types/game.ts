@@ -63,6 +63,7 @@ export type ClientGameState = {
   scores: [number, number];
   roundScores: [number, number];
   targetScore: number;
+  lastTrick?: TrickState;
   roundTrickCards?: [Card[], Card[]];
   roundBreakdown?: RoundScoreBreakdown;
   grandTichuPending?: boolean;

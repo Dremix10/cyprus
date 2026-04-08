@@ -163,6 +163,7 @@ export function Lobby({ onTutorial }: { onTutorial: () => void }) {
 
         <div className="lobby-footer">
           <MeanderBorder />
+          <p className="lobby-updated">Last updated: {new Date(__BUILD_TIME__).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</p>
         </div>
       </div>
     </div>

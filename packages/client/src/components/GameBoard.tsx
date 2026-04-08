@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useGameStore } from '../stores/gameStore.js';
 import { useRoomStore } from '../stores/roomStore.js';
 import { GamePhase, SpecialCardType, CombinationType, getCardPoints, getRankLabel, sortCards, findPlayableFromHand } from '@cyprus/shared';
-import type { Card, Combination, PlayerPosition, RoundScoreBreakdown } from '@cyprus/shared';
+import type { Card, Combination, PlayerPosition, RoundScoreBreakdown, TrickState } from '@cyprus/shared';
 
 /** Sort cards for display: full houses show triple first, everything else by rank. */
 function sortForDisplay(combo: Combination): Card[] {
@@ -57,6 +57,17 @@ export function GameBoard() {
   const reset = useRoomStore((s) => s.reset);
   const [showHistory, setShowHistory] = useState(false);
   const [leaveConfirm, setLeaveConfirm] = useState(false);
+  const [showLastTrick, setShowLastTrick] = useState(false);
+
+  // When round ends, show last trick for 3 seconds before scoring view
+  useEffect(() => {
+    if (gameState?.phase === GamePhase.ROUND_SCORING && gameState.lastTrick && gameState.lastTrick.plays.length > 0) {
+      setShowLastTrick(true);
+      const timer = setTimeout(() => setShowLastTrick(false), 3000);
+      return () => clearTimeout(timer);
+    }
+    setShowLastTrick(false);
+  }, [gameState?.phase]);
 
   if (!gameState) {
     return <div className="game-board">Loading game...</div>;
@@ -122,7 +133,10 @@ export function GameBoard() {
         gameState.phase === GamePhase.DRAGON_GIVE) && (
         <PlayingLayout rel={rel} />
       )}
-      {gameState.phase === GamePhase.ROUND_SCORING && <ScoringView />}
+      {gameState.phase === GamePhase.ROUND_SCORING && showLastTrick && (
+        <LastTrickView lastTrick={gameState.lastTrick!} rel={rel} />
+      )}
+      {gameState.phase === GamePhase.ROUND_SCORING && !showLastTrick && <ScoringView />}
       {gameState.phase === GamePhase.GAME_OVER && <GameOverView />}
     </div>
   );
@@ -408,6 +422,48 @@ function TurnTimer({ deadline }: { deadline: number }) {
     <span className={`turn-timer ${urgent ? 'turn-timer-urgent' : ''}`}>
       {secondsLeft}s
     </span>
+  );
+}
+
+function LastTrickView({
+  lastTrick,
+  rel,
+}: {
+  lastTrick: TrickState;
+  rel: { left: PlayerPosition; top: PlayerPosition; right: PlayerPosition };
+}) {
+  const gameState = useGameStore((s) => s.gameState);
+  if (!gameState) return null;
+
+  const isTeammate = (pos: PlayerPosition) =>
+    (pos % 2) === (gameState.myPosition % 2);
+
+  return (
+    <div className="playing-layout">
+      <div className="layout-top" />
+      <div className="layout-middle">
+        <div />
+        <div className="trick-area">
+          <div className="last-trick-label">Round Over</div>
+          <div className="trick-cards">
+            {lastTrick.plays.slice(-2).map((play, i) => (
+              <div key={i} className="trick-play">
+                <span className={`trick-player ${isTeammate(play.playerPosition) ? 'name-teammate' : 'name-opponent'}`}>
+                  {gameState.players[play.playerPosition]?.nickname}
+                </span>
+                <div className="trick-combo">
+                  {sortForDisplay(play.combination).map((c) => (
+                    <CardComponent key={c.id} card={c} size="small" />
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+        <div />
+      </div>
+      <div className="layout-bottom" />
+    </div>
   );
 }
 

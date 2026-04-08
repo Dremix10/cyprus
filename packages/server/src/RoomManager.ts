@@ -333,10 +333,23 @@ export class RoomManager {
     position: PlayerPosition;
   } | null {
     const info = this.socketToRoom.get(socketId);
-    if (!info) return null;
-    const room = this.rooms.get(info.roomCode);
-    if (!room) return null;
-    return { room, position: info.position };
+    if (info) {
+      const room = this.rooms.get(info.roomCode);
+      if (room) return { room, position: info.position };
+    }
+
+    // Fallback: scan rooms for this socketId (handles race after reconnect)
+    for (const [, room] of this.rooms) {
+      for (const [pos, player] of room.players) {
+        if (player.socketId === socketId && player.connected) {
+          // Rebuild the missing mapping
+          this.socketToRoom.set(socketId, { roomCode: room.code, position: pos });
+          return { room, position: pos };
+        }
+      }
+    }
+
+    return null;
   }
 
   getRoomState(roomCode: string): RoomState | null {

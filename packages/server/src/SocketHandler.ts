@@ -64,6 +64,7 @@ export class SocketHandler {
   private turnDeadlines = new Map<string, number>(); // roomCode -> deadline timestamp
   private disconnectTimers = new Map<string, NodeJS.Timeout>(); // "roomCode-position" -> timer
   private dogTimers = new Map<string, NodeJS.Timeout>(); // roomCode -> Dog resolve timer
+  private socketToSession = new Map<string, string>(); // socketId -> sessionId (for auto-recovery)
   private rateLimiter = new RateLimiter();
   private rateLimitCleanup: ReturnType<typeof setInterval>;
   private persistTimer: NodeJS.Timeout | null = null;
@@ -122,6 +123,7 @@ export class SocketHandler {
           return;
         }
         socket.join(result.roomCode);
+        this.socketToSession.set(socket.id, result.sessionId);
         callback({ roomCode: result.roomCode, sessionId: result.sessionId });
         this.db?.updateConnectionNickname(socket.id, nickname, result.roomCode);
         this.db?.getOrCreatePlayer(nickname, ip);
@@ -141,6 +143,7 @@ export class SocketHandler {
           return;
         }
         socket.join(result.roomCode);
+        this.socketToSession.set(socket.id, result.sessionId);
         callback({ roomCode: result.roomCode, sessionId: result.sessionId });
         this.db?.updateConnectionNickname(socket.id, nickname, result.roomCode);
         const playerId = this.db?.getOrCreatePlayer(nickname, ip);
@@ -167,6 +170,7 @@ export class SocketHandler {
           return;
         }
         socket.join(roomCode.toUpperCase());
+        this.socketToSession.set(socket.id, result.sessionId);
         callback({ success: true, sessionId: result.sessionId });
         this.db?.updateConnectionNickname(socket.id, nickname, roomCode.toUpperCase());
         this.db?.getOrCreatePlayer(nickname, ip);
@@ -294,6 +298,7 @@ export class SocketHandler {
         const room = this.rooms.getRoom(result.roomCode);
         const hasGame = !!(room?.engine);
         console.log(`[reconnect] OK socket=${socket.id} room=${result.roomCode} player=${result.nickname} hasGame=${hasGame}`);
+        this.socketToSession.set(socket.id, sessionId);
         socket.join(result.roomCode);
         callback({ success: true, roomCode: result.roomCode, nickname: result.nickname, hasGame });
 
@@ -318,6 +323,7 @@ export class SocketHandler {
 
       socket.on('disconnect', () => {
         this.db?.logDisconnection(socket.id);
+        this.socketToSession.delete(socket.id);
         // Get position before disconnect handling
         const info = this.rooms.getRoomForSocket(socket.id);
         const result = this.rooms.handleDisconnect(socket.id);
@@ -358,7 +364,20 @@ export class SocketHandler {
       position: PlayerPosition
     ) => GameEvent[]
   ): void {
-    const info = this.rooms.getRoomForSocket(socket.id);
+    let info = this.rooms.getRoomForSocket(socket.id);
+
+    // Session-based fallback: if socket mapping is missing, try to recover via stored session
+    if (!info) {
+      const sessionId = this.socketToSession.get(socket.id);
+      if (sessionId) {
+        const result = this.rooms.reconnectBySession(socket.id, sessionId);
+        if (!('error' in result)) {
+          socket.join(result.roomCode);
+          info = this.rooms.getRoomForSocket(socket.id);
+        }
+      }
+    }
+
     if (!info || !info.room.engine) {
       socket.emit('game:error', 'No active game');
       return;
@@ -429,7 +448,8 @@ export class SocketHandler {
 
     const sockets = this.rooms.getSocketIdsForRoom(roomCode);
     for (const [position, socketId] of sockets) {
-      const state = room.engine.getClientState(position, roomCode, room.botPositions, avatars, disconnected);
+      const isSolo = room.botPositions.size === 3;
+      const state = room.engine.getClientState(position, roomCode, room.botPositions, avatars, disconnected, isSolo);
       state.turnDeadline = deadline;
       this.io.to(socketId).emit('game:state', state);
     }
