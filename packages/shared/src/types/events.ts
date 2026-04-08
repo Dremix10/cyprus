@@ -42,7 +42,7 @@ export interface ClientToServerEvents {
   ) => void;
   'session:reconnect': (
     sessionId: string,
-    callback: (response: { success: true; roomCode: string; nickname: string } | { error: string }) => void
+    callback: (response: { success: true; roomCode: string; nickname: string; hasGame: boolean } | { error: string }) => void
   ) => void;
   'room:sit': (position: PlayerPosition) => void;
   'room:start': () => void;

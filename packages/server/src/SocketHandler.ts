@@ -275,18 +275,27 @@ export class SocketHandler {
       });
 
       socket.on('session:reconnect', (sessionId, callback) => {
-        if (!this.checkRate(socket, 'reconnect', 5, 30_000)) return;
+        if (!this.rateLimiter.isAllowed(`${socket.id}:reconnect`, 5, 30_000)) {
+          console.log(`[reconnect] RATE LIMITED socket=${socket.id} ip=${ip}`);
+          callback({ error: 'Too many reconnect attempts, try again shortly' });
+          return;
+        }
         if (typeof sessionId !== 'string' || sessionId.length !== 36) {
+          console.log(`[reconnect] INVALID SESSION FORMAT socket=${socket.id}`);
           callback({ error: 'Invalid session' });
           return;
         }
         const result = this.rooms.reconnectBySession(socket.id, sessionId);
         if ('error' in result) {
+          console.log(`[reconnect] FAILED socket=${socket.id} reason="${result.error}" sessionId=${sessionId.slice(0, 8)}...`);
           callback({ error: result.error });
           return;
         }
+        const room = this.rooms.getRoom(result.roomCode);
+        const hasGame = !!(room?.engine);
+        console.log(`[reconnect] OK socket=${socket.id} room=${result.roomCode} player=${result.nickname} hasGame=${hasGame}`);
         socket.join(result.roomCode);
-        callback({ success: true, roomCode: result.roomCode, nickname: result.nickname });
+        callback({ success: true, roomCode: result.roomCode, nickname: result.nickname, hasGame });
 
         // Cancel any pending bot replacement
         const timerKey = `${result.roomCode}-${result.position}`;
@@ -300,8 +309,7 @@ export class SocketHandler {
         socket.to(result.roomCode).emit('room:player_reconnected', result.nickname);
 
         // Broadcast game state if game is in progress
-        const room = this.rooms.getRoom(result.roomCode);
-        if (room?.engine) {
+        if (hasGame) {
           this.broadcastGameState(result.roomCode);
         } else {
           this.broadcastRoomState(result.roomCode);
