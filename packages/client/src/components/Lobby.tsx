@@ -73,8 +73,8 @@ export function Lobby({ onTutorial }: { onTutorial: () => void }) {
       {/* Main content */}
       <div className="lobby-content">
         <div className="lobby-header">
-          <h1 className="title-greek">Cyprus</h1>
-          <p className="subtitle-greek">Game of the Gods</p>
+          <h1 className="title-greek">TICHU</h1>
+          <p className="subtitle-greek">Online Card Game</p>
           <MeanderBorder />
         </div>
 
