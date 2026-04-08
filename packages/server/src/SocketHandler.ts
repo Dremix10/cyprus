@@ -14,6 +14,7 @@ import type { Room } from './RoomManager.js';
 import type { GameEngine } from './GameEngine.js';
 import { BotAI } from './BotAI.js';
 import type { BotDifficulty, GameContext } from './BotAI.js';
+import type { TrackerDB } from './Database.js';
 import { writeFileSync, appendFileSync, readFileSync, existsSync, mkdirSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -22,27 +23,99 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const DATA_DIR = join(__dirname, '..', 'data');
 const ROOMS_PERSIST_FILE = join(DATA_DIR, 'persisted-rooms.json');
 
+// Ensure data directory exists
+try { mkdirSync(DATA_DIR, { recursive: true }); } catch { /* ignore */ }
+
 type TypedServer = Server<ClientToServerEvents, ServerToClientEvents>;
 type TypedSocket = Socket<ClientToServerEvents, ServerToClientEvents>;
 
 const TURN_TIMEOUT_MS = 60_000;
 const DISCONNECT_REPLACE_MS = 120_000; // 2 minutes before replacing with bot
 
+/** Simple in-memory rate limiter per socket */
+class RateLimiter {
+  private buckets = new Map<string, { count: number; resetAt: number }>();
+
+  isAllowed(key: string, maxPerWindow: number, windowMs: number): boolean {
+    const now = Date.now();
+    const bucket = this.buckets.get(key);
+    if (!bucket || now > bucket.resetAt) {
+      this.buckets.set(key, { count: 1, resetAt: now + windowMs });
+      return true;
+    }
+    bucket.count++;
+    return bucket.count <= maxPerWindow;
+  }
+
+  /** Periodically clean up expired buckets */
+  cleanup(): void {
+    const now = Date.now();
+    for (const [key, bucket] of this.buckets) {
+      if (now > bucket.resetAt) this.buckets.delete(key);
+    }
+  }
+}
+
+// Track active game IDs per room for DB logging
+const roomGameIds = new Map<string, number>();
+
 export class SocketHandler {
   private turnTimers = new Map<string, NodeJS.Timeout>(); // roomCode -> timer
   private turnDeadlines = new Map<string, number>(); // roomCode -> deadline timestamp
   private disconnectTimers = new Map<string, NodeJS.Timeout>(); // "roomCode-position" -> timer
+  private dogTimers = new Map<string, NodeJS.Timeout>(); // roomCode -> Dog resolve timer
+  private rateLimiter = new RateLimiter();
+  private rateLimitCleanup: ReturnType<typeof setInterval>;
+  private persistTimer: NodeJS.Timeout | null = null;
 
   constructor(
     private io: TypedServer,
-    private rooms: RoomManager
-  ) {}
+    private rooms: RoomManager,
+    private db?: TrackerDB
+  ) {
+    this.rateLimitCleanup = setInterval(() => this.rateLimiter.cleanup(), 60_000);
+  }
+
+  destroy(): void {
+    clearInterval(this.rateLimitCleanup);
+    for (const timer of this.turnTimers.values()) clearTimeout(timer);
+    for (const timer of this.disconnectTimers.values()) clearTimeout(timer);
+    for (const timer of this.dogTimers.values()) clearTimeout(timer);
+    if (this.persistTimer) clearTimeout(this.persistTimer);
+    // Final persist before shutdown
+    this.persistRoomsSync();
+    roomGameIds.clear();
+  }
+
+  private getClientIP(socket: TypedSocket): string | null {
+    return (socket.handshake.headers['x-forwarded-for'] as string)?.split(',')[0]?.trim()
+      || socket.handshake.address
+      || null;
+  }
+
+  private checkRate(socket: TypedSocket, action: string, limit: number = 20, windowMs: number = 5000): boolean {
+    if (!this.rateLimiter.isAllowed(`${socket.id}:${action}`, limit, windowMs)) {
+      socket.emit('game:error', 'Too many requests, slow down');
+      return false;
+    }
+    return true;
+  }
 
   setup(): void {
     this.io.on('connection', (socket) => {
-      console.log(`Client connected: ${socket.id}`);
+      const ip = this.getClientIP(socket);
+      const ua = socket.handshake.headers['user-agent'] || null;
+
+      // Rate limit connections per IP: 20 per minute
+      if (ip && !this.rateLimiter.isAllowed(`conn:${ip}`, 20, 60_000)) {
+        socket.disconnect(true);
+        return;
+      }
+
+      this.db?.logConnection(socket.id, ip, ua);
 
       socket.on('room:create', (nickname, targetScore, callback) => {
+        if (!this.checkRate(socket, 'create', 5, 30_000)) return;
         const result = this.rooms.createRoom(socket.id, nickname, targetScore);
         if ('error' in result) {
           callback({ error: result.error });
@@ -50,10 +123,13 @@ export class SocketHandler {
         }
         socket.join(result.roomCode);
         callback({ roomCode: result.roomCode, sessionId: result.sessionId });
+        this.db?.updateConnectionNickname(socket.id, nickname, result.roomCode);
+        this.db?.getOrCreatePlayer(nickname, ip);
         this.broadcastRoomState(result.roomCode);
       });
 
       socket.on('room:create_solo', (nickname, targetScore, difficulty, callback) => {
+        if (!this.checkRate(socket, 'create', 5, 30_000)) return;
         const validDifficulties: BotDifficulty[] = ['easy', 'medium', 'hard'];
         const diff: BotDifficulty = validDifficulties.includes(difficulty as BotDifficulty)
           ? (difficulty as BotDifficulty)
@@ -66,6 +142,8 @@ export class SocketHandler {
         }
         socket.join(result.roomCode);
         callback({ roomCode: result.roomCode, sessionId: result.sessionId });
+        this.db?.updateConnectionNickname(socket.id, nickname, result.roomCode);
+        const playerId = this.db?.getOrCreatePlayer(nickname, ip);
 
         // Start the game immediately
         const startResult = this.rooms.startGame(socket.id);
@@ -74,10 +152,15 @@ export class SocketHandler {
           return;
         }
 
+        // Log game start
+        this.logGameStart(result.roomCode, targetScore, true, diff, ip);
+        if (playerId) this.db?.incrementPlayerGames(playerId);
+
         this.broadcastGameState(result.roomCode);
       });
 
       socket.on('room:join', (roomCode, nickname, callback) => {
+        if (!this.checkRate(socket, 'join', 10, 30_000)) return;
         const result = this.rooms.joinRoom(socket.id, roomCode, nickname);
         if ('error' in result) {
           callback({ error: result.error });
@@ -85,6 +168,8 @@ export class SocketHandler {
         }
         socket.join(roomCode.toUpperCase());
         callback({ success: true, sessionId: result.sessionId });
+        this.db?.updateConnectionNickname(socket.id, nickname, roomCode.toUpperCase());
+        this.db?.getOrCreatePlayer(nickname, ip);
 
         // If game is in progress (reconnect), send game state
         const info = this.rooms.getRoomForSocket(socket.id);
@@ -106,6 +191,7 @@ export class SocketHandler {
       });
 
       socket.on('room:sit', (position) => {
+        if (!this.checkRate(socket, 'sit')) return;
         const success = this.rooms.sitAt(socket.id, position);
         if (success) {
           const info = this.rooms.getRoomForSocket(socket.id);
@@ -114,69 +200,102 @@ export class SocketHandler {
       });
 
       socket.on('room:start', () => {
+        if (!this.checkRate(socket, 'start', 5, 30_000)) return;
         const result = this.rooms.startGame(socket.id);
         if (result.error) {
           socket.emit('game:error', result.error);
           return;
         }
         const info = this.rooms.getRoomForSocket(socket.id);
-        if (info) this.broadcastGameState(info.room.code);
+        if (info) {
+          this.logGameStart(info.room.code, info.room.targetScore, false, null, ip);
+          // Increment games_played for all human players
+          for (const [pos, player] of info.room.players) {
+            if (!info.room.botPositions.has(pos)) {
+              const pid = this.db?.getOrCreatePlayer(player.nickname, null);
+              if (pid) this.db?.incrementPlayerGames(pid);
+            }
+          }
+          this.broadcastGameState(info.room.code);
+        }
       });
 
       socket.on('game:grand_tichu_decision', (call) => {
-        this.handleGameAction(socket, (engine, position) =>
+        if (!this.checkRate(socket, 'action')) return;
+        this.handleGameAction(socket, 'GRAND_TICHU_DECISION', (engine, position) =>
           engine.grandTichuDecision(position, call)
         );
       });
 
       socket.on('game:pass_cards', (cards) => {
-        this.handleGameAction(socket, (engine, position) =>
+        if (!this.checkRate(socket, 'action')) return;
+        this.handleGameAction(socket, 'PASS_CARDS', (engine, position) =>
           engine.passCards(position, cards)
         );
       });
 
       socket.on('game:play', (cardIds) => {
-        this.handleGameAction(socket, (engine, position) =>
+        if (!this.checkRate(socket, 'action')) return;
+        this.handleGameAction(socket, 'PLAY', (engine, position) =>
           engine.playCards(position, cardIds)
         );
       });
 
       socket.on('game:pass_turn', () => {
-        this.handleGameAction(socket, (engine, position) =>
+        if (!this.checkRate(socket, 'action')) return;
+        this.handleGameAction(socket, 'PASS_TURN', (engine, position) =>
           engine.passTurn(position)
         );
       });
 
       socket.on('game:call_tichu', () => {
-        this.handleGameAction(socket, (engine, position) =>
+        if (!this.checkRate(socket, 'action')) return;
+        this.handleGameAction(socket, 'CALL_TICHU', (engine, position) =>
           engine.callTichu(position)
         );
       });
 
       socket.on('game:dragon_give', (opponentPosition) => {
-        this.handleGameAction(socket, (engine, position) =>
+        if (!this.checkRate(socket, 'action')) return;
+        this.handleGameAction(socket, 'DRAGON_GIVE', (engine, position) =>
           engine.dragonGive(position, opponentPosition)
         );
       });
 
       socket.on('game:wish', (rank) => {
-        this.handleGameAction(socket, (engine, position) =>
+        if (!this.checkRate(socket, 'action')) return;
+        this.handleGameAction(socket, 'WISH', (engine, position) =>
           engine.setWish(position, rank)
         );
       });
 
       socket.on('game:next_round', () => {
-        this.handleGameAction(socket, (engine) => engine.nextRound());
+        if (!this.checkRate(socket, 'action')) return;
+        this.handleGameAction(socket, 'NEXT_ROUND', (engine) => engine.nextRound());
       });
 
       socket.on('session:reconnect', (sessionId, callback) => {
+        if (!this.rateLimiter.isAllowed(`${socket.id}:reconnect`, 5, 30_000)) {
+          console.log(`[reconnect] RATE LIMITED socket=${socket.id} ip=${ip}`);
+          callback({ error: 'Too many reconnect attempts, try again shortly' });
+          return;
+        }
+        if (typeof sessionId !== 'string' || sessionId.length !== 36) {
+          console.log(`[reconnect] INVALID SESSION FORMAT socket=${socket.id}`);
+          callback({ error: 'Invalid session' });
+          return;
+        }
         const result = this.rooms.reconnectBySession(socket.id, sessionId);
         if ('error' in result) {
+          console.log(`[reconnect] FAILED socket=${socket.id} reason="${result.error}" sessionId=${sessionId.slice(0, 8)}...`);
           callback({ error: result.error });
           return;
         }
+        const room = this.rooms.getRoom(result.roomCode);
+        const hasGame = !!(room?.engine);
+        console.log(`[reconnect] OK socket=${socket.id} room=${result.roomCode} player=${result.nickname} hasGame=${hasGame}`);
         socket.join(result.roomCode);
-        callback({ success: true, roomCode: result.roomCode, nickname: result.nickname });
+        callback({ success: true, roomCode: result.roomCode, nickname: result.nickname, hasGame });
 
         // Cancel any pending bot replacement
         const timerKey = `${result.roomCode}-${result.position}`;
@@ -190,8 +309,7 @@ export class SocketHandler {
         socket.to(result.roomCode).emit('room:player_reconnected', result.nickname);
 
         // Broadcast game state if game is in progress
-        const room = this.rooms.getRoom(result.roomCode);
-        if (room?.engine) {
+        if (hasGame) {
           this.broadcastGameState(result.roomCode);
         } else {
           this.broadcastRoomState(result.roomCode);
@@ -199,6 +317,7 @@ export class SocketHandler {
       });
 
       socket.on('disconnect', () => {
+        this.db?.logDisconnection(socket.id);
         // Get position before disconnect handling
         const info = this.rooms.getRoomForSocket(socket.id);
         const result = this.rooms.handleDisconnect(socket.id);
@@ -219,8 +338,21 @@ export class SocketHandler {
     });
   }
 
+  private logGameStart(roomCode: string, targetScore: number, isSolo: boolean, botDifficulty: string | null, ip: string | null): void {
+    if (!this.db) return;
+    const room = this.rooms.getRoom(roomCode);
+    if (!room) return;
+    const players: Array<{ nickname: string; position: number; isBot: boolean; ip: string | null }> = [];
+    for (const [pos, player] of room.players) {
+      players.push({ nickname: player.nickname, position: pos, isBot: room.botPositions.has(pos), ip: room.botPositions.has(pos) ? null : ip });
+    }
+    const gameId = this.db.logGameStart(roomCode, targetScore, isSolo, botDifficulty, players);
+    roomGameIds.set(roomCode, gameId);
+  }
+
   private handleGameAction(
     socket: TypedSocket,
+    actionType: string,
     action: (
       engine: GameEngine,
       position: PlayerPosition
@@ -235,9 +367,33 @@ export class SocketHandler {
     try {
       const events = action(info.room.engine, info.position);
 
-      // Broadcast events to the room
+      // Log events to DB and broadcast to the room
+      const gameId = roomGameIds.get(info.room.code) || null;
       for (const event of events) {
+        this.db?.logGameEvent(gameId, info.room.code, event.type, event.playerPosition ?? null, event.data);
         this.io.to(info.room.code).emit('game:event', event);
+
+        // Detect game end
+        if (event.type === 'GAME_OVER' && gameId) {
+          const engine = info.room.engine;
+          if (engine) {
+            const s = engine.state.scores;
+            const winner = s[0] > s[1] ? 'Team 0-2' : s[1] > s[0] ? 'Team 1-3' : 'Tie';
+            this.db?.logGameEnd(gameId, s[0], s[1], winner, 0);
+            // Update player wins
+            if (winner !== 'Tie') {
+              const winPositions = winner === 'Team 0-2' ? [0, 2] : [1, 3];
+              for (const pos of winPositions) {
+                const p = info.room.players.get(pos as PlayerPosition);
+                if (p && !info.room.botPositions.has(pos as PlayerPosition)) {
+                  const pid = this.db?.getOrCreatePlayer(p.nickname, null);
+                  if (pid) this.db?.incrementPlayerWins(pid);
+                }
+              }
+            }
+            roomGameIds.delete(info.room.code);
+          }
+        }
       }
 
       // Broadcast updated game state to each player
@@ -400,7 +556,12 @@ export class SocketHandler {
   // ─── Dog Delay ─────────────────────────────────────────────────────────
 
   private scheduleDogResolve(roomCode: string): void {
-    setTimeout(() => {
+    // Clear any existing Dog timer for this room to prevent stacking
+    const existing = this.dogTimers.get(roomCode);
+    if (existing) clearTimeout(existing);
+
+    const timer = setTimeout(() => {
+      this.dogTimers.delete(roomCode);
       const room = this.rooms.getRoom(roomCode);
       if (!room || !room.engine || !room.engine.state.dogPending) return;
 
@@ -414,6 +575,8 @@ export class SocketHandler {
         console.error(`Dog resolve error in room ${roomCode}:`, err);
       }
     }, 1500);
+
+    this.dogTimers.set(roomCode, timer);
   }
 
   // ─── Turn Timer ────────────────────────────────────────────────────────
@@ -686,12 +849,25 @@ export class SocketHandler {
 
   // ─── Room Persistence ─────────────────────────────────────────────────
 
-  /** Save all active rooms with games to disk. */
+  /** Save all active rooms with games to disk (debounced — at most once per 5s). */
   persistRooms(): void {
+    if (this.persistTimer) return; // already scheduled
+    this.persistTimer = setTimeout(() => {
+      this.persistTimer = null;
+      this.persistRoomsSync();
+    }, 5_000);
+  }
+
+  /** Immediate synchronous persist (used by debounce timer and shutdown). */
+  private persistRoomsSync(): void {
     try {
       mkdirSync(DATA_DIR, { recursive: true });
       const data = this.rooms.serializeRooms();
       writeFileSync(ROOMS_PERSIST_FILE, JSON.stringify(data));
+      // Clean up roomGameIds for rooms that no longer exist
+      for (const roomCode of roomGameIds.keys()) {
+        if (!this.rooms.getRoom(roomCode)) roomGameIds.delete(roomCode);
+      }
     } catch {
       // Don't crash if persistence fails
     }
@@ -706,6 +882,15 @@ export class SocketHandler {
       const count = this.rooms.restoreRooms(data);
       // Clear the file after loading so stale data isn't reloaded on next restart
       writeFileSync(ROOMS_PERSIST_FILE, '[]');
+
+      // Schedule bot actions for restored solo rooms where it's a bot's turn
+      for (const entry of data) {
+        const room = this.rooms.getRoom(entry.code);
+        if (room?.engine && room.botPositions.size > 0) {
+          this.scheduleBotAction(entry.code);
+        }
+      }
+
       return count;
     } catch {
       return 0;

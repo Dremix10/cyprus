@@ -5,3 +5,8 @@ dist/
 .DS_Store
 packages/server/data/latest-game-*.json
 packages/server/data/game-log-*.jsonl
+packages/server/data/persisted-rooms.json
+packages/server/data/*.db
+packages/server/data/*.db-wal
+packages/server/data/*.db-shm
+server.log

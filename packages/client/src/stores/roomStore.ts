@@ -156,7 +156,15 @@ export const useRoomStore = create<RoomStore>((set, get) => ({
 
       if (!socket.connected) socket.connect();
 
+      // Timeout: if server never responds, fall back to lobby
+      const timeout = setTimeout(() => {
+        clearSession();
+        set({ reconnecting: false });
+        resolve(false);
+      }, 8_000);
+
       socket.emit('session:reconnect', session.sessionId, (response) => {
+        clearTimeout(timeout);
         if ('error' in response) {
           clearSession();
           set({ reconnecting: false });
@@ -164,9 +172,9 @@ export const useRoomStore = create<RoomStore>((set, get) => ({
           return;
         }
         set({
-          nickname: response.nickname,
+          nickname: session.nickname,
           roomCode: response.roomCode,
-          view: 'game',
+          view: response.hasGame ? 'game' : 'waiting',
           error: null,
           reconnecting: false,
         });

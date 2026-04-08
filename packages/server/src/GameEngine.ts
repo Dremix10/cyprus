@@ -134,6 +134,7 @@ export class GameEngine {
     this.state.finishOrder = [];
     this.state.roundScores = [0, 0];
     this.state.dragonWinner = null;
+    this.state.receivedCards = { 0: [], 1: [], 2: [], 3: [] };
 
     return this.events;
   }
@@ -760,12 +761,15 @@ export class GameEngine {
   /** Get the game state as seen by a specific player. */
   /** Serialize the full engine state for persistence. */
   serialize(): string {
+    // Capture _remaining cards (only present during GRAND_TICHU phase)
+    const remaining = this.state.players.map((p) => (p as any)._remaining ?? null);
     return JSON.stringify({
       state: this.state,
       targetScore: this.targetScore,
       roundTrickCards: this.roundTrickCards,
       roundBreakdown: this.roundBreakdown,
       roundHistory: this.roundHistory,
+      _remaining: remaining,
     });
   }
 
@@ -778,6 +782,14 @@ export class GameEngine {
     engine.roundTrickCards = data.roundTrickCards ?? [[], []];
     engine.roundBreakdown = data.roundBreakdown ?? null;
     engine.roundHistory = data.roundHistory ?? [];
+    // Restore _remaining cards for GRAND_TICHU phase
+    if (data._remaining) {
+      for (let i = 0; i < 4; i++) {
+        if (data._remaining[i]) {
+          (engine.state.players[i] as any)._remaining = data._remaining[i];
+        }
+      }
+    }
     return engine;
   }
 
