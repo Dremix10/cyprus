@@ -644,6 +644,8 @@ export class BotAI {
 
     const { bombs, regular } = this.splitBombs(playable);
 
+    const trickPoints = this.estimateTrickPoints(currentTrick);
+
     // Bomb if opponent called Tichu and is winning this trick with few cards left
     if (bombs.length > 0 && !partnerWinning && context) {
       const winner = currentTrick.currentWinner;
@@ -653,6 +655,16 @@ export class BotAI {
         if ((winnerCall === 'tichu' || winnerCall === 'grand_tichu') && winnerCards <= 5) {
           return this.pickLowestCombo(bombs);
         }
+      }
+    }
+
+    // Proactive bombing: bomb high-value tricks even with regular plays available
+    if (bombs.length > 0 && !partnerWinning) {
+      if (trickPoints >= 15) {
+        return this.pickLowestCombo(bombs);
+      }
+      if (hand.length <= 5) {
+        return this.pickLowestCombo(bombs);
       }
     }
 
@@ -670,7 +682,8 @@ export class BotAI {
     const lowestBeat = sorted[0];
     const lowestCombo = detectCombination(lowestBeat);
 
-    if (lowestCombo && lowestCombo.rank >= NR.KING && Math.random() < 0.4) {
+    // Only pass on very expensive plays (Ace+) with some randomness — reduced from 40% King pass
+    if (lowestCombo && lowestCombo.rank >= NR.ACE && Math.random() < 0.3) {
       return null;
     }
 
@@ -891,18 +904,33 @@ export class BotAI {
       return null;
     }
 
+    // ── Proactive bombing: bomb high-value tricks even when regular plays exist ──
+    if (bombs.length > 0 && !partnerWinning) {
+      // Bomb valuable tricks (15+ points) — worth spending a bomb to steal
+      if (trickPoints >= 15) {
+        return this.pickLowestCombo(bombs);
+      }
+      // Bomb 10+ point tricks if opponent is about to go out or has Tichu
+      if (trickPoints >= 10 && (opponentAboutToOut || opponentTichuActive)) {
+        return this.pickLowestCombo(bombs);
+      }
+      // Bomb any trick if close to going out (use bombs before hand empties)
+      if (hand.length <= 5) {
+        return this.pickLowestCombo(bombs);
+      }
+    }
+
     // ── Lead-back: partner led but got beaten — play conservatively ──
     if (partnerLed && !partnerWinning) {
       // Partner led, someone beat them. Try to win back with minimal effort.
-      // If the trick has no points and we're not under pressure, pass to preserve cards
-      if (trickPoints <= 0 && !opponentAboutToOut && hand.length > 6) {
-        // Only play if we have a cheap option (low rank relative to our hand)
+      // Only pass on truly pointless tricks when we have plenty of cards
+      if (trickPoints <= 0 && !opponentAboutToOut && hand.length > 8) {
         if (regular.length > 0) {
           const sorted = this.sortByRank(regular);
           const cheapest = sorted[0];
           const cheapCombo = detectCombination(cheapest);
-          // Pass if cheapest beat costs us an Ace or higher
-          if (cheapCombo && cheapCombo.rank >= NR.KING) return null;
+          // Only pass if cheapest beat costs us an Ace (not King — Kings are worth playing)
+          if (cheapCombo && cheapCombo.rank >= NR.ACE) return null;
         }
       }
     }
@@ -932,11 +960,11 @@ export class BotAI {
 
     // Don't waste Phoenix on worthless tricks (unless close to going out)
     if (lowestBeat.length === 1 && isSpecial(lowestBeat[0], SpecialCardType.PHOENIX)) {
-      if (trickPoints < 5 && hand.length > 6) return null;
+      if (trickPoints < 5 && hand.length > 5) return null;
     }
 
-    // Pass if cheapest beat is Ace+ on a pointless trick and we're deep in the game
-    if (lowestCombo && lowestCombo.rank >= NR.ACE && trickPoints <= 0 && hand.length > 8) {
+    // Pass if cheapest beat is Ace+ on a pointless trick and we have many cards
+    if (lowestCombo && lowestCombo.rank >= NR.ACE && trickPoints <= 0 && hand.length > 10) {
       return null;
     }
 

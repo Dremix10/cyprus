@@ -8,8 +8,10 @@
 import {
   GamePhase,
   SpecialCardType,
+  CombinationType,
   isSpecial,
   findPlayableFromHand,
+  detectCombination,
   type PlayerPosition,
   type Card,
   type TichuCall,
@@ -131,6 +133,12 @@ function runRound(engine: GameEngine, bots: BotAI[], stats: RoundStats): void {
     );
 
     if (cardIds) {
+      // Check if this play is a bomb before playing
+      const playedCards = cardIds.map((id) => player.hand.find((c) => c.id === id)!).filter(Boolean);
+      const combo = detectCombination(playedCards);
+      if (combo && (combo.type === CombinationType.FOUR_OF_A_KIND_BOMB || combo.type === CombinationType.STRAIGHT_FLUSH_BOMB)) {
+        stats.bombsPlayed++;
+      }
       engine.playCards(cp, cardIds);
       stats.turnsPlayed++;
     } else {
