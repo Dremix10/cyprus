@@ -69,6 +69,7 @@ export class GameEngine {
   state: GameEngineState;
   private events: GameEvent[] = [];
   private targetScore: number;
+  private grandTichuRemaining: (Card[] | null)[] = [null, null, null, null];
   private roundTrickCards: [Card[], Card[]] = [[], []];
   private roundBreakdown: RoundScoreBreakdown | null = null;
   private roundHistory: Array<{
@@ -125,8 +126,7 @@ export class GameEngine {
       p.grandTichuDecided = false;
       p.passedCards = null;
       p.wonTricks = [];
-      // Store remaining cards on a temporary property
-      (p as any)._remaining = dealt.remaining[i];
+      this.grandTichuRemaining[i] = dealt.remaining[i];
     }
 
     this.roundTrickCards = [[], []];
@@ -172,11 +172,13 @@ export class GameEngine {
 
   /** Deal the remaining 6 cards and move to passing phase. */
   private dealRemainingCards(): void {
-    for (const p of this.state.players) {
-      const remaining = (p as any)._remaining as Card[];
-      p.hand = sortCards([...p.hand, ...remaining]);
-      delete (p as any)._remaining;
+    for (let i = 0; i < this.state.players.length; i++) {
+      const remaining = this.grandTichuRemaining[i];
+      if (remaining) {
+        this.state.players[i].hand = sortCards([...this.state.players[i].hand, ...remaining]);
+      }
     }
+    this.grandTichuRemaining = [null, null, null, null];
     this.state.phase = GamePhase.PASSING;
   }
 
@@ -788,15 +790,14 @@ export class GameEngine {
   /** Get the game state as seen by a specific player. */
   /** Serialize the full engine state for persistence. */
   serialize(): string {
-    // Capture _remaining cards (only present during GRAND_TICHU phase)
-    const remaining = this.state.players.map((p) => (p as any)._remaining ?? null);
+    const remaining = this.grandTichuRemaining;
     return JSON.stringify({
       state: this.state,
       targetScore: this.targetScore,
       roundTrickCards: this.roundTrickCards,
       roundBreakdown: this.roundBreakdown,
       roundHistory: this.roundHistory,
-      _remaining: remaining,
+      grandTichuRemaining: remaining,
     });
   }
 
@@ -809,13 +810,10 @@ export class GameEngine {
     engine.roundTrickCards = data.roundTrickCards ?? [[], []];
     engine.roundBreakdown = data.roundBreakdown ?? null;
     engine.roundHistory = data.roundHistory ?? [];
-    // Restore _remaining cards for GRAND_TICHU phase
-    if (data._remaining) {
-      for (let i = 0; i < 4; i++) {
-        if (data._remaining[i]) {
-          (engine.state.players[i] as any)._remaining = data._remaining[i];
-        }
-      }
+    // Restore remaining cards for GRAND_TICHU phase (supports legacy _remaining key)
+    const remaining = data.grandTichuRemaining ?? data._remaining;
+    if (remaining) {
+      engine.grandTichuRemaining = remaining;
     }
     return engine;
   }

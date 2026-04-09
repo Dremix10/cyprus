@@ -322,8 +322,9 @@ export class RoomManager {
     this.socketToRoom.delete(socketId);
     room.lastActivity = Date.now();
 
-    // If no game is in progress, remove the player after a short delay
+    // If no game is in progress, remove the player and clean up their session
     if (!room.engine) {
+      if (player.sessionId) this.sessionToRoom.delete(player.sessionId);
       room.players.delete(info.position);
     }
 

@@ -50,6 +50,7 @@ interface RoomStore {
   setRoomState: (state: RoomState) => void;
   setError: (error: string | null) => void;
   setQueueInfo: (info: { playersInQueue: number; elapsed: number }) => void;
+  handleMatchFound: (roomCode: string, sessionId: string) => void;
   reset: () => void;
 }
 
@@ -264,6 +265,12 @@ export const useRoomStore = create<RoomStore>((set, get) => ({
   setRoomState: (state) => set({ roomState: state }),
   setError: (error) => set({ error }),
   setQueueInfo: (info) => set({ queueInfo: info }),
+
+  handleMatchFound: (roomCode, sessionId) => {
+    const { nickname } = get();
+    saveSession(sessionId, roomCode, nickname);
+    set({ roomCode, queueInfo: null, error: null });
+  },
 
   reset: () => {
     clearSession();

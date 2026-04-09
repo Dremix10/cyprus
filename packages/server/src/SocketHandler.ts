@@ -468,6 +468,9 @@ export class SocketHandler {
             const s = engine.state.scores;
             const winner = s[0] > s[1] ? 'Team 0-2' : s[1] > s[0] ? 'Team 1-3' : 'Tie';
             const roundHistory = engine.getRoundHistory();
+
+            // Wrap all game-end DB writes in a transaction for atomicity
+            this.db?.transaction(() => {
             this.db?.logGameEnd(gameId, s[0], s[1], winner, roundHistory.length);
             // Update player wins
             if (winner !== 'Tie') {
@@ -546,6 +549,8 @@ export class SocketHandler {
                 this.computeAndUpdateRating(userId);
               }
             }
+
+            }); // end transaction
 
             roomGameIds.delete(info.room.code);
           }

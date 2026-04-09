@@ -240,20 +240,21 @@ export class TrackerDB {
     botDifficulty: string | null,
     players: Array<{ nickname: string; position: number; isBot: boolean; ip: string | null; userId?: number }>
   ): number {
-    const result = this.db.prepare(
+    const insertGame = this.db.prepare(
       `INSERT INTO games (room_code, target_score, is_solo, bot_difficulty) VALUES (?, ?, ?, ?)`
-    ).run(roomCode, targetScore, isSolo ? 1 : 0, botDifficulty);
-
-    const gameId = Number(result.lastInsertRowid);
-    const stmt = this.db.prepare(
+    );
+    const insertPlayer = this.db.prepare(
       `INSERT INTO game_players (game_id, nickname, position, is_bot, ip, user_id) VALUES (?, ?, ?, ?, ?, ?)`
     );
 
-    for (const p of players) {
-      stmt.run(gameId, p.nickname, p.position, p.isBot ? 1 : 0, p.ip, p.userId ?? null);
-    }
-
-    return gameId;
+    return this.db.transaction(() => {
+      const result = insertGame.run(roomCode, targetScore, isSolo ? 1 : 0, botDifficulty);
+      const gameId = Number(result.lastInsertRowid);
+      for (const p of players) {
+        insertPlayer.run(gameId, p.nickname, p.position, p.isBot ? 1 : 0, p.ip, p.userId ?? null);
+      }
+      return gameId;
+    })();
   }
 
   logGameEnd(
@@ -735,6 +736,11 @@ export class TrackerDB {
       const count = (this.db.prepare(`SELECT COUNT(*) as c FROM "${t.name}"`).get() as { c: number }).c;
       return { name: t.name, rowCount: count };
     });
+  }
+
+  /** Run a function inside a SQLite transaction. Rolls back on error. */
+  transaction<T>(fn: () => T): T {
+    return this.db.transaction(fn)();
   }
 
   close(): void {
