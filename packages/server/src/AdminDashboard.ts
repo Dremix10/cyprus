@@ -39,12 +39,33 @@ export function createAdminRouter(db: TrackerDB): express.Router {
   // Parse form bodies for login
   router.use(express.urlencoded({ extended: false }));
 
+  function verifyApiKey(req: Request): boolean {
+    const apiKey = process.env.DATA_API_KEY;
+    if (!apiKey) return false;
+    const auth = req.headers.authorization;
+    if (!auth?.startsWith('Bearer ')) return false;
+    const provided = auth.slice(7);
+    try {
+      return timingSafeEqual(Buffer.from(provided), Buffer.from(apiKey));
+    } catch {
+      return false;
+    }
+  }
+
   function requireAuth(req: Request, res: Response, next: NextFunction): void {
+    // API key auth (for programmatic access)
+    if (verifyApiKey(req)) { next(); return; }
+    // Session auth (for browser access)
     const token = parseCookies(req)['admin_token'];
     if (token && db.validateAdminSession(token)) {
       next();
     } else {
-      res.redirect('/admin/login');
+      // API requests get 401, browser requests get redirect
+      if (req.headers.authorization || req.headers.accept?.includes('application/json')) {
+        res.status(401).json({ error: 'Unauthorized' });
+      } else {
+        res.redirect('/admin/login');
+      }
     }
   }
 
@@ -119,6 +140,28 @@ export function createAdminRouter(db: TrackerDB): express.Router {
     res.json(db.getTopIPs(limit));
   });
 
+  router.get('/api/tables', requireAuth, (_req, res) => {
+    res.json(db.getTableInfo());
+  });
+
+  router.use(express.json());
+
+  router.post('/api/query', requireAuth, (req, res) => {
+    const sql = (req.body?.sql as string) || '';
+    const limit = Math.min(Number(req.body?.limit) || 200, 1000);
+    if (!sql.trim()) {
+      res.status(400).json({ error: 'No query provided' });
+      return;
+    }
+    try {
+      const result = db.runReadOnlyQuery(sql, limit);
+      res.json(result);
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Query failed';
+      res.status(400).json({ error: message });
+    }
+  });
+
   return router;
 }
 
@@ -190,6 +233,19 @@ const DASHBOARD_HTML = `<!DOCTYPE html>
   .refresh-info { color: #555; font-size: 0.75rem; }
   #last-refresh { color: #888; }
   .empty { padding: 2rem; text-align: center; color: #555; }
+  .query-wrap { padding: 1rem; }
+  .query-wrap textarea { width: 100%; min-height: 80px; background: #12121f; color: #e0e0e0; border: 1px solid #333; border-radius: 6px; padding: 0.7rem; font-family: 'SF Mono', 'Fira Code', monospace; font-size: 0.85rem; resize: vertical; }
+  .query-wrap textarea:focus { outline: none; border-color: #c9a84c; }
+  .query-bar { display: flex; gap: 0.5rem; margin: 0.7rem 0; align-items: center; flex-wrap: wrap; }
+  .query-bar button { width: auto; padding: 0.5rem 1.2rem; font-size: 0.85rem; }
+  .query-bar .btn-secondary { background: #2a2a4a; color: #ccc; }
+  .query-bar .btn-secondary:hover { background: #3a3a5a; }
+  .query-info { color: #888; font-size: 0.8rem; }
+  .query-error { color: #e74c3c; font-size: 0.85rem; padding: 0.7rem; background: #2a1515; border-radius: 6px; margin-top: 0.5rem; }
+  .query-chips { display: flex; gap: 0.4rem; flex-wrap: wrap; margin-bottom: 0.7rem; }
+  .chip { padding: 0.25rem 0.6rem; background: #16213e; border: 1px solid #2a2a4a; border-radius: 4px; font-size: 0.75rem; color: #888; cursor: pointer; }
+  .chip:hover { border-color: #c9a84c; color: #c9a84c; }
+  .chip .count { color: #555; margin-left: 0.3rem; }
 </style>
 </head><body>
 <div class="topbar">
@@ -209,6 +265,7 @@ const DASHBOARD_HTML = `<!DOCTYPE html>
     <button class="tab" onclick="showTab('events')">Events</button>
     <button class="tab" onclick="showTab('requests')">HTTP Requests</button>
     <button class="tab" onclick="showTab('ips')">Top IPs</button>
+    <button class="tab" onclick="showTab('query')">Query</button>
   </div>
   <div class="table-wrap">
     <div id="panel-connections" class="panel active"></div>
@@ -217,6 +274,7 @@ const DASHBOARD_HTML = `<!DOCTYPE html>
     <div id="panel-events" class="panel"></div>
     <div id="panel-requests" class="panel"></div>
     <div id="panel-ips" class="panel"></div>
+    <div id="panel-query" class="panel"></div>
   </div>
 </div>
 <script>
@@ -293,7 +351,53 @@ async function loadTab(name) {
       panel.innerHTML = '<table><tr><th>IP Address</th><th>Connections</th><th>Nicknames Used</th><th>Last Seen</th></tr>' +
         data.map(r => '<tr><td><strong>' + esc(r.ip) + '</strong></td><td>' + r.connection_count + '</td><td>' + esc(r.nicknames) + '</td><td title="'+esc(r.last_seen)+'">' + ago(r.last_seen) + '</td></tr>').join('') + '</table>';
     }
+    else if (name === 'query') {
+      if (panel.querySelector('textarea')) return;
+      const tables = await api('tables');
+      panel.innerHTML = '<div class="query-wrap">' +
+        '<div class="query-chips">' + tables.map(t => '<span class="chip" onclick="setQuery(\'SELECT * FROM '+t.name+'\')">' + t.name + '<span class="count">(' + t.rowCount + ')</span></span>').join('') + '</div>' +
+        '<textarea id="sql-input" placeholder="SELECT * FROM players ORDER BY games_won DESC" spellcheck="false"></textarea>' +
+        '<div class="query-bar">' +
+          '<button onclick="runQuery()">Run Query</button>' +
+          '<button class="btn-secondary" onclick="exportCSV()">Export CSV</button>' +
+          '<span class="query-info" id="query-info"></span>' +
+        '</div>' +
+        '<div id="query-result"></div></div>';
+    }
   } catch(e) { panel.innerHTML = '<div class="empty">Error loading data</div>'; }
+}
+
+let lastQueryResult = null;
+
+function setQuery(sql) {
+  const el = document.getElementById('sql-input');
+  if (el) { el.value = sql; runQuery(); }
+}
+
+async function runQuery() {
+  const sql = document.getElementById('sql-input')?.value?.trim();
+  const result = document.getElementById('query-result');
+  const info = document.getElementById('query-info');
+  if (!sql) return;
+  info.textContent = 'Running...';
+  try {
+    const res = await fetch('/admin/api/query', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({sql, limit: 500}) });
+    const data = await res.json();
+    if (data.error) { result.innerHTML = '<div class="query-error">' + esc(data.error) + '</div>'; info.textContent = ''; return; }
+    lastQueryResult = data;
+    info.textContent = data.rowCount + ' row' + (data.rowCount !== 1 ? 's' : '');
+    if (!data.columns.length) { result.innerHTML = '<div class="empty">No results</div>'; return; }
+    result.innerHTML = '<table><tr>' + data.columns.map(c => '<th>' + esc(c) + '</th>').join('') + '</tr>' +
+      data.rows.map(r => '<tr>' + r.map(v => '<td title="'+esc(v)+'">' + esc(v) + '</td>').join('') + '</tr>').join('') + '</table>';
+  } catch(e) { result.innerHTML = '<div class="query-error">Request failed</div>'; info.textContent = ''; }
+}
+
+function exportCSV() {
+  if (!lastQueryResult || !lastQueryResult.columns.length) return;
+  const csvEsc = v => { const s = v == null ? '' : String(v); return s.includes(',') || s.includes('"') || s.includes('\\n') ? '"' + s.replace(/"/g, '""') + '"' : s; };
+  const lines = [lastQueryResult.columns.join(','), ...lastQueryResult.rows.map(r => r.map(csvEsc).join(','))];
+  const blob = new Blob([lines.join('\\n')], {type: 'text/csv'});
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'query-results.csv'; a.click();
 }
 
 async function refresh() {
@@ -304,5 +408,6 @@ async function refresh() {
 
 refresh();
 setInterval(refresh, 30000);
+document.addEventListener('keydown', e => { if ((e.ctrlKey || e.metaKey) && e.key === 'Enter' && currentTab === 'query') { e.preventDefault(); runQuery(); } });
 </script>
 </body></html>`;
