@@ -29,7 +29,7 @@ npm run clean        # Remove all dist/ folders
 - **Full deploy** (pull + build + restart): `sudo bash deploy/restart.sh`
 - **Rebuild only**: `bash deploy/rebuild.sh`
 - **Logs**: `tail -f server.log`
-- **Health**: `curl localhost:3001/health`
+- **Health**: `curl localhost:3001/health` — returns commit hash, message, date, uptime, and active connections. Use to verify deploys without SSH
 - **Admin dashboard**: http://165.245.175.45/admin (password-protected)
 
 ## Architecture
