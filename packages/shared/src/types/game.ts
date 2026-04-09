@@ -70,6 +70,7 @@ export type ClientGameState = {
   hasPlayedCards?: boolean;
   wishPending?: PlayerPosition | null;
   dogPending?: boolean;
+  trickWonPending?: boolean;
   turnDeadline?: number | null;
   roundHistory?: RoundHistoryEntry[];
   receivedCards?: ReceivedCard[];

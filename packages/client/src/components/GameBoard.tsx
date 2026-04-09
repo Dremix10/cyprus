@@ -524,7 +524,7 @@ function PlayingLayout({
   // Check if we need to show the wish selector (I played the Mahjong and haven't wished yet)
   const showWishSelector = gameState.wishPending === gameState.myPosition;
   // Block play/pass while any player's wish is pending or Dog is resolving
-  const wishBlocking = (gameState.wishPending !== null && gameState.wishPending !== undefined) || !!gameState.dogPending;
+  const wishBlocking = (gameState.wishPending !== null && gameState.wishPending !== undefined) || !!gameState.dogPending || !!gameState.trickWonPending;
   // Track which players passed in the current trick
   const passedSet = new Set(gameState.currentTrick.passedPlayers ?? []);
 
