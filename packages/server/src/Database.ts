@@ -97,8 +97,8 @@ export class TrackerDB {
         username TEXT NOT NULL UNIQUE COLLATE NOCASE,
         display_name TEXT NOT NULL,
         password_hash TEXT,
-        email TEXT UNIQUE COLLATE NOCASE,
-        google_id TEXT UNIQUE,
+        email TEXT COLLATE NOCASE,
+        google_id TEXT,
         created_at TEXT DEFAULT (datetime('now')),
         updated_at TEXT DEFAULT (datetime('now')),
         locked_until TEXT,
@@ -137,19 +137,19 @@ export class TrackerDB {
     `);
 
     // ─── Migrations for existing databases ──────────────────────────
-    // Add columns that may not exist yet (SQLite ADD COLUMN is safe if column exists → catch error)
-    const migrations = [
-      `ALTER TABLE users ADD COLUMN email TEXT UNIQUE COLLATE NOCASE`,
-      `ALTER TABLE users ADD COLUMN google_id TEXT UNIQUE`,
+    // SQLite ALTER TABLE ADD COLUMN can't use UNIQUE directly — add column, then create unique index
+    const addColumnMigrations = [
+      `ALTER TABLE users ADD COLUMN email TEXT COLLATE NOCASE`,
+      `ALTER TABLE users ADD COLUMN google_id TEXT`,
     ];
-    for (const sql of migrations) {
+    for (const sql of addColumnMigrations) {
       try { this.db.exec(sql); } catch { /* column already exists */ }
     }
 
-    // Indexes on migrated columns (must run after ALTER TABLE)
+    // Unique indexes on migrated columns (must run after ALTER TABLE)
     this.db.exec(`
-      CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
-      CREATE INDEX IF NOT EXISTS idx_users_google ON users(google_id);
+      CREATE UNIQUE INDEX IF NOT EXISTS idx_users_email ON users(email);
+      CREATE UNIQUE INDEX IF NOT EXISTS idx_users_google ON users(google_id);
     `);
   }
 
