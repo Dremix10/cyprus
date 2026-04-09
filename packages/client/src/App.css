@@ -561,17 +561,6 @@ body {
   opacity: 1;
 }
 
-.auth-playing-as {
-  text-align: center;
-  color: rgba(201, 168, 76, 0.85);
-  font-size: 0.95rem;
-  padding: 0.5rem 0;
-}
-
-.auth-playing-as strong {
-  color: #c9a84c;
-}
-
 .auth-loading {
   text-align: center;
   color: var(--text-muted);
