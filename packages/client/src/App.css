@@ -521,6 +521,98 @@ body {
   margin-top: 0.5rem;
 }
 
+/* ─── Auth Forms ─────────────────────────────────────────────────── */
+
+.auth-forms {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.auth-form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.auth-switch {
+  text-align: center;
+}
+
+.btn-link {
+  background: none;
+  border: none;
+  color: rgba(201, 168, 76, 0.7);
+  cursor: pointer;
+  font-size: 0.85rem;
+  text-decoration: underline;
+  padding: 0.25rem;
+}
+
+.btn-link:hover {
+  color: #c9a84c;
+}
+
+.btn-guest {
+  opacity: 0.7;
+}
+
+.btn-guest:hover {
+  opacity: 1;
+}
+
+.auth-playing-as {
+  text-align: center;
+  color: rgba(201, 168, 76, 0.85);
+  font-size: 0.95rem;
+  padding: 0.5rem 0;
+}
+
+.auth-playing-as strong {
+  color: #c9a84c;
+}
+
+.auth-loading {
+  text-align: center;
+  color: var(--text-muted);
+  padding: 2rem 0;
+}
+
+.auth-back-link {
+  display: block;
+  margin: 0.5rem auto 0;
+  font-size: 0.8rem;
+}
+
+/* ─── User Badge ─────────────────────────────────────────────────── */
+
+.user-badge {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.5rem 0.75rem;
+  margin-bottom: 0.75rem;
+  background: rgba(201, 168, 76, 0.08);
+  border: 1px solid rgba(201, 168, 76, 0.15);
+  border-radius: 10px;
+  font-size: 0.85rem;
+}
+
+.user-badge-name {
+  color: #c9a84c;
+  font-weight: 600;
+}
+
+.user-badge-stats {
+  color: var(--text-muted);
+  font-size: 0.8rem;
+}
+
+.user-badge-logout {
+  margin-left: auto;
+  font-size: 0.75rem;
+}
+
 .divider {
   display: flex;
   align-items: center;
