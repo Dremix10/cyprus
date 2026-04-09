@@ -64,10 +64,14 @@ export function Lobby({ onTutorial }: { onTutorial: () => void }) {
 
   const authUser = useAuthStore((s) => s.user);
   const authLoading = useAuthStore((s) => s.loading);
-
-  // Auto-fill nickname from auth displayName
-  const effectiveNickname = authUser ? authUser.displayName : nickname;
   const showGameForm = authUser || guestMode;
+
+  // Pre-fill nickname from display name on first auth load
+  const [authPrefilled, setAuthPrefilled] = useState(false);
+  if (authUser && !authPrefilled && !nickname) {
+    setNickname(authUser.displayName);
+    setAuthPrefilled(true);
+  }
 
   return (
     <div className="lobby-fullscreen">
@@ -97,22 +101,14 @@ export function Lobby({ onTutorial }: { onTutorial: () => void }) {
               <AuthForms onGuest={() => setGuestMode(true)} />
             ) : (
               <>
-                {!authUser && (
-                  <input
-                    type="text"
-                    placeholder="Enter your name, mortal"
-                    value={nickname}
-                    onChange={(e) => setNickname(e.target.value)}
-                    maxLength={16}
-                    className="input input-greek"
-                  />
-                )}
-
-                {authUser && (
-                  <p className="auth-playing-as">
-                    Playing as <strong>{authUser.displayName}</strong>
-                  </p>
-                )}
+                <input
+                  type="text"
+                  placeholder="Enter your name, mortal"
+                  value={nickname}
+                  onChange={(e) => setNickname(e.target.value)}
+                  maxLength={16}
+                  className="input input-greek"
+                />
 
                 <div className="target-score-row">
                   <label htmlFor="targetScore">Play to</label>
@@ -133,10 +129,7 @@ export function Lobby({ onTutorial }: { onTutorial: () => void }) {
 
                 <button
                   className="btn btn-olympus btn-create"
-                  onClick={() => {
-                    if (authUser) setNickname(authUser.displayName);
-                    createRoom();
-                  }}
+                  onClick={createRoom}
                 >
                   Create Room
                 </button>
@@ -156,10 +149,7 @@ export function Lobby({ onTutorial }: { onTutorial: () => void }) {
 
                 <button
                   className="btn btn-olympus btn-join"
-                  onClick={() => {
-                    if (authUser) setNickname(authUser.displayName);
-                    joinRoom(roomCode);
-                  }}
+                  onClick={() => joinRoom(roomCode)}
                 >
                   Join Room
                 </button>
@@ -181,10 +171,7 @@ export function Lobby({ onTutorial }: { onTutorial: () => void }) {
 
                   <button
                     className="btn btn-olympus btn-solo-greek"
-                    onClick={() => {
-                      if (authUser) setNickname(authUser.displayName);
-                      createSoloRoom(difficulty);
-                    }}
+                    onClick={() => createSoloRoom(difficulty)}
                   >
                     Solo Game
                   </button>
