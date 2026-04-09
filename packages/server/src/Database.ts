@@ -131,8 +131,6 @@ export class TrackerDB {
       CREATE INDEX IF NOT EXISTS idx_game_events_gid ON game_events(game_id);
       CREATE INDEX IF NOT EXISTS idx_http_at ON http_requests(created_at);
       CREATE INDEX IF NOT EXISTS idx_users_username ON users(username);
-      CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
-      CREATE INDEX IF NOT EXISTS idx_users_google ON users(google_id);
       CREATE INDEX IF NOT EXISTS idx_user_sessions_user ON user_sessions(user_id);
       CREATE INDEX IF NOT EXISTS idx_user_sessions_expires ON user_sessions(expires_at);
       CREATE INDEX IF NOT EXISTS idx_reset_tokens_expires ON password_reset_tokens(expires_at);
@@ -148,6 +146,11 @@ export class TrackerDB {
       try { this.db.exec(sql); } catch { /* column already exists */ }
     }
 
+    // Indexes on migrated columns (must run after ALTER TABLE)
+    this.db.exec(`
+      CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
+      CREATE INDEX IF NOT EXISTS idx_users_google ON users(google_id);
+    `);
   }
 
   // ─── Connections ────────────────────────────────────────────────────
