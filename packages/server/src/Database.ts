@@ -322,6 +322,46 @@ export class TrackerDB {
     `).all(limit);
   }
 
+  // ─── Read-Only Query ─────────────────────────────────────────────
+
+  runReadOnlyQuery(sql: string, limit: number = 200): { columns: string[]; rows: unknown[][]; rowCount: number } {
+    const trimmed = sql.trim().replace(/;+$/, '');
+
+    // Only allow SELECT and WITH (CTE) statements
+    const firstWord = trimmed.split(/\s/)[0].toUpperCase();
+    if (firstWord !== 'SELECT' && firstWord !== 'WITH') {
+      throw new Error('Only SELECT queries are allowed');
+    }
+
+    // Block dangerous keywords that could appear inside CTEs or subqueries
+    const forbidden = /\b(INSERT|UPDATE|DELETE|DROP|ALTER|CREATE|ATTACH|DETACH|REPLACE|PRAGMA\s+(?!.*=))\b/i;
+    if (forbidden.test(trimmed)) {
+      throw new Error('Query contains forbidden keywords');
+    }
+
+    const wrapped = `SELECT * FROM (${trimmed}) LIMIT ${limit}`;
+    const stmt = this.db.prepare(wrapped);
+    const rows = stmt.all() as Record<string, unknown>[];
+
+    if (rows.length === 0) {
+      return { columns: [], rows: [], rowCount: 0 };
+    }
+
+    const columns = Object.keys(rows[0]);
+    const data = rows.map(r => columns.map(c => r[c]));
+    return { columns, rows: data, rowCount: rows.length };
+  }
+
+  getTableInfo(): { name: string; rowCount: number }[] {
+    const tables = this.db.prepare(
+      `SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' ORDER BY name`
+    ).all() as { name: string }[];
+    return tables.map(t => {
+      const count = (this.db.prepare(`SELECT COUNT(*) as c FROM "${t.name}"`).get() as { c: number }).c;
+      return { name: t.name, rowCount: count };
+    });
+  }
+
   close(): void {
     this.db.close();
   }
