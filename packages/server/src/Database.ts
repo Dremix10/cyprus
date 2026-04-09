@@ -92,6 +92,27 @@ export class TrackerDB {
         expires_at TEXT NOT NULL
       );
 
+      CREATE TABLE IF NOT EXISTS users (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        username TEXT NOT NULL UNIQUE COLLATE NOCASE,
+        display_name TEXT NOT NULL,
+        password_hash TEXT NOT NULL,
+        created_at TEXT DEFAULT (datetime('now')),
+        updated_at TEXT DEFAULT (datetime('now')),
+        locked_until TEXT,
+        failed_login_attempts INTEGER DEFAULT 0,
+        last_login_at TEXT
+      );
+
+      CREATE TABLE IF NOT EXISTS user_sessions (
+        token TEXT PRIMARY KEY,
+        user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        created_at TEXT DEFAULT (datetime('now')),
+        expires_at TEXT NOT NULL,
+        ip TEXT,
+        user_agent TEXT
+      );
+
       CREATE INDEX IF NOT EXISTS idx_conn_ip ON connections(ip);
       CREATE INDEX IF NOT EXISTS idx_conn_at ON connections(connected_at);
       CREATE INDEX IF NOT EXISTS idx_conn_socket ON connections(socket_id);
@@ -99,6 +120,9 @@ export class TrackerDB {
       CREATE INDEX IF NOT EXISTS idx_games_at ON games(started_at);
       CREATE INDEX IF NOT EXISTS idx_game_events_gid ON game_events(game_id);
       CREATE INDEX IF NOT EXISTS idx_http_at ON http_requests(created_at);
+      CREATE INDEX IF NOT EXISTS idx_users_username ON users(username);
+      CREATE INDEX IF NOT EXISTS idx_user_sessions_user ON user_sessions(user_id);
+      CREATE INDEX IF NOT EXISTS idx_user_sessions_expires ON user_sessions(expires_at);
     `);
   }
 
@@ -320,6 +344,116 @@ export class TrackerDB {
       FROM connections WHERE ip IS NOT NULL
       GROUP BY ip ORDER BY connection_count DESC LIMIT ?
     `).all(limit);
+  }
+
+  // ─── Users ──────────────────────────────────────────────────────────
+
+  createUser(username: string, displayName: string, passwordHash: string): number {
+    const result = this.db.prepare(
+      `INSERT INTO users (username, display_name, password_hash) VALUES (?, ?, ?)`
+    ).run(username, displayName, passwordHash);
+    return Number(result.lastInsertRowid);
+  }
+
+  getUserByUsername(username: string): {
+    id: number; username: string; display_name: string; password_hash: string;
+    created_at: string; locked_until: string | null; failed_login_attempts: number;
+  } | undefined {
+    return this.db.prepare(
+      `SELECT id, username, display_name, password_hash, created_at, locked_until, failed_login_attempts FROM users WHERE username = ?`
+    ).get(username) as ReturnType<TrackerDB['getUserByUsername']>;
+  }
+
+  getUserById(id: number): {
+    id: number; username: string; display_name: string; created_at: string;
+    last_login_at: string | null;
+  } | undefined {
+    return this.db.prepare(
+      `SELECT id, username, display_name, created_at, last_login_at FROM users WHERE id = ?`
+    ).get(id) as ReturnType<TrackerDB['getUserById']>;
+  }
+
+  updateUserPassword(userId: number, passwordHash: string): void {
+    this.db.prepare(
+      `UPDATE users SET password_hash = ?, updated_at = datetime('now') WHERE id = ?`
+    ).run(passwordHash, userId);
+  }
+
+  getUserPasswordHash(userId: number): string | undefined {
+    const row = this.db.prepare(`SELECT password_hash FROM users WHERE id = ?`).get(userId) as { password_hash: string } | undefined;
+    return row?.password_hash;
+  }
+
+  recordLoginSuccess(userId: number): void {
+    this.db.prepare(
+      `UPDATE users SET failed_login_attempts = 0, locked_until = NULL, last_login_at = datetime('now') WHERE id = ?`
+    ).run(userId);
+  }
+
+  recordLoginFailure(userId: number): void {
+    this.db.prepare(
+      `UPDATE users SET failed_login_attempts = failed_login_attempts + 1 WHERE id = ?`
+    ).run(userId);
+  }
+
+  lockAccount(userId: number, minutes: number): void {
+    this.db.prepare(
+      `UPDATE users SET locked_until = datetime('now', '+' || ? || ' minutes') WHERE id = ?`
+    ).run(minutes, userId);
+  }
+
+  deleteUser(userId: number): void {
+    this.db.prepare(`DELETE FROM users WHERE id = ?`).run(userId);
+  }
+
+  // ─── User Sessions ─────────────────────────────────────────────────
+
+  createUserSession(token: string, userId: number, expiresInHours: number, ip: string | null, userAgent: string | null): void {
+    this.db.prepare(
+      `INSERT INTO user_sessions (token, user_id, expires_at, ip, user_agent) VALUES (?, ?, datetime('now', '+' || ? || ' hours'), ?, ?)`
+    ).run(token, userId, expiresInHours, ip, userAgent);
+  }
+
+  validateUserSession(token: string): { user_id: number } | undefined {
+    return this.db.prepare(
+      `SELECT user_id FROM user_sessions WHERE token = ? AND expires_at > datetime('now')`
+    ).get(token) as { user_id: number } | undefined;
+  }
+
+  deleteUserSession(token: string): void {
+    this.db.prepare(`DELETE FROM user_sessions WHERE token = ?`).run(token);
+  }
+
+  deleteAllUserSessions(userId: number): void {
+    this.db.prepare(`DELETE FROM user_sessions WHERE user_id = ?`).run(userId);
+  }
+
+  countUserSessions(userId: number): number {
+    return (this.db.prepare(
+      `SELECT COUNT(*) as c FROM user_sessions WHERE user_id = ? AND expires_at > datetime('now')`
+    ).get(userId) as { c: number }).c;
+  }
+
+  pruneOldestUserSessions(userId: number, keepCount: number): void {
+    this.db.prepare(`
+      DELETE FROM user_sessions WHERE user_id = ? AND token NOT IN (
+        SELECT token FROM user_sessions WHERE user_id = ? AND expires_at > datetime('now')
+        ORDER BY created_at DESC LIMIT ?
+      )
+    `).run(userId, userId, keepCount);
+  }
+
+  cleanExpiredUserSessions(): void {
+    this.db.prepare(`DELETE FROM user_sessions WHERE expires_at <= datetime('now')`).run();
+  }
+
+  getUserGameStats(userId: number): { games_played: number; games_won: number } {
+    const displayName = this.getUserById(userId)?.display_name;
+    if (!displayName) return { games_played: 0, games_won: 0 };
+    const row = this.db.prepare(
+      `SELECT COALESCE(SUM(games_played), 0) as games_played, COALESCE(SUM(games_won), 0) as games_won FROM players WHERE nickname = ?`
+    ).get(displayName) as { games_played: number; games_won: number };
+    return row;
   }
 
   // ─── Read-Only Query ─────────────────────────────────────────────

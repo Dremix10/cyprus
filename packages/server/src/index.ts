@@ -9,6 +9,8 @@ import { RoomManager } from './RoomManager.js';
 import { SocketHandler } from './SocketHandler.js';
 import { TrackerDB } from './Database.js';
 import { createAdminRouter } from './AdminDashboard.js';
+import { AuthService } from './AuthService.js';
+import { createAuthRouter, SESSION_COOKIE } from './AuthRoutes.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
@@ -17,8 +19,16 @@ const httpServer = createServer(app);
 const isProduction = process.env.NODE_ENV === 'production';
 const PORT = Number(process.env.PORT) || 3001;
 
-// ─── Database ───────────────────────────────────────────────────────
+// ─── Database & Auth ────────────────────────────────────────────────
 const db = new TrackerDB();
+const authService = new AuthService(db);
+
+// Clean expired sessions every hour
+const sessionCleanupInterval = setInterval(() => {
+  authService.cleanExpiredSessions();
+  db.cleanExpiredSessions();
+}, 60 * 60_000);
+sessionCleanupInterval.unref();
 
 // ─── Security Headers ───────────────────────────────────────────────
 app.use(helmet({
@@ -44,7 +54,7 @@ app.set('trust proxy', 1);
 // ─── HTTP Request Logging ───────────────────────────────────────────
 app.use((req, res, next) => {
   // Skip admin API and static asset logging to reduce noise
-  if (req.path.startsWith('/admin/api/') || req.path.match(/\.(js|css|png|jpg|svg|ico|woff|woff2|map)$/)) {
+  if (req.path.startsWith('/admin/api/') || req.path.startsWith('/auth/') || req.path.match(/\.(js|css|png|jpg|svg|ico|woff|woff2|map)$/)) {
     next();
     return;
   }
@@ -71,6 +81,30 @@ const io = new Server<ClientToServerEvents, ServerToClientEvents>(httpServer, {
     : { origin: process.env.CLIENT_URL ?? 'http://localhost:5173', credentials: true },
 });
 
+// ─── Socket.IO Auth Middleware ──────────────────────────────────────
+// Extract user identity from auth cookie on handshake (optional — guests allowed)
+io.use((socket, next) => {
+  const cookieHeader = socket.handshake.headers.cookie;
+  if (cookieHeader) {
+    for (const pair of cookieHeader.split(';')) {
+      const [key, ...vals] = pair.trim().split('=');
+      if (key === SESSION_COOKIE) {
+        const token = vals.join('=');
+        const session = authService.validateSession(token);
+        if (session) {
+          const user = db.getUserById(session.userId);
+          if (user) {
+            socket.data.userId = user.id;
+            socket.data.displayName = user.display_name;
+          }
+        }
+        break;
+      }
+    }
+  }
+  next(); // Always allow connection — guests play without auth
+});
+
 const roomManager = new RoomManager();
 const socketHandler = new SocketHandler(io, roomManager, db);
 
@@ -88,6 +122,9 @@ app.get('/health', (_req, res) => {
   const stats = db.getStats();
   res.json({ status: 'ok', activeConnections: stats.activeConnections, totalGames: stats.totalGames });
 });
+
+// Auth routes
+app.use('/auth', createAuthRouter(authService, isProduction));
 
 // Admin dashboard
 app.use('/admin', createAdminRouter(db));

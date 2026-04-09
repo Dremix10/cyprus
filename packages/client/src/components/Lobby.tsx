@@ -1,5 +1,7 @@
 import { useState } from 'react';
 import { useRoomStore } from '../stores/roomStore.js';
+import { useAuthStore } from '../stores/authStore.js';
+import { AuthForms, UserBadge } from './AuthForms.js';
 
 function MeanderBorder() {
   return (
@@ -50,6 +52,7 @@ function GreekColumn({ side }: { side: 'left' | 'right' }) {
 export function Lobby({ onTutorial }: { onTutorial: () => void }) {
   const [roomCode, setRoomCode] = useState('');
   const [difficulty, setDifficulty] = useState('medium');
+  const [guestMode, setGuestMode] = useState(false);
   const nickname = useRoomStore((s) => s.nickname);
   const setNickname = useRoomStore((s) => s.setNickname);
   const targetScore = useRoomStore((s) => s.targetScore);
@@ -58,6 +61,13 @@ export function Lobby({ onTutorial }: { onTutorial: () => void }) {
   const createSoloRoom = useRoomStore((s) => s.createSoloRoom);
   const joinRoom = useRoomStore((s) => s.joinRoom);
   const error = useRoomStore((s) => s.error);
+
+  const authUser = useAuthStore((s) => s.user);
+  const authLoading = useAuthStore((s) => s.loading);
+
+  // Auto-fill nickname from auth displayName
+  const effectiveNickname = authUser ? authUser.displayName : nickname;
+  const showGameForm = authUser || guestMode;
 
   return (
     <div className="lobby-fullscreen">
@@ -79,85 +89,120 @@ export function Lobby({ onTutorial }: { onTutorial: () => void }) {
         </div>
 
         <div className="lobby-form-card">
+          {authUser && <UserBadge />}
           <div className="lobby-form">
-            <input
-              type="text"
-              placeholder="Enter your name, mortal"
-              value={nickname}
-              onChange={(e) => setNickname(e.target.value)}
-              maxLength={16}
-              className="input input-greek"
-            />
+            {authLoading ? (
+              <p className="auth-loading">Loading...</p>
+            ) : !showGameForm ? (
+              <AuthForms onGuest={() => setGuestMode(true)} />
+            ) : (
+              <>
+                {!authUser && (
+                  <input
+                    type="text"
+                    placeholder="Enter your name, mortal"
+                    value={nickname}
+                    onChange={(e) => setNickname(e.target.value)}
+                    maxLength={16}
+                    className="input input-greek"
+                  />
+                )}
 
-            <div className="target-score-row">
-              <label htmlFor="targetScore">Play to</label>
-              <input
-                id="targetScore"
-                type="number"
-                min={250}
-                step={50}
-                value={targetScore}
-                onChange={(e) => {
-                  const val = parseInt(e.target.value, 10);
-                  if (!isNaN(val)) setTargetScore(Math.max(250, val));
-                }}
-                className="input input-score input-greek"
-              />
-              <span>pts</span>
-            </div>
+                {authUser && (
+                  <p className="auth-playing-as">
+                    Playing as <strong>{authUser.displayName}</strong>
+                  </p>
+                )}
 
-            <button className="btn btn-olympus btn-create" onClick={createRoom}>
-              Create Room
-            </button>
+                <div className="target-score-row">
+                  <label htmlFor="targetScore">Play to</label>
+                  <input
+                    id="targetScore"
+                    type="number"
+                    min={250}
+                    step={50}
+                    value={targetScore}
+                    onChange={(e) => {
+                      const val = parseInt(e.target.value, 10);
+                      if (!isNaN(val)) setTargetScore(Math.max(250, val));
+                    }}
+                    className="input input-score input-greek"
+                  />
+                  <span>pts</span>
+                </div>
 
-            <div className="divider divider-greek">
-              <span>or</span>
-            </div>
+                <button
+                  className="btn btn-olympus btn-create"
+                  onClick={() => {
+                    if (authUser) setNickname(authUser.displayName);
+                    createRoom();
+                  }}
+                >
+                  Create Room
+                </button>
 
-            <input
-              type="text"
-              placeholder="Room code"
-              value={roomCode}
-              onChange={(e) => setRoomCode(e.target.value.toUpperCase())}
-              maxLength={4}
-              className="input input-greek"
-            />
+                <div className="divider divider-greek">
+                  <span>or</span>
+                </div>
 
-            <button
-              className="btn btn-olympus btn-join"
-              onClick={() => joinRoom(roomCode)}
-            >
-              Join Room
-            </button>
+                <input
+                  type="text"
+                  placeholder="Room code"
+                  value={roomCode}
+                  onChange={(e) => setRoomCode(e.target.value.toUpperCase())}
+                  maxLength={4}
+                  className="input input-greek"
+                />
 
-            <div className="divider divider-greek">
-              <span>or</span>
-            </div>
+                <button
+                  className="btn btn-olympus btn-join"
+                  onClick={() => {
+                    if (authUser) setNickname(authUser.displayName);
+                    joinRoom(roomCode);
+                  }}
+                >
+                  Join Room
+                </button>
 
-            <div className="solo-section">
-              <select
-                value={difficulty}
-                onChange={(e) => setDifficulty(e.target.value)}
-                className="input input-select input-greek"
-              >
-                <option value="easy">Easy Bots</option>
-                <option value="medium">Medium Bots</option>
-                <option value="hard">Hard Bots</option>
-              </select>
+                <div className="divider divider-greek">
+                  <span>or</span>
+                </div>
 
-              <button
-                className="btn btn-olympus btn-solo-greek"
-                onClick={() => createSoloRoom(difficulty)}
-              >
-                Solo Game
-              </button>
-            </div>
+                <div className="solo-section">
+                  <select
+                    value={difficulty}
+                    onChange={(e) => setDifficulty(e.target.value)}
+                    className="input input-select input-greek"
+                  >
+                    <option value="easy">Easy Bots</option>
+                    <option value="medium">Medium Bots</option>
+                    <option value="hard">Hard Bots</option>
+                  </select>
 
-            {error && <p className="error">{error}</p>}
+                  <button
+                    className="btn btn-olympus btn-solo-greek"
+                    onClick={() => {
+                      if (authUser) setNickname(authUser.displayName);
+                      createSoloRoom(difficulty);
+                    }}
+                  >
+                    Solo Game
+                  </button>
+                </div>
 
-            <button className="btn btn-olympus btn-tutorial" onClick={onTutorial}>
-              How to Play
-            </button>
+                {error && <p className="error">{error}</p>}
+
+                <button className="btn btn-olympus btn-tutorial" onClick={onTutorial}>
+                  How to Play
+                </button>
+
+                {!authUser && guestMode && (
+                  <button className="btn-link auth-back-link" onClick={() => setGuestMode(false)}>
+                    Sign in instead
+                  </button>
+                )}
+              </>
+            )}
           </div>
         </div>
 

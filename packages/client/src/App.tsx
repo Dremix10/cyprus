@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useRoomStore } from './stores/roomStore.js';
+import { useAuthStore } from './stores/authStore.js';
 import { useSocketEvents } from './hooks/useSocketEvents.js';
 import { Lobby } from './components/Lobby.js';
 import { WaitingRoom } from './components/WaitingRoom.js';
@@ -13,10 +14,12 @@ export default function App() {
   const view = useRoomStore((s) => s.view);
   const reconnecting = useRoomStore((s) => s.reconnecting);
   const trySessionReconnect = useRoomStore((s) => s.trySessionReconnect);
+  const checkAuth = useAuthStore((s) => s.checkAuth);
   const [showTutorial, setShowTutorial] = useState(false);
 
-  // Attempt session reconnect on mount
+  // Check auth and attempt session reconnect on mount
   useEffect(() => {
+    checkAuth();
     trySessionReconnect();
   }, []);
 
