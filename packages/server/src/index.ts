@@ -117,11 +117,32 @@ if (restored > 0) {
 
 socketHandler.setup();
 
+// ─── Build Info ─────────────────────────────────────────────────────
+import { execSync } from 'node:child_process';
+
+let commitHash = 'unknown';
+let commitMessage = '';
+let commitDate = '';
+try {
+  commitHash = execSync('git rev-parse --short HEAD', { cwd: __dirname }).toString().trim();
+  commitMessage = execSync('git log -1 --pretty=%s', { cwd: __dirname }).toString().trim();
+  commitDate = execSync('git log -1 --pretty=%ci', { cwd: __dirname }).toString().trim();
+} catch { /* not in a git repo */ }
+const startedAt = new Date().toISOString();
+
 // ─── Routes ─────────────────────────────────────────────────────────
 
 app.get('/health', (_req, res) => {
   const stats = db.getStats();
-  res.json({ status: 'ok', activeConnections: stats.activeConnections, totalGames: stats.totalGames });
+  res.json({
+    status: 'ok',
+    commit: commitHash,
+    commitMessage,
+    commitDate,
+    startedAt,
+    activeConnections: stats.activeConnections,
+    totalGames: stats.totalGames,
+  });
 });
 
 // Auth routes
