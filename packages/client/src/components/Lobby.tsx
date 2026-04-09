@@ -53,9 +53,11 @@ export function Lobby({ onTutorial, onLeaderboard }: { onTutorial: () => void; o
   const [roomCode, setRoomCode] = useState('');
   const [difficulty, setDifficulty] = useState('medium');
   const [guestMode, setGuestMode] = useState(false);
+  const [subView, setSubView] = useState<'none' | 'create' | 'join' | 'solo'>('none');
   const nickname = useRoomStore((s) => s.nickname);
   const setNickname = useRoomStore((s) => s.setNickname);
   const targetScore = useRoomStore((s) => s.targetScore);
+  const [scoreInput, setScoreInput] = useState(String(targetScore));
   const setTargetScore = useRoomStore((s) => s.setTargetScore);
   const createRoom = useRoomStore((s) => s.createRoom);
   const createSoloRoom = useRoomStore((s) => s.createSoloRoom);
@@ -120,100 +122,149 @@ export function Lobby({ onTutorial, onLeaderboard }: { onTutorial: () => void; o
               <>
                 <input
                   type="text"
-                  placeholder="Enter your name, mortal"
+                  placeholder="Enter your name"
                   value={nickname}
                   onChange={(e) => setNickname(e.target.value)}
                   maxLength={16}
                   className="input input-greek"
                 />
 
-                <div className="target-score-row">
-                  <label htmlFor="targetScore">Play to</label>
-                  <input
-                    id="targetScore"
-                    type="number"
-                    min={250}
-                    step={50}
-                    value={targetScore}
-                    onChange={(e) => {
-                      const val = parseInt(e.target.value, 10);
-                      if (!isNaN(val)) setTargetScore(Math.max(250, val));
-                    }}
-                    className="input input-score input-greek"
-                  />
-                  <span>pts</span>
-                </div>
+                {subView === 'none' && (
+                  <>
+                    <button
+                      className="btn btn-olympus btn-play-online"
+                      onClick={joinMatchmaking}
+                    >
+                      Play Online
+                    </button>
 
-                <button
-                  className="btn btn-olympus btn-play-online"
-                  onClick={joinMatchmaking}
-                >
-                  Play Online
-                </button>
+                    <div className="lobby-room-row">
+                      <button
+                        className="btn btn-olympus btn-create"
+                        onClick={() => setSubView('create')}
+                      >
+                        Create Room
+                      </button>
+                      <button
+                        className="btn btn-olympus btn-join"
+                        onClick={() => setSubView('join')}
+                      >
+                        Join Room
+                      </button>
+                    </div>
 
-                <div className="divider divider-greek">
-                  <span>or</span>
-                </div>
+                    <button
+                      className="btn btn-olympus btn-solo-greek"
+                      onClick={() => setSubView('solo')}
+                    >
+                      Solo Game
+                    </button>
+                  </>
+                )}
 
-                <button
-                  className="btn btn-olympus btn-create"
-                  onClick={createRoom}
-                >
-                  Create Room
-                </button>
+                {subView === 'create' && (
+                  <div className="lobby-subview">
+                    <h3 className="lobby-subview-title">Create Room</h3>
+                    <div className="target-score-row">
+                      <label htmlFor="targetScore">Play to</label>
+                      <input
+                        id="targetScore"
+                        type="number"
+                        min={250}
+                        step={50}
+                        value={scoreInput}
+                        onChange={(e) => setScoreInput(e.target.value)}
+                        onBlur={() => {
+                          const val = parseInt(scoreInput, 10);
+                          const clamped = isNaN(val) || val < 250 ? 250 : val;
+                          setTargetScore(clamped);
+                          setScoreInput(String(clamped));
+                        }}
+                        className="input input-score input-greek"
+                      />
+                      <span>pts</span>
+                    </div>
+                    <button className="btn btn-olympus btn-create" onClick={createRoom}>
+                      Start
+                    </button>
+                    <button className="btn-link lobby-back" onClick={() => setSubView('none')}>
+                      Back
+                    </button>
+                  </div>
+                )}
 
-                <div className="divider divider-greek">
-                  <span>or</span>
-                </div>
+                {subView === 'join' && (
+                  <div className="lobby-subview">
+                    <h3 className="lobby-subview-title">Join Room</h3>
+                    <input
+                      type="text"
+                      placeholder="Room code"
+                      value={roomCode}
+                      onChange={(e) => setRoomCode(e.target.value.toUpperCase())}
+                      maxLength={4}
+                      className="input input-greek"
+                      style={{ textAlign: 'center', textTransform: 'uppercase' }}
+                    />
+                    <button className="btn btn-olympus btn-join" onClick={() => joinRoom(roomCode)}>
+                      Join
+                    </button>
+                    <button className="btn-link lobby-back" onClick={() => setSubView('none')}>
+                      Back
+                    </button>
+                  </div>
+                )}
 
-                <input
-                  type="text"
-                  placeholder="Room code"
-                  value={roomCode}
-                  onChange={(e) => setRoomCode(e.target.value.toUpperCase())}
-                  maxLength={4}
-                  className="input input-greek"
-                />
-
-                <button
-                  className="btn btn-olympus btn-join"
-                  onClick={() => joinRoom(roomCode)}
-                >
-                  Join Room
-                </button>
-
-                <div className="divider divider-greek">
-                  <span>or</span>
-                </div>
-
-                <div className="solo-section">
-                  <select
-                    value={difficulty}
-                    onChange={(e) => setDifficulty(e.target.value)}
-                    className="input input-select input-greek"
-                  >
-                    <option value="easy">Easy Bots</option>
-                    <option value="medium">Medium Bots</option>
-                    <option value="hard">Hard Bots</option>
-                  </select>
-
-                  <button
-                    className="btn btn-olympus btn-solo-greek"
-                    onClick={() => createSoloRoom(difficulty)}
-                  >
-                    Solo Game
-                  </button>
-                </div>
+                {subView === 'solo' && (
+                  <div className="lobby-subview">
+                    <h3 className="lobby-subview-title">Solo Game</h3>
+                    <div className="target-score-row">
+                      <label htmlFor="targetScore">Play to</label>
+                      <input
+                        id="targetScore"
+                        type="number"
+                        min={250}
+                        step={50}
+                        value={scoreInput}
+                        onChange={(e) => setScoreInput(e.target.value)}
+                        onBlur={() => {
+                          const val = parseInt(scoreInput, 10);
+                          const clamped = isNaN(val) || val < 250 ? 250 : val;
+                          setTargetScore(clamped);
+                          setScoreInput(String(clamped));
+                        }}
+                        className="input input-score input-greek"
+                      />
+                      <span>pts</span>
+                    </div>
+                    <select
+                      value={difficulty}
+                      onChange={(e) => setDifficulty(e.target.value)}
+                      className="input input-select input-greek"
+                    >
+                      <option value="easy">Easy Bots</option>
+                      <option value="medium">Medium Bots</option>
+                      <option value="hard">Hard Bots</option>
+                    </select>
+                    <button className="btn btn-olympus btn-solo-greek" onClick={() => createSoloRoom(difficulty)}>
+                      Start
+                    </button>
+                    <button className="btn-link lobby-back" onClick={() => setSubView('none')}>
+                      Back
+                    </button>
+                  </div>
+                )}
 
                 {error && <p className="error">{error}</p>}
 
-                <button className="btn btn-olympus btn-tutorial" onClick={onTutorial}>
-                  How to Play
-                </button>
-
-                <button className="btn btn-olympus btn-leaderboard" onClick={onLeaderboard}>
-                  Leaderboard
-                </button>
+                <div className="lobby-links">
+                  <button className="btn-link lobby-link" onClick={onTutorial}>
+                    How to Play
+                  </button>
+                  <span className="lobby-link-sep">|</span>
+                  <button className="btn-link lobby-link" onClick={onLeaderboard}>
+                    Leaderboard
+                  </button>
+                </div>
 
                 {!authUser && guestMode && (
                   <button className="btn-link auth-back-link" onClick={() => setGuestMode(false)}>
