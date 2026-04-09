@@ -15,6 +15,7 @@ import type { GameEngine } from './GameEngine.js';
 import { BotAI } from './BotAI.js';
 import type { BotDifficulty, GameContext } from './BotAI.js';
 import type { TrackerDB } from './Database.js';
+import { MatchmakingManager } from './MatchmakingManager.js';
 import { writeFileSync, appendFileSync, readFileSync, existsSync, mkdirSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -68,6 +69,7 @@ export class SocketHandler {
   private rateLimiter = new RateLimiter();
   private rateLimitCleanup: ReturnType<typeof setInterval>;
   private persistTimer: NodeJS.Timeout | null = null;
+  private matchmaking: MatchmakingManager;
 
   constructor(
     private io: TypedServer,
@@ -75,10 +77,14 @@ export class SocketHandler {
     private db?: TrackerDB
   ) {
     this.rateLimitCleanup = setInterval(() => this.rateLimiter.cleanup(), 60_000);
+    this.matchmaking = new MatchmakingManager(io, rooms, (roomCode, socketIds) => {
+      this.onMatchCreated(roomCode, socketIds);
+    });
   }
 
   destroy(): void {
     clearInterval(this.rateLimitCleanup);
+    this.matchmaking.destroy();
     for (const timer of this.turnTimers.values()) clearTimeout(timer);
     for (const timer of this.disconnectTimers.values()) clearTimeout(timer);
     for (const timer of this.dogTimers.values()) clearTimeout(timer);
@@ -224,6 +230,28 @@ export class SocketHandler {
         }
       });
 
+      // ─── Matchmaking ──────────────────────────────────────────────
+      socket.on('matchmaking:join', (nickname, targetScore, callback) => {
+        if (!this.checkRate(socket, 'matchmaking', 5, 30_000)) return;
+        const result = this.matchmaking.enqueue(socket.id, nickname, targetScore);
+        if ('error' in result) {
+          callback({ error: result.error });
+          return;
+        }
+        this.db?.updateConnectionNickname(socket.id, nickname, null);
+        this.db?.getOrCreatePlayer(nickname, ip);
+        callback({ success: true });
+      });
+
+      socket.on('matchmaking:leave', (callback) => {
+        const result = this.matchmaking.dequeue(socket.id);
+        if ('error' in result) {
+          callback({ error: result.error });
+          return;
+        }
+        callback({ success: true });
+      });
+
       socket.on('game:grand_tichu_decision', (call) => {
         if (!this.checkRate(socket, 'action')) return;
         this.handleGameAction(socket, 'GRAND_TICHU_DECISION', (engine, position) =>
@@ -324,6 +352,7 @@ export class SocketHandler {
       socket.on('disconnect', () => {
         this.db?.logDisconnection(socket.id);
         this.socketToSession.delete(socket.id);
+        this.matchmaking.handleDisconnect(socket.id);
         // Get position before disconnect handling
         const info = this.rooms.getRoomForSocket(socket.id);
         const result = this.rooms.handleDisconnect(socket.id);
@@ -354,6 +383,39 @@ export class SocketHandler {
     }
     const gameId = this.db.logGameStart(roomCode, targetScore, isSolo, botDifficulty, players);
     roomGameIds.set(roomCode, gameId);
+  }
+
+  private onMatchCreated(roomCode: string, socketIds: string[]): void {
+    const room = this.rooms.getRoom(roomCode);
+    if (!room) return;
+
+    // Join all sockets to the Socket.IO room and store session mappings
+    for (const sid of socketIds) {
+      const sock = this.io.sockets.sockets.get(sid);
+      if (sock) {
+        sock.join(roomCode);
+        // Find the player's session ID
+        for (const [, player] of room.players) {
+          if (player.socketId === sid && player.sessionId) {
+            this.socketToSession.set(sid, player.sessionId);
+            break;
+          }
+        }
+      }
+    }
+
+    // Log game start
+    this.logGameStart(roomCode, room.targetScore, false, 'hard', null);
+
+    // Increment games_played for all human players
+    for (const [pos, player] of room.players) {
+      if (!room.botPositions.has(pos)) {
+        const pid = this.db?.getOrCreatePlayer(player.nickname, null);
+        if (pid) this.db?.incrementPlayerGames(pid);
+      }
+    }
+
+    this.broadcastGameState(roomCode);
   }
 
   private handleGameAction(
