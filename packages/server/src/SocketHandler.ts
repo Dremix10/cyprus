@@ -714,11 +714,13 @@ export class SocketHandler {
             const player = eng.state.players[currentPlayer];
             const currentTop = eng.state.currentTrick.plays[eng.state.currentTrick.plays.length - 1].combination;
             const playable = findPlayableFromHand(player.hand, currentTop, eng.state.wish);
-            const wishedPlay = playable.find((cards) =>
+            const wishedPlays = playable.filter((cards) =>
               cards.some((c) => c.type === 'normal' && c.rank === eng.state.wish.wishedRank)
             );
-            if (wishedPlay) {
-              events = eng.playCards(currentPlayer, wishedPlay.map((c) => c.id));
+            if (wishedPlays.length > 0) {
+              // Pick the cheapest option: prefer single, then smallest combo
+              const cheapest = wishedPlays.sort((a, b) => a.length - b.length)[0];
+              events = eng.playCards(currentPlayer, cheapest.map((c) => c.id));
             } else {
               events = eng.passTurn(currentPlayer);
             }
