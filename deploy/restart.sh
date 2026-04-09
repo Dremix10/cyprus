@@ -47,6 +47,7 @@ else
 fi
 
 echo "Starting new process..."
+set -a; [ -f .env ] && source .env; set +a
 nohup node "$ENTRY" >> "$LOG_FILE" 2>&1 &
 NEW_PID=$!
 echo "New process started (PID: $NEW_PID)"

@@ -68,6 +68,38 @@ Players get a `sessionId` (UUID v4) on create/join, stored in localStorage. On p
 - **Trust proxy**: enabled for nginx X-Forwarded-For headers
 - **Graceful shutdown**: cleans up timers, persists rooms, closes DB
 
+## Data Access (Production Database)
+
+The server tracks connections, players, games, events, and HTTP requests in SQLite. You can query this data remotely via the admin API.
+
+**API key**: `REDACTED-ROTATED-KEY`
+
+**Query any data** (read-only SELECT queries only):
+```bash
+curl -s -X POST http://165.245.175.45/admin/api/query \
+  -H "Authorization: Bearer REDACTED-ROTATED-KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"sql": "SELECT * FROM players ORDER BY games_won DESC", "limit": 100}'
+```
+
+**List tables and row counts**:
+```bash
+curl -s http://165.245.175.45/admin/api/tables \
+  -H "Authorization: Bearer REDACTED-ROTATED-KEY"
+```
+
+**Available tables**: `connections`, `players`, `games`, `game_players`, `game_events`, `http_requests`, `admin_sessions`
+
+**Other endpoints** (all require same Bearer token):
+- `GET /admin/api/stats` — summary stats
+- `GET /admin/api/connections?limit=50` — recent connections
+- `GET /admin/api/players?limit=100` — player leaderboard
+- `GET /admin/api/games?limit=50` — recent games
+- `GET /admin/api/events?limit=100` — game events
+- `GET /admin/api/requests?limit=100` — HTTP request log
+- `GET /admin/api/traffic?hours=24` — hourly traffic
+- `GET /admin/api/top-ips?limit=20` — top IPs
+
 ## Collaborators
 
 - **Dremix10** (GitHub) — co-developer, pushes game features (bot AI, UI, tutorials)

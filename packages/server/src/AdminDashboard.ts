@@ -39,12 +39,33 @@ export function createAdminRouter(db: TrackerDB): express.Router {
   // Parse form bodies for login
   router.use(express.urlencoded({ extended: false }));
 
+  function verifyApiKey(req: Request): boolean {
+    const apiKey = process.env.DATA_API_KEY;
+    if (!apiKey) return false;
+    const auth = req.headers.authorization;
+    if (!auth?.startsWith('Bearer ')) return false;
+    const provided = auth.slice(7);
+    try {
+      return timingSafeEqual(Buffer.from(provided), Buffer.from(apiKey));
+    } catch {
+      return false;
+    }
+  }
+
   function requireAuth(req: Request, res: Response, next: NextFunction): void {
+    // API key auth (for programmatic access)
+    if (verifyApiKey(req)) { next(); return; }
+    // Session auth (for browser access)
     const token = parseCookies(req)['admin_token'];
     if (token && db.validateAdminSession(token)) {
       next();
     } else {
-      res.redirect('/admin/login');
+      // API requests get 401, browser requests get redirect
+      if (req.headers.authorization || req.headers.accept?.includes('application/json')) {
+        res.status(401).json({ error: 'Unauthorized' });
+      } else {
+        res.redirect('/admin/login');
+      }
     }
   }
 
