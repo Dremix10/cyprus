@@ -59,11 +59,24 @@ npm run clean        # Remove all dist/ folders
 
 Players get a `sessionId` (UUID v4) on create/join, stored in localStorage. On page refresh or server restart, the client emits `session:reconnect` with the stored sessionId. The server maps sessionId → room/position and restores the player. If a player disconnects for >2 minutes during a game, they are replaced by a bot and the session is invalidated.
 
+## Authentication
+
+- **AuthService** (`AuthService.ts`): scrypt password hashing (N=16384, r=8, p=1), account lockout, session management
+- **AuthRoutes** (`AuthRoutes.ts`): REST endpoints at `/auth/*` with HttpOnly cookie sessions
+- **Endpoints**: POST `/auth/register`, `/auth/login`, `/auth/logout`, `/auth/change-password`, `/auth/delete-account`; GET `/auth/me`
+- **Client**: `authStore.ts` (Zustand), `AuthForms.tsx` (login/register), `UserBadge` component
+- **Guest play**: preserved — auth is optional, guests play without accounts
+- **Socket auth**: middleware reads auth cookie from handshake, attaches `socket.data.userId`/`socket.data.displayName`
+- **DB tables**: `users` (id, username, display_name, password_hash, lockout fields), `user_sessions` (token, user_id, expires_at)
+
 ## Security
 
 - **Helmet** security headers (CSP, etc.) on all HTTP responses
-- **Rate limiting**: per-socket (20 actions/5s), per-IP connections (20/min), room create/join (5/30s), session reconnect (5/30s)
+- **Rate limiting**: per-socket (20 actions/5s), per-IP connections (20/min), room create/join (5/30s), session reconnect (5/30s), auth (5/min per IP)
 - **Nickname validation**: 1-20 chars, alphanumeric + spaces/dashes/accented chars only
+- **Password hashing**: scrypt with 32-byte random salt, timing-safe comparison
+- **Account lockout**: 5 failed logins → 15 min cooldown
+- **Session security**: HttpOnly + SameSite cookies, 7-day expiry, max 10 per user, cleanup on interval
 - **Admin auth**: SHA-256 password hash with timing-safe comparison
 - **Trust proxy**: enabled for nginx X-Forwarded-For headers
 - **Graceful shutdown**: cleans up timers, persists rooms, closes DB
