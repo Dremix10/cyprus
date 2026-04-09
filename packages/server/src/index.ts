@@ -145,6 +145,41 @@ app.get('/health', (_req, res) => {
   });
 });
 
+// Public leaderboard API
+app.get('/api/leaderboard', (_req, res) => {
+  const limit = Math.min(Number(_req.query.limit) || 50, 100);
+  const leaderboard = db.getLeaderboard(limit);
+  res.json(leaderboard);
+});
+
+app.get('/api/leaderboard/me', (req, res) => {
+  // Parse auth session cookie manually (no cookie-parser middleware)
+  let token: string | undefined;
+  const cookieHeader = req.headers.cookie;
+  if (cookieHeader) {
+    for (const pair of cookieHeader.split(';')) {
+      const [key, val] = pair.trim().split('=');
+      if (key === SESSION_COOKIE) { token = val; break; }
+    }
+  }
+  if (!token) {
+    res.status(401).json({ error: 'Not authenticated' });
+    return;
+  }
+  const session = db.validateUserSession(token);
+  if (!session) {
+    res.status(401).json({ error: 'Invalid session' });
+    return;
+  }
+  const stats = db.getUserLeaderboardStats(session.user_id);
+  const user = db.getUserById(session.user_id);
+  if (!stats || !user) {
+    res.status(404).json({ error: 'No stats found' });
+    return;
+  }
+  res.json({ ...stats, username: user.username, display_name: user.display_name });
+});
+
 // Auth routes
 app.use('/auth', createAuthRouter(authService, isProduction));
 

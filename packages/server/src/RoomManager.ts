@@ -11,6 +11,7 @@ export type RoomPlayer = {
   disconnectedAt?: number;
   avatar?: string;
   sessionId?: string;
+  userId?: number; // linked auth user ID (undefined for guests/bots)
 };
 
 export type Room = {
@@ -54,7 +55,7 @@ export class RoomManager {
     clearInterval(this.cleanupInterval);
   }
 
-  createRoom(socketId: string, nickname: string, targetScore: number = 1000): { roomCode: string; sessionId: string } | { error: string } {
+  createRoom(socketId: string, nickname: string, targetScore: number = 1000, userId?: number): { roomCode: string; sessionId: string } | { error: string } {
     const nickErr = this.validateNickname(nickname);
     if (nickErr) return { error: nickErr };
     if (targetScore < 250) targetScore = 250;
@@ -78,6 +79,7 @@ export class RoomManager {
       position: 0,
       connected: true,
       sessionId,
+      userId,
     };
     room.players.set(0, player);
     this.socketToRoom.set(socketId, { roomCode: code, position: 0 });
@@ -90,7 +92,8 @@ export class RoomManager {
     socketId: string,
     nickname: string,
     targetScore: number = 1000,
-    difficulty: BotDifficulty = 'medium'
+    difficulty: BotDifficulty = 'medium',
+    userId?: number
   ): { roomCode: string; sessionId: string } | { error: string } {
     const nickErr = this.validateNickname(nickname);
     if (nickErr) return { error: nickErr };
@@ -117,6 +120,7 @@ export class RoomManager {
       position: 0,
       connected: true,
       sessionId,
+      userId,
     };
     room.players.set(0, player);
     this.socketToRoom.set(socketId, { roomCode: code, position: 0 });
@@ -142,7 +146,8 @@ export class RoomManager {
   joinRoom(
     socketId: string,
     roomCode: string,
-    nickname: string
+    nickname: string,
+    userId?: number
   ): { success: true; position: PlayerPosition; sessionId: string } | { error: string } {
     const nickErr = this.validateNickname(nickname);
     if (nickErr) return { error: nickErr };
@@ -189,6 +194,7 @@ export class RoomManager {
       position: openPos,
       connected: true,
       sessionId,
+      userId,
     };
     room.players.set(openPos, player);
     this.socketToRoom.set(socketId, { roomCode: code, position: openPos });

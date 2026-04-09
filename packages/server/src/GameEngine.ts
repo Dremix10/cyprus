@@ -820,6 +820,10 @@ export class GameEngine {
     return engine;
   }
 
+  getRoundHistory() {
+    return this.roundHistory;
+  }
+
   getClientState(position: PlayerPosition, roomCode: string, botPositions?: Set<PlayerPosition>, avatars?: Map<PlayerPosition, string>, disconnected?: Set<PlayerPosition>, isSolo?: boolean): ClientGameState {
     const player = this.state.players[position];
     const iAmOut = player.isOut;
