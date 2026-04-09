@@ -907,7 +907,9 @@ export class SocketHandler {
 
       try {
         const events = action();
+        const gameId = roomGameIds.get(roomCode) || null;
         for (const event of events) {
+          this.db?.logGameEvent(gameId, roomCode, event.type, event.playerPosition ?? null, event.data);
           this.io.to(roomCode).emit('game:event', event);
         }
         this.broadcastGameState(roomCode);

@@ -513,6 +513,126 @@ body {
   padding: 0.5rem;
 }
 
+/* Room row: Create + Join side by side */
+.lobby-room-row {
+  display: flex;
+  gap: 0.5rem;
+  align-items: stretch;
+}
+
+.lobby-room-row .btn-create {
+  flex: 1;
+  font-size: 0.85rem;
+  padding: 0.6rem 0.5rem;
+}
+
+.lobby-join-group {
+  display: flex;
+  flex: 1;
+  gap: 0.35rem;
+}
+
+.input-room-code {
+  width: 70px;
+  flex: 0 0 70px;
+  text-align: center;
+  padding: 0.5rem;
+  font-size: 0.95rem;
+  text-transform: uppercase;
+}
+
+.lobby-join-group .btn-join {
+  flex: 1;
+  font-size: 0.85rem;
+  padding: 0.6rem 0.5rem;
+}
+
+/* Solo row: difficulty + button side by side */
+.lobby-solo-row {
+  display: flex;
+  gap: 0.5rem;
+  align-items: stretch;
+}
+
+.lobby-solo-row .input-select {
+  flex: 1;
+  padding: 0.6rem 0.75rem;
+  font-size: 0.85rem;
+}
+
+.lobby-solo-row .btn-solo-greek {
+  flex: 1;
+  font-size: 0.85rem;
+  padding: 0.6rem 0.5rem;
+}
+
+/* Tertiary links */
+.lobby-links {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 0.75rem;
+  margin-top: 0.25rem;
+}
+
+.lobby-link {
+  color: rgba(201, 168, 76, 0.6);
+  font-size: 0.85rem;
+  font-family: 'Inter', system-ui, sans-serif;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  text-decoration: none;
+}
+
+.lobby-link:hover {
+  color: #c9a84c;
+  text-decoration: underline;
+}
+
+.lobby-link-sep {
+  color: rgba(201, 168, 76, 0.25);
+  font-size: 0.8rem;
+}
+
+/* Sub-views (Create Room / Solo) */
+.lobby-subview {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+  align-items: center;
+}
+
+.lobby-subview-title {
+  color: var(--gold);
+  font-family: 'Cinzel', serif;
+  font-size: 1.1rem;
+  margin: 0;
+}
+
+.lobby-subview .btn-create,
+.lobby-subview .btn-solo-greek {
+  width: 100%;
+}
+
+.lobby-subview .input-select {
+  width: 100%;
+}
+
+.lobby-back {
+  color: rgba(201, 168, 76, 0.5);
+  font-size: 0.85rem;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+}
+
+.lobby-back:hover {
+  color: #c9a84c;
+}
+
 .solo-section {
   display: flex;
   flex-direction: column;
@@ -3034,6 +3154,20 @@ body {
 
   .your-turn {
     font-size: 0.8rem;
+  }
+
+  .lobby-room-row {
+    flex-direction: column;
+  }
+
+  .lobby-join-group {
+    flex-direction: row;
+  }
+
+  .lobby-solo-row .input-select,
+  .lobby-solo-row .btn-solo-greek {
+    font-size: 0.8rem;
+    padding: 0.5rem;
   }
 }
 
