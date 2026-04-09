@@ -486,43 +486,14 @@ function PlayingLayout({
   const [bombShake, setBombShake] = useState(false);
   const [trickCollecting, setTrickCollecting] = useState(false);
 
-  // Wish enforcement: auto-play single or pre-select wished card for straights
+  // Wish enforcement: clear selection when wish is active so player can choose freely
+  // The "Wish active — you must play!" label and disabled pass button guide the player.
+  // Server validates that the played combo includes the wished rank.
   useEffect(() => {
     if (!gameState || gameState.currentPlayer !== gameState.myPosition) return;
     if (!gameState.wish.active || gameState.wish.wishedRank === null) return;
-    const trick = gameState.currentTrick;
-    if (trick.plays.length === 0) return; // leading, not following
-
-    const trickType = trick.plays[0].combination.type;
-    const wishedRank = gameState.wish.wishedRank;
-    const hand = gameState.myHand;
-
-    // Check if player has the wished rank
-    const wishedCard = hand.find(
-      (c) => c.type === 'normal' && c.rank === wishedRank
-    );
-    if (!wishedCard) return; // don't have it, nothing to enforce
-
-    // Check if there are valid plays containing the wished rank
-    const currentTop = trick.plays[trick.plays.length - 1].combination;
-    const playable = findPlayableFromHand(hand, currentTop, gameState.wish);
-    const hasWishPlay = playable.some((cards) =>
-      cards.some((c) => c.type === 'normal' && c.rank === wishedRank)
-    );
-    if (!hasWishPlay) return; // can't play wished rank in a valid combo
-
-    if (trickType === CombinationType.SINGLE) {
-      // Pre-select the wished card, user must click Play (can call Tichu first)
-      const singlePlay = playable.find(
-        (cards) => cards.length === 1 && cards.some((c) => c.type === 'normal' && c.rank === wishedRank)
-      );
-      if (singlePlay) {
-        setSelectedCards(new Set([singlePlay[0].id]));
-      }
-    } else if (trickType === CombinationType.STRAIGHT || trickType === CombinationType.STRAIGHT_FLUSH_BOMB) {
-      // Pre-select the wished card, let user pick the rest
-      setSelectedCards(new Set([wishedCard.id]));
-    }
+    // Clear any stale selection so the player starts fresh
+    setSelectedCards(new Set());
   }, [gameState?.currentPlayer, gameState?.wish.active, gameState?.wish.wishedRank]);
 
   // Bomb shake effect
@@ -557,25 +528,6 @@ function PlayingLayout({
   // Track which players passed in the current trick
   const passedSet = new Set(gameState.currentTrick.passedPlayers ?? []);
 
-  // Locked cards: wished card that's pre-selected can't be deselected
-  const lockedCards = (() => {
-    if (!isMyTurn || !gameState.wish.active || !gameState.wish.wishedRank) return undefined;
-    const trick = gameState.currentTrick;
-    if (trick.plays.length === 0) return undefined;
-    const trickType = trick.plays[0].combination.type;
-    if (trickType !== CombinationType.SINGLE && trickType !== CombinationType.STRAIGHT && trickType !== CombinationType.STRAIGHT_FLUSH_BOMB) return undefined;
-    const wishedCard = gameState.myHand.find(
-      (c) => c.type === 'normal' && c.rank === gameState.wish.wishedRank
-    );
-    if (!wishedCard) return undefined;
-    const currentTop = trick.plays[trick.plays.length - 1].combination;
-    const playable = findPlayableFromHand(gameState.myHand, currentTop, gameState.wish);
-    const hasWishPlay = playable.some((cards) =>
-      cards.some((c) => c.type === 'normal' && c.rank === gameState.wish.wishedRank)
-    );
-    if (!hasWishPlay) return undefined;
-    return new Set([wishedCard.id]);
-  })();
 
   // Whether the wish forces the player to play (blocks pass button)
   const wishForcesPlay = (() => {
@@ -680,7 +632,7 @@ function PlayingLayout({
           cards={gameState.myHand}
           selectedCards={selectedCards}
           onToggle={toggleCard}
-          lockedCards={lockedCards}
+          lockedCards={undefined}
           receivedCards={gameState.receivedCards}
         />
         {myInfo.collectedCards > 0 && (

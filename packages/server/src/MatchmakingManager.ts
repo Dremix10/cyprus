@@ -109,8 +109,8 @@ export class MatchmakingManager {
   }
 
   private createMatch(players: QueueEntry[]): void {
-    // Use the most common target score, or default to 1000
-    const targetScore = this.mostCommonScore(players);
+    // Online matches are always 500 points for shorter games
+    const targetScore = 500;
 
     // First player creates the room
     const creator = players[0];
@@ -179,19 +179,4 @@ export class MatchmakingManager {
     }
   }
 
-  private mostCommonScore(players: QueueEntry[]): number {
-    const counts = new Map<number, number>();
-    for (const p of players) {
-      counts.set(p.targetScore, (counts.get(p.targetScore) || 0) + 1);
-    }
-    let best = 1000;
-    let bestCount = 0;
-    for (const [score, count] of counts) {
-      if (count > bestCount) {
-        best = score;
-        bestCount = count;
-      }
-    }
-    return best;
-  }
 }
