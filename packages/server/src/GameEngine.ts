@@ -839,6 +839,7 @@ export class GameEngine {
         cardCount: p.hand.length,
         collectedCards: p.wonTricks.reduce((sum, t) => sum + t.length, 0),
         hasPassed: p.passedCards !== null,
+        grandTichuDecided: p.grandTichuDecided,
         tichuCall: p.tichuCall,
         isOut: p.isOut,
         finishOrder: p.finishOrder,

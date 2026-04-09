@@ -32,6 +32,7 @@ interface RoomStore {
   roomState: RoomState | null;
   error: string | null;
   reconnecting: boolean;
+  staleSession: { roomCode: string; nickname: string } | null;
   queueInfo: { playersInQueue: number; elapsed: number } | null;
 
   setNickname: (name: string) => void;
@@ -42,6 +43,7 @@ interface RoomStore {
   joinMatchmaking: () => Promise<void>;
   leaveMatchmaking: () => void;
   trySessionReconnect: () => Promise<boolean>;
+  dismissStaleSession: () => void;
   sitAt: (position: PlayerPosition) => void;
   startGame: () => void;
   setView: (view: RoomView) => void;
@@ -59,6 +61,7 @@ export const useRoomStore = create<RoomStore>((set, get) => ({
   roomState: null,
   error: null,
   reconnecting: false,
+  staleSession: null,
   queueInfo: null,
 
   setNickname: (name) => set({ nickname: name }),
@@ -188,29 +191,35 @@ export const useRoomStore = create<RoomStore>((set, get) => ({
 
       if (!socket.connected) socket.connect();
 
+      const maxAttempts = 5;
+      const timeoutMs = 12_000;
+
       const doReconnect = (attempt: number) => {
-        // Timeout: if server never responds, fall back to lobby
         const timeout = setTimeout(() => {
-          if (attempt < 2) {
+          if (attempt < maxAttempts - 1) {
             doReconnect(attempt + 1);
           } else {
-            clearSession();
-            set({ reconnecting: false });
+            // Don't clear session — store as stale so lobby can show reconnect button
+            set({
+              reconnecting: false,
+              staleSession: { roomCode: session.roomCode, nickname: session.nickname },
+            });
             resolve(false);
           }
-        }, 8_000);
+        }, timeoutMs);
 
-        // Wait for socket to be connected before emitting
         const emitReconnect = () => {
           socket.emit('session:reconnect', session.sessionId, (response) => {
             clearTimeout(timeout);
             if ('error' in response) {
-              if (attempt < 2) {
-                // Retry once after a short delay
+              if (attempt < maxAttempts - 1) {
                 setTimeout(() => doReconnect(attempt + 1), 1000);
               } else {
-                clearSession();
-                set({ reconnecting: false });
+                // Keep session in localStorage for manual retry
+                set({
+                  reconnecting: false,
+                  staleSession: { roomCode: session.roomCode, nickname: session.nickname },
+                });
                 resolve(false);
               }
               return;
@@ -221,6 +230,7 @@ export const useRoomStore = create<RoomStore>((set, get) => ({
               view: response.hasGame ? 'game' : 'waiting',
               error: null,
               reconnecting: false,
+              staleSession: null,
             });
             resolve(true);
           });
@@ -235,6 +245,11 @@ export const useRoomStore = create<RoomStore>((set, get) => ({
 
       doReconnect(0);
     });
+  },
+
+  dismissStaleSession: () => {
+    clearSession();
+    set({ staleSession: null });
   },
 
   sitAt: (position) => {

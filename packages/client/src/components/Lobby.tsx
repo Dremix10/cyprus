@@ -62,6 +62,9 @@ export function Lobby({ onTutorial, onLeaderboard }: { onTutorial: () => void; o
   const joinRoom = useRoomStore((s) => s.joinRoom);
   const joinMatchmaking = useRoomStore((s) => s.joinMatchmaking);
   const error = useRoomStore((s) => s.error);
+  const staleSession = useRoomStore((s) => s.staleSession);
+  const trySessionReconnect = useRoomStore((s) => s.trySessionReconnect);
+  const dismissStaleSession = useRoomStore((s) => s.dismissStaleSession);
 
   const authUser = useAuthStore((s) => s.user);
   const authLoading = useAuthStore((s) => s.loading);
@@ -94,6 +97,19 @@ export function Lobby({ onTutorial, onLeaderboard }: { onTutorial: () => void; o
         </div>
 
         <div className="lobby-form-card">
+          {staleSession && (
+            <div className="reconnect-banner">
+              <p>You were in room <strong>{staleSession.roomCode}</strong></p>
+              <div className="reconnect-actions">
+                <button className="btn btn-olympus btn-reconnect" onClick={trySessionReconnect}>
+                  Reconnect
+                </button>
+                <button className="btn-link reconnect-dismiss" onClick={dismissStaleSession}>
+                  Dismiss
+                </button>
+              </div>
+            </div>
+          )}
           {authUser && <UserBadge />}
           <div className="lobby-form">
             {authLoading ? (
