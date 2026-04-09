@@ -74,6 +74,7 @@ export function GameBoard() {
   }
 
   const rel = getRelativePositions(gameState.myPosition);
+  const myTeam = gameState.myPosition % 2 === 0 ? 0 : 1;
   const hasHistory = gameState.roundHistory && gameState.roundHistory.length > 0;
 
   return (
@@ -85,7 +86,7 @@ export function GameBoard() {
       )}
       <div className="game-info">
         <span className="name-teammate">
-          Team A: {gameState.scores[0]} / {gameState.targetScore}
+          {myTeam === 0 ? 'Your Team' : 'Opponents'}: {gameState.scores[0]} / {gameState.targetScore}
         </span>
         <span className="phase-label">
           {roomCode && <span className="room-code-badge">{roomCode}</span>}
@@ -101,7 +102,7 @@ export function GameBoard() {
           </button>
         </span>
         <span className="name-opponent">
-          Team B: {gameState.scores[1]} / {gameState.targetScore}
+          {myTeam === 1 ? 'Your Team' : 'Opponents'}: {gameState.scores[1]} / {gameState.targetScore}
         </span>
       </div>
 
@@ -485,6 +486,7 @@ function PlayingLayout({
   const [tichuConfirm, setTichuConfirm] = useState(false);
   const [bombShake, setBombShake] = useState(false);
   const [trickCollecting, setTrickCollecting] = useState(false);
+  const [playerOutName, setPlayerOutName] = useState<string | null>(null);
 
   // Wish enforcement: clear selection when wish is active so player can choose freely
   // The "Wish active — you must play!" label and disabled pass button guide the player.
@@ -510,6 +512,17 @@ function PlayingLayout({
     if (lastEvent?.type === 'TRICK_WON') {
       setTrickCollecting(true);
       const t = setTimeout(() => setTrickCollecting(false), 400);
+      return () => clearTimeout(t);
+    }
+  }, [lastEvent]);
+
+  // Player out animation
+  useEffect(() => {
+    if (lastEvent?.type === 'PLAYER_OUT' && lastEvent.playerPosition !== undefined) {
+      const name = gameState.players[lastEvent.playerPosition]?.nickname ?? 'Player';
+      const order = gameState.players[lastEvent.playerPosition]?.finishOrder;
+      setPlayerOutName(`${name} is out! #${order}`);
+      const t = setTimeout(() => setPlayerOutName(null), 2000);
       return () => clearTimeout(t);
     }
   }, [lastEvent]);
@@ -576,18 +589,24 @@ function PlayingLayout({
           )}
           {gameState.currentTrick.plays.length > 0 ? (
             <div className="trick-cards">
-              {gameState.currentTrick.plays.slice(-2).map((play, i) => (
-                <div key={i} className="trick-play">
-                  <span className={`trick-player ${isTeammate(play.playerPosition) ? 'name-teammate' : 'name-opponent'}`}>
-                    {gameState.players[play.playerPosition]?.nickname}
-                  </span>
-                  <div className="trick-combo">
-                    {sortForDisplay(play.combination).map((c) => (
-                      <CardComponent key={c.id} card={c} size="small" />
-                    ))}
+              {gameState.currentTrick.plays.slice(-2).map((play, i, arr) => {
+                const isWinning = play.playerPosition === gameState.currentTrick.currentWinner;
+                const isLatest = i === arr.length - 1;
+                const isOlder = !isLatest;
+                return (
+                  <div key={i} className={`trick-play ${isWinning ? 'trick-play-winning' : ''} ${isOlder ? 'trick-play-older' : ''} ${isLatest ? 'trick-play-latest' : ''}`}>
+                    <span className={`trick-player ${isTeammate(play.playerPosition) ? 'name-teammate' : 'name-opponent'}`}>
+                      {gameState.players[play.playerPosition]?.nickname}
+                      {isWinning && <span className="trick-winner-icon" title="Winning">★</span>}
+                    </span>
+                    <div className={`trick-combo ${play.combination.cards.length >= 6 ? 'trick-combo-long' : ''}`}>
+                      {sortForDisplay(play.combination).map((c) => (
+                        <CardComponent key={c.id} card={c} size="small" />
+                      ))}
+                    </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           ) : (
             <span className="no-trick">
@@ -604,6 +623,11 @@ function PlayingLayout({
           hasPassed={passedSet.has(rel.right)}
         />
       </div>
+
+      {/* Player out announcement */}
+      {playerOutName && (
+        <div className="player-out-toast">{playerOutName}</div>
+      )}
 
       {/* Turn indicator */}
       <div className="turn-indicator">
@@ -627,6 +651,9 @@ function PlayingLayout({
           <span className={`tichu-badge ${myInfo.tichuCall === 'grand_tichu' ? 'tichu-badge-grand' : ''}`}>
             {myInfo.tichuCall === 'grand_tichu' ? 'GRAND TICHU' : 'TICHU'}
           </span>
+        )}
+        {myInfo?.isOut && myInfo.finishOrder !== null && (
+          <span className="my-finish-badge">#{myInfo.finishOrder}</span>
         )}
         <PlayerHand
           cards={gameState.myHand}
@@ -732,10 +759,10 @@ function PointCards({ cards, team }: { cards: Card[]; team: string }) {
   );
 }
 
-function ScoreBreakdown({ breakdown, players }: { breakdown: RoundScoreBreakdown; players: { position: number; nickname: string }[] }) {
+function ScoreBreakdown({ breakdown, players, myTeam }: { breakdown: RoundScoreBreakdown; players: { position: number; nickname: string }[]; myTeam: number }) {
   const getName = (pos: number) => players[pos]?.nickname ?? `Player ${pos}`;
-  const teamName = (t: 0 | 1) => t === 0 ? 'Team A' : 'Team B';
-  const teamClass = (t: 0 | 1) => t === 0 ? 'name-teammate' : 'name-opponent';
+  const teamName = (t: 0 | 1) => t === myTeam ? 'Your Team' : 'Opponents';
+  const teamClass = (t: 0 | 1) => t === myTeam ? 'name-teammate' : 'name-opponent';
 
   return (
     <div className="breakdown">
@@ -768,28 +795,29 @@ function ScoreBreakdown({ breakdown, players }: { breakdown: RoundScoreBreakdown
 function ScoringView() {
   const gameState = useGameStore((s) => s.gameState)!;
   const nextRound = useGameStore((s) => s.nextRound);
+  const myTeam = gameState.myPosition % 2 === 0 ? 0 : 1;
 
   return (
     <div className="scoring-layout">
       {gameState.roundTrickCards && (
-        <PointCards cards={gameState.roundTrickCards[0]} team="Team A" />
+        <PointCards cards={gameState.roundTrickCards[0]} team={myTeam === 0 ? 'Your Team' : 'Opponents'} />
       )}
 
       <div className="phase-view">
         <h3>Round Over</h3>
 
         {gameState.roundBreakdown && (
-          <ScoreBreakdown breakdown={gameState.roundBreakdown} players={gameState.players} />
+          <ScoreBreakdown breakdown={gameState.roundBreakdown} players={gameState.players} myTeam={myTeam} />
         )}
 
         <div className="scores">
           <div className="score-row">
-            <span className="score-team name-teammate">Team A</span>
+            <span className="score-team name-teammate">{myTeam === 0 ? 'Your Team' : 'Opponents'}</span>
             <span className="score-round">+{gameState.roundScores[0]}</span>
             <span className="score-total">{gameState.scores[0]}</span>
           </div>
           <div className="score-row">
-            <span className="score-team name-opponent">Team B</span>
+            <span className="score-team name-opponent">{myTeam === 1 ? 'Your Team' : 'Opponents'}</span>
             <span className="score-round">+{gameState.roundScores[1]}</span>
             <span className="score-total">{gameState.scores[1]}</span>
           </div>
@@ -805,7 +833,7 @@ function ScoringView() {
       </div>
 
       {gameState.roundTrickCards && (
-        <PointCards cards={gameState.roundTrickCards[1]} team="Team B" />
+        <PointCards cards={gameState.roundTrickCards[1]} team={myTeam === 1 ? 'Your Team' : 'Opponents'} />
       )}
     </div>
   );
@@ -813,26 +841,76 @@ function ScoringView() {
 
 function GameOverView() {
   const gameState = useGameStore((s) => s.gameState)!;
-  const winner = gameState.scores[0] >= gameState.targetScore ? 'Team A' : 'Team B';
+  const reset = useRoomStore((s) => s.reset);
+  const myTeam = gameState.myPosition % 2 === 0 ? 0 : 1;
+  const winnerTeam = gameState.scores[0] >= gameState.targetScore ? 0 : 1;
+  const iWon = winnerTeam === myTeam;
+
+  // Find finish order details
+  const finishPlayers = gameState.finishOrder.map((pos, i) => ({
+    position: pos,
+    nickname: gameState.players[pos]?.nickname ?? `Player ${pos}`,
+    order: i + 1,
+    isTeammate: pos % 2 === myTeam % 2,
+  }));
+
+  // Tichu results
+  const tichuCallers = gameState.players.filter((p) => p.tichuCall !== 'none');
 
   return (
-    <div className="phase-view">
-      <h3>Game Over!</h3>
-      <p className="winner">{winner} wins!</p>
+    <div className={`phase-view game-over-view ${iWon ? 'game-over-win' : 'game-over-loss'}`}>
+      <div className="game-over-banner">
+        <h2 className={iWon ? 'winner' : 'loser'}>{iWon ? 'Victory!' : 'Defeat'}</h2>
+        <p className="game-over-subtitle">
+          {iWon ? 'Your team wins!' : 'Opponents win!'}
+        </p>
+      </div>
+
       <div className="scores">
         <div className="score-row">
-          <span className="score-team name-teammate">Team A</span>
+          <span className="score-team name-teammate">{myTeam === 0 ? 'Your Team' : 'Opponents'}</span>
           <span className="score-total">{gameState.scores[0]}</span>
         </div>
         <div className="score-row">
-          <span className="score-team name-opponent">Team B</span>
+          <span className="score-team name-opponent">{myTeam === 1 ? 'Your Team' : 'Opponents'}</span>
           <span className="score-total">{gameState.scores[1]}</span>
         </div>
       </div>
 
+      {finishPlayers.length > 0 && (
+        <div className="game-over-finish">
+          <h4>Finish Order</h4>
+          <div className="finish-list">
+            {finishPlayers.map((p) => (
+              <div key={p.position} className={`finish-entry ${p.isTeammate ? 'name-teammate' : 'name-opponent'}`}>
+                <span className="finish-order">#{p.order}</span>
+                <span>{p.nickname}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {tichuCallers.length > 0 && (
+        <div className="game-over-tichu">
+          {tichuCallers.map((p) => (
+            <div key={p.position} className="tichu-result-entry">
+              <span>{p.nickname}</span>
+              <span className={`tichu-badge ${p.tichuCall === 'grand_tichu' ? 'tichu-badge-grand' : ''}`}>
+                {p.tichuCall === 'grand_tichu' ? 'GRAND TICHU' : 'TICHU'}
+              </span>
+            </div>
+          ))}
+        </div>
+      )}
+
       {gameState.roundHistory && gameState.roundHistory.length > 0 && (
         <ScoreHistory history={gameState.roundHistory} />
       )}
+
+      <button className="btn btn-primary btn-play-again" onClick={reset}>
+        Back to Lobby
+      </button>
     </div>
   );
 }

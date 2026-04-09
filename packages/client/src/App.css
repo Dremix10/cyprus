@@ -1837,6 +1837,18 @@ body {
   gap: 2px;
 }
 
+.trick-combo-long {
+  gap: 0;
+}
+
+.trick-combo-long .card-sm {
+  margin-left: -14px;
+}
+
+.trick-combo-long .card-sm:first-child {
+  margin-left: 0;
+}
+
 .no-trick {
   color: var(--text-muted);
   font-style: italic;
@@ -1974,10 +1986,159 @@ body {
 }
 
 .winner {
-  font-size: 1.5rem;
+  font-size: 2rem;
   font-weight: 700;
   color: var(--success);
-  animation: badge-pop 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+  animation: winner-entrance 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
+  text-shadow: 0 0 20px rgba(46, 204, 113, 0.4);
+}
+
+.loser {
+  font-size: 1.8rem;
+  font-weight: 700;
+  color: var(--primary);
+  animation: badge-pop 0.4s ease-out;
+}
+
+@keyframes winner-entrance {
+  0% { opacity: 0; transform: scale(0.3) rotate(-5deg); }
+  60% { transform: scale(1.15) rotate(2deg); }
+  100% { opacity: 1; transform: scale(1) rotate(0); }
+}
+
+/* ─── Game Over Screen ─────────────────── */
+
+.game-over-view {
+  padding: 1.5rem;
+  gap: 1.25rem;
+}
+
+.game-over-win {
+  background: radial-gradient(ellipse at center, rgba(46, 204, 113, 0.06) 0%, transparent 70%);
+}
+
+.game-over-loss {
+  background: radial-gradient(ellipse at center, rgba(233, 69, 96, 0.04) 0%, transparent 70%);
+}
+
+.game-over-banner {
+  text-align: center;
+}
+
+.game-over-subtitle {
+  color: var(--text-muted);
+  font-size: 0.9rem;
+  margin-top: 0.25rem;
+}
+
+.game-over-finish {
+  background: var(--surface);
+  border-radius: 10px;
+  padding: 0.75rem 1.25rem;
+  width: 100%;
+  max-width: 320px;
+}
+
+.game-over-finish h4 {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: var(--text-muted);
+  margin-bottom: 0.5rem;
+}
+
+.finish-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.finish-entry {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.9rem;
+  font-weight: 500;
+}
+
+.finish-order {
+  font-weight: 700;
+  font-size: 1rem;
+  min-width: 24px;
+}
+
+.game-over-tichu {
+  display: flex;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.tichu-result-entry {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
+
+.btn-play-again {
+  margin-top: 0.5rem;
+  font-size: 1rem;
+  padding: 0.6rem 2rem;
+}
+
+/* ─── Trick Winner Highlight ─────────── */
+
+.trick-play-winning {
+}
+
+.trick-winner-icon {
+  color: var(--warning);
+  margin-left: 0.25rem;
+  font-size: 0.7rem;
+}
+
+.trick-play-older {
+  opacity: 0.5;
+  transform: scale(0.85);
+  transform-origin: center;
+}
+
+.trick-play-latest {
+  animation: trick-slide-in 0.25s ease-out;
+}
+
+/* ─── My Finish Badge ────────────────── */
+
+.my-finish-badge {
+  background: var(--success);
+  color: #333;
+  padding: 0.2rem 0.5rem;
+  border-radius: 6px;
+  font-size: 0.8rem;
+  font-weight: 700;
+  animation: badge-pop 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+/* ─── Player Out Toast ───────────────── */
+
+.player-out-toast {
+  text-align: center;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--success);
+  background: rgba(46, 204, 113, 0.1);
+  border: 1px solid rgba(46, 204, 113, 0.25);
+  padding: 0.3rem 1rem;
+  border-radius: 8px;
+  animation: player-out-pop 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+@keyframes player-out-pop {
+  0% { opacity: 0; transform: scale(0.5) translateY(10px); }
+  60% { transform: scale(1.1) translateY(-2px); }
+  100% { opacity: 1; transform: scale(1) translateY(0); }
 }
 
 /* ─── Pass Preview ─────────────────────── */
@@ -2819,6 +2980,10 @@ body {
 
   .confirm-label {
     font-size: 0.7rem;
+  }
+
+  .trick-combo-long .card-sm {
+    margin-left: -16px;
   }
 
   .wish-indicator {
