@@ -63,11 +63,18 @@ Players get a `sessionId` (UUID v4) on create/join, stored in localStorage. On p
 
 - **AuthService** (`AuthService.ts`): scrypt password hashing (N=16384, r=8, p=1), account lockout, session management
 - **AuthRoutes** (`AuthRoutes.ts`): REST endpoints at `/auth/*` with HttpOnly cookie sessions
-- **Endpoints**: POST `/auth/register`, `/auth/login`, `/auth/logout`, `/auth/change-password`, `/auth/delete-account`; GET `/auth/me`
-- **Client**: `authStore.ts` (Zustand), `AuthForms.tsx` (login/register), `UserBadge` component
+- **Endpoints**: POST `/auth/register`, `/auth/login`, `/auth/logout`, `/auth/change-password`, `/auth/delete-account`, `/auth/google`, `/auth/forgot-password`, `/auth/reset-password`; GET `/auth/me`, `/auth/google-client-id`
+- **Google Sign-In**: server verifies ID token via `google-auth-library`, auto-creates/links accounts by email
+- **Forgot password**: generates hashed reset token (SHA-256), sends email via nodemailer, token valid 1 hour
+- **Client**: `authStore.ts` (Zustand), `AuthForms.tsx` (login/register/forgot/reset/Google), `UserBadge` component
 - **Guest play**: preserved — auth is optional, guests play without accounts
 - **Socket auth**: middleware reads auth cookie from handshake, attaches `socket.data.userId`/`socket.data.displayName`
-- **DB tables**: `users` (id, username, display_name, password_hash, lockout fields), `user_sessions` (token, user_id, expires_at)
+- **DB tables**: `users` (id, username, display_name, password_hash, email, google_id, lockout fields), `user_sessions`, `password_reset_tokens`
+- **Env vars for auth features**:
+  - `GOOGLE_CLIENT_ID` — Google OAuth client ID (from Google Cloud Console → APIs & Services → Credentials → OAuth 2.0 Client ID for Web)
+  - `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS` — SMTP credentials for password reset emails
+  - `SMTP_FROM` — sender email address (defaults to SMTP_USER)
+  - `APP_URL` — base URL for reset links (defaults to `http://165.245.175.45`)
 
 ## Security
 

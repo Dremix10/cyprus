@@ -1,4 +1,4 @@
-import { scrypt, randomBytes, timingSafeEqual } from 'node:crypto';
+import { scrypt, randomBytes, timingSafeEqual, createHash } from 'node:crypto';
 import type { TrackerDB } from './Database.js';
 import type { AuthUser } from '@cyprus/shared';
 
@@ -14,8 +14,6 @@ function scryptAsync(
 }
 
 // ─── Scrypt Parameters ─────────────────────────────────────────────
-// N=16384, r=8, p=1 — OWASP recommended minimum for scrypt
-// 32-byte salt, 64-byte derived key
 const SCRYPT_N = 16384;
 const SCRYPT_R = 8;
 const SCRYPT_P = 1;
@@ -34,6 +32,8 @@ const USERNAME_MAX_LENGTH = 20;
 const DISPLAY_NAME_MAX_LENGTH = 20;
 const USERNAME_REGEX = /^[a-zA-Z0-9_]+$/;
 const DISPLAY_NAME_REGEX = /^[\w\s\-\u00C0-\u024F]+$/;
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const RESET_TOKEN_EXPIRY_MINUTES = 60;
 
 // ─── Password Hashing ──────────────────────────────────────────────
 
@@ -42,28 +42,27 @@ async function hashPassword(password: string): Promise<string> {
   const derived = await scryptAsync(password, salt, KEY_LENGTH, {
     N: SCRYPT_N, r: SCRYPT_R, p: SCRYPT_P,
   }) as Buffer;
-  // Format: scrypt$N$r$p$salt_hex$hash_hex
   return `scrypt$${SCRYPT_N}$${SCRYPT_R}$${SCRYPT_P}$${salt.toString('hex')}$${derived.toString('hex')}`;
 }
 
 async function verifyPassword(password: string, stored: string): Promise<boolean> {
   const parts = stored.split('$');
   if (parts.length !== 6 || parts[0] !== 'scrypt') return false;
-
   const N = parseInt(parts[1], 10);
   const r = parseInt(parts[2], 10);
   const p = parseInt(parts[3], 10);
   const salt = Buffer.from(parts[4], 'hex');
   const expectedHash = Buffer.from(parts[5], 'hex');
-
   const derived = await scryptAsync(password, salt, expectedHash.length, { N, r, p }) as Buffer;
-
-  // Timing-safe comparison prevents timing attacks
   try {
     return timingSafeEqual(derived, expectedHash);
   } catch {
     return false;
   }
+}
+
+function hashToken(token: string): string {
+  return createHash('sha256').update(token).digest('hex');
 }
 
 // ─── Input Validation ──────────────────────────────────────────────
@@ -93,66 +92,109 @@ function validateDisplayName(displayName: string): string | null {
   return null;
 }
 
+function validateEmail(email: string): string | null {
+  if (!email || typeof email !== 'string') return 'Email is required';
+  const trimmed = email.trim().toLowerCase();
+  if (trimmed.length > 254) return 'Email is too long';
+  if (!EMAIL_REGEX.test(trimmed)) return 'Invalid email address';
+  return null;
+}
+
+// ─── Helpers ────────────────────────────────────────────────────────
+
+type UserRow = NonNullable<ReturnType<TrackerDB['getUserByUsername']>>;
+
+function buildAuthUser(user: { id: number; username: string; display_name: string; created_at: string; email?: string | null; password_hash?: string | null; google_id?: string | null }, stats: { games_played: number; games_won: number }): AuthUser {
+  return {
+    id: user.id,
+    username: user.username,
+    displayName: user.display_name,
+    email: user.email ?? null,
+    hasPassword: !!user.password_hash,
+    hasGoogle: !!user.google_id,
+    createdAt: user.created_at,
+    gamesPlayed: stats.games_played,
+    gamesWon: stats.games_won,
+  };
+}
+
 // ─── Auth Service ──────────────────────────────────────────────────
 
 export class AuthService {
   constructor(private db: TrackerDB) {}
 
+  private createSessionForUser(userId: number, ip: string | null, userAgent: string | null): string {
+    const sessionCount = this.db.countUserSessions(userId);
+    if (sessionCount >= MAX_SESSIONS_PER_USER) {
+      this.db.pruneOldestUserSessions(userId, MAX_SESSIONS_PER_USER - 1);
+    }
+    const token = randomBytes(32).toString('hex');
+    this.db.createUserSession(token, userId, SESSION_EXPIRY_HOURS, ip, userAgent);
+    return token;
+  }
+
+  // ─── Register ───────────────────────────────────────────────────
+
   async register(
     username: string,
     password: string,
-    displayName: string
+    displayName: string,
+    email: string
   ): Promise<{ user: AuthUser } | { error: string; field?: string }> {
-    // Validate inputs
     const usernameErr = validateUsername(username);
     if (usernameErr) return { error: usernameErr, field: 'username' };
-
     const passwordErr = validatePassword(password);
     if (passwordErr) return { error: passwordErr, field: 'password' };
-
     const displayErr = validateDisplayName(displayName);
     if (displayErr) return { error: displayErr, field: 'displayName' };
+    const emailErr = validateEmail(email);
+    if (emailErr) return { error: emailErr, field: 'email' };
 
-    // Check if username is taken
-    const existing = this.db.getUserByUsername(username.trim());
-    if (existing) return { error: 'Username is already taken', field: 'username' };
+    const normalizedEmail = email.trim().toLowerCase();
 
-    // Hash password and create user
+    if (this.db.getUserByUsername(username.trim())) {
+      return { error: 'Username is already taken', field: 'username' };
+    }
+    if (this.db.getUserByEmail(normalizedEmail)) {
+      return { error: 'An account with this email already exists', field: 'email' };
+    }
+
     const hash = await hashPassword(password);
-    const userId = this.db.createUser(username.trim(), displayName.trim(), hash);
+    const userId = this.db.createUser(username.trim(), displayName.trim(), hash, normalizedEmail);
 
     const stats = this.db.getUserGameStats(userId);
-    return {
-      user: {
-        id: userId,
-        username: username.trim(),
-        displayName: displayName.trim(),
-        createdAt: new Date().toISOString(),
-        gamesPlayed: stats.games_played,
-        gamesWon: stats.games_won,
-      },
-    };
+    return { user: buildAuthUser({ id: userId, username: username.trim(), display_name: displayName.trim(), created_at: new Date().toISOString(), email: normalizedEmail, password_hash: hash, google_id: null }, stats) };
   }
 
+  // ─── Login (username or email) ──────────────────────────────────
+
   async login(
-    username: string,
+    identifier: string,
     password: string,
     ip: string | null,
     userAgent: string | null
   ): Promise<{ user: AuthUser; token: string } | { error: string }> {
-    // Validate inputs (generic errors — don't reveal which field is wrong)
-    if (!username?.trim() || !password) {
+    if (!identifier?.trim() || !password) {
       return { error: 'Invalid credentials' };
     }
 
-    const user = this.db.getUserByUsername(username.trim());
+    // Try username first, then email
+    const trimmed = identifier.trim();
+    let user: UserRow | undefined = this.db.getUserByUsername(trimmed);
+    if (!user && trimmed.includes('@')) {
+      user = this.db.getUserByEmail(trimmed.toLowerCase());
+    }
+
     if (!user) {
-      // Perform a dummy hash to prevent timing-based user enumeration
-      await hashPassword(password);
+      await hashPassword(password); // timing-safe: prevent user enumeration
       return { error: 'Invalid credentials' };
     }
 
-    // Check account lockout
+    if (!user.password_hash) {
+      return { error: 'This account uses Google Sign-In. Please sign in with Google' };
+    }
+
+    // Check lockout
     if (user.locked_until) {
       const lockedUntil = new Date(user.locked_until + 'Z').getTime();
       if (Date.now() < lockedUntil) {
@@ -161,7 +203,6 @@ export class AuthService {
       }
     }
 
-    // Verify password
     const valid = await verifyPassword(password, user.password_hash);
     if (!valid) {
       const attempts = user.failed_login_attempts + 1;
@@ -173,31 +214,98 @@ export class AuthService {
       return { error: 'Invalid credentials' };
     }
 
-    // Success — reset failures and create session
     this.db.recordLoginSuccess(user.id);
+    const token = this.createSessionForUser(user.id, ip, userAgent);
+    const stats = this.db.getUserGameStats(user.id);
+    return { token, user: buildAuthUser(user, stats) };
+  }
 
-    // Enforce max sessions per user (prune oldest if needed)
-    const sessionCount = this.db.countUserSessions(user.id);
-    if (sessionCount >= MAX_SESSIONS_PER_USER) {
-      this.db.pruneOldestUserSessions(user.id, MAX_SESSIONS_PER_USER - 1);
+  // ─── Google Sign-In ─────────────────────────────────────────────
+
+  async loginWithGoogle(
+    googleId: string,
+    email: string,
+    name: string,
+    ip: string | null,
+    userAgent: string | null
+  ): Promise<{ user: AuthUser; token: string }> {
+    const normalizedEmail = email.trim().toLowerCase();
+
+    // Check if Google account is already linked
+    let user = this.db.getUserByGoogleId(googleId);
+
+    if (!user) {
+      // Check if email matches an existing account — link it
+      user = this.db.getUserByEmail(normalizedEmail);
+      if (user) {
+        this.db.linkGoogleAccount(user.id, googleId, normalizedEmail);
+      }
+    }
+
+    if (!user) {
+      // Create new account from Google profile
+      // Generate a unique username from the email prefix
+      let baseUsername = normalizedEmail.split('@')[0].replace(/[^a-zA-Z0-9_]/g, '_');
+      if (baseUsername.length < USERNAME_MIN_LENGTH) baseUsername = baseUsername + '_user';
+      if (baseUsername.length > USERNAME_MAX_LENGTH) baseUsername = baseUsername.slice(0, USERNAME_MAX_LENGTH);
+
+      let username = baseUsername;
+      let suffix = 1;
+      while (this.db.getUserByUsername(username)) {
+        const suffixStr = String(suffix);
+        username = baseUsername.slice(0, USERNAME_MAX_LENGTH - suffixStr.length) + suffixStr;
+        suffix++;
+      }
+
+      const displayName = name.slice(0, DISPLAY_NAME_MAX_LENGTH) || username;
+      const userId = this.db.createUser(username, displayName, null, normalizedEmail, googleId);
+      user = this.db.getUserByUsername(username)!;
+    }
+
+    this.db.recordLoginSuccess(user.id);
+    const token = this.createSessionForUser(user.id, ip, userAgent);
+    const stats = this.db.getUserGameStats(user.id);
+    return { token, user: buildAuthUser(user, stats) };
+  }
+
+  // ─── Forgot / Reset Password ────────────────────────────────────
+
+  forgotPassword(email: string): { token: string; userId: number } | { error: string } {
+    const emailErr = validateEmail(email);
+    if (emailErr) return { error: emailErr };
+
+    const user = this.db.getUserByEmail(email.trim().toLowerCase());
+    if (!user) {
+      // Don't reveal whether the email exists — return silently
+      return { error: '__silent__' };
     }
 
     const token = randomBytes(32).toString('hex');
-    this.db.createUserSession(token, user.id, SESSION_EXPIRY_HOURS, ip, userAgent);
+    const tokenHash = hashToken(token);
+    this.db.createPasswordResetToken(tokenHash, user.id, RESET_TOKEN_EXPIRY_MINUTES);
 
-    const stats = this.db.getUserGameStats(user.id);
-    return {
-      token,
-      user: {
-        id: user.id,
-        username: user.username,
-        displayName: user.display_name,
-        createdAt: user.created_at,
-        gamesPlayed: stats.games_played,
-        gamesWon: stats.games_won,
-      },
-    };
+    return { token, userId: user.id };
   }
+
+  async resetPassword(token: string, newPassword: string): Promise<{ success: true } | { error: string }> {
+    const passwordErr = validatePassword(newPassword);
+    if (passwordErr) return { error: passwordErr };
+
+    if (!token || typeof token !== 'string') return { error: 'Invalid reset link' };
+
+    const tokenHash = hashToken(token);
+    const row = this.db.validatePasswordResetToken(tokenHash);
+    if (!row) return { error: 'Reset link is invalid or has expired' };
+
+    const newHash = await hashPassword(newPassword);
+    this.db.updateUserPassword(row.user_id, newHash);
+    this.db.markPasswordResetTokenUsed(tokenHash);
+    this.db.deleteAllUserSessions(row.user_id);
+
+    return { success: true };
+  }
+
+  // ─── Session Management ─────────────────────────────────────────
 
   logout(token: string): void {
     this.db.deleteUserSession(token);
@@ -220,16 +328,12 @@ export class AuthService {
     const user = this.db.getUserById(session.userId);
     if (!user) return null;
 
+    const fullUser = this.db.getUserByUsername(user.username);
     const stats = this.db.getUserGameStats(user.id);
-    return {
-      id: user.id,
-      username: user.username,
-      displayName: user.display_name,
-      createdAt: user.created_at,
-      gamesPlayed: stats.games_played,
-      gamesWon: stats.games_won,
-    };
+    return buildAuthUser({ ...user, password_hash: fullUser?.password_hash, google_id: fullUser?.google_id }, stats);
   }
+
+  // ─── Account Management ─────────────────────────────────────────
 
   async changePassword(
     userId: number,
@@ -240,35 +344,34 @@ export class AuthService {
     if (passwordErr) return { error: passwordErr };
 
     const currentHash = this.db.getUserPasswordHash(userId);
-    if (!currentHash) return { error: 'User not found' };
-
-    const valid = await verifyPassword(currentPassword, currentHash);
-    if (!valid) return { error: 'Current password is incorrect' };
+    if (currentHash) {
+      // Has existing password — verify it
+      const valid = await verifyPassword(currentPassword, currentHash);
+      if (!valid) return { error: 'Current password is incorrect' };
+    }
+    // Google-only users can set a password without providing current
 
     const newHash = await hashPassword(newPassword);
     this.db.updateUserPassword(userId, newHash);
-
-    // Invalidate all other sessions on password change (security best practice)
     this.db.deleteAllUserSessions(userId);
-
     return { success: true };
   }
 
   async deleteAccount(userId: number, password: string): Promise<{ success: true } | { error: string }> {
     const currentHash = this.db.getUserPasswordHash(userId);
-    if (!currentHash) return { error: 'User not found' };
+    if (currentHash) {
+      const valid = await verifyPassword(password, currentHash);
+      if (!valid) return { error: 'Password is incorrect' };
+    }
+    // Google-only users: allow deletion with empty password (they authenticated via Google)
 
-    const valid = await verifyPassword(password, currentHash);
-    if (!valid) return { error: 'Password is incorrect' };
-
-    // Delete all sessions first, then user (cascade handles sessions but be explicit)
     this.db.deleteAllUserSessions(userId);
     this.db.deleteUser(userId);
-
     return { success: true };
   }
 
   cleanExpiredSessions(): void {
     this.db.cleanExpiredUserSessions();
+    this.db.cleanExpiredResetTokens();
   }
 }
