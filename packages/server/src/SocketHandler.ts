@@ -66,6 +66,7 @@ export class SocketHandler {
   private disconnectTimers = new Map<string, NodeJS.Timeout>(); // "roomCode-position" -> timer
   private dogTimers = new Map<string, NodeJS.Timeout>(); // roomCode -> Dog resolve timer
   private trickWonTimers = new Map<string, NodeJS.Timeout>(); // roomCode -> trick won delay timer
+  private disconnectedPlayers = new Map<string, Map<number, number>>(); // roomCode -> Map<position, userId> for players replaced by bots
   private socketToSession = new Map<string, string>(); // socketId -> sessionId (for auto-recovery)
   private rateLimiter = new RateLimiter();
   private rateLimitCleanup: ReturnType<typeof setInterval>;
@@ -125,7 +126,8 @@ export class SocketHandler {
 
       socket.on('room:create', (nickname, targetScore, callback) => {
         if (!this.checkRate(socket, 'create', 5, 30_000)) return;
-        const result = this.rooms.createRoom(socket.id, nickname, targetScore);
+        const userId = socket.data.userId as number | undefined;
+        const result = this.rooms.createRoom(socket.id, nickname, targetScore, userId);
         if ('error' in result) {
           callback({ error: result.error });
           return;
@@ -145,7 +147,8 @@ export class SocketHandler {
           ? (difficulty as BotDifficulty)
           : 'medium';
 
-        const result = this.rooms.createSoloRoom(socket.id, nickname, targetScore, diff);
+        const userId = socket.data.userId as number | undefined;
+        const result = this.rooms.createSoloRoom(socket.id, nickname, targetScore, diff, userId);
         if ('error' in result) {
           callback({ error: result.error });
           return;
@@ -172,7 +175,8 @@ export class SocketHandler {
 
       socket.on('room:join', (roomCode, nickname, callback) => {
         if (!this.checkRate(socket, 'join', 10, 30_000)) return;
-        const result = this.rooms.joinRoom(socket.id, roomCode, nickname);
+        const userId = socket.data.userId as number | undefined;
+        const result = this.rooms.joinRoom(socket.id, roomCode, nickname, userId);
         if ('error' in result) {
           callback({ error: result.error });
           return;
@@ -235,7 +239,8 @@ export class SocketHandler {
       // ─── Matchmaking ──────────────────────────────────────────────
       socket.on('matchmaking:join', (nickname, targetScore, callback) => {
         if (!this.checkRate(socket, 'matchmaking', 5, 30_000)) return;
-        const result = this.matchmaking.enqueue(socket.id, nickname, targetScore);
+        const userId = socket.data.userId as number | undefined;
+        const result = this.matchmaking.enqueue(socket.id, nickname, targetScore, userId);
         if ('error' in result) {
           callback({ error: result.error });
           return;
@@ -379,9 +384,9 @@ export class SocketHandler {
     if (!this.db) return;
     const room = this.rooms.getRoom(roomCode);
     if (!room) return;
-    const players: Array<{ nickname: string; position: number; isBot: boolean; ip: string | null }> = [];
+    const players: Array<{ nickname: string; position: number; isBot: boolean; ip: string | null; userId?: number }> = [];
     for (const [pos, player] of room.players) {
-      players.push({ nickname: player.nickname, position: pos, isBot: room.botPositions.has(pos), ip: room.botPositions.has(pos) ? null : ip });
+      players.push({ nickname: player.nickname, position: pos, isBot: room.botPositions.has(pos), ip: room.botPositions.has(pos) ? null : ip, userId: player.userId });
     }
     const gameId = this.db.logGameStart(roomCode, targetScore, isSolo, botDifficulty, players);
     roomGameIds.set(roomCode, gameId);
@@ -462,7 +467,8 @@ export class SocketHandler {
           if (engine) {
             const s = engine.state.scores;
             const winner = s[0] > s[1] ? 'Team 0-2' : s[1] > s[0] ? 'Team 1-3' : 'Tie';
-            this.db?.logGameEnd(gameId, s[0], s[1], winner, 0);
+            const roundHistory = engine.getRoundHistory();
+            this.db?.logGameEnd(gameId, s[0], s[1], winner, roundHistory.length);
             // Update player wins
             if (winner !== 'Tie') {
               const winPositions = winner === 'Team 0-2' ? [0, 2] : [1, 3];
@@ -474,6 +480,73 @@ export class SocketHandler {
                 }
               }
             }
+
+            // Update leaderboard stats — skip solo games (3 bots)
+            const isSolo = info.room.botPositions.size === 3;
+            if (!isSolo && this.db) {
+              const winTeam = s[0] > s[1] ? 0 : s[1] > s[0] ? 1 : -1;
+              const finishOrder = engine.state.finishOrder;
+
+              // Gather tichu results from all rounds
+              const allTichuResults = roundHistory.flatMap((r) => r.tichuResults);
+              const allDoubleVictories = roundHistory.filter((r) => r.doubleVictory !== null);
+
+              // Collect all human userIds to update: active players + disconnected players
+              const playersToUpdate: Array<{ pos: number; userId: number; disconnected: boolean }> = [];
+
+              for (const [pos, player] of info.room.players) {
+                if (info.room.botPositions.has(pos) || !player.userId) continue;
+                playersToUpdate.push({ pos, userId: player.userId, disconnected: false });
+              }
+
+              // Include disconnected players who were replaced by bots
+              const dcPlayers = this.disconnectedPlayers.get(info.room.code);
+              if (dcPlayers) {
+                for (const [pos, userId] of dcPlayers) {
+                  // Don't double-count if they somehow reconnected
+                  if (!playersToUpdate.some((p) => p.userId === userId)) {
+                    playersToUpdate.push({ pos, userId, disconnected: true });
+                  }
+                }
+                this.disconnectedPlayers.delete(info.room.code);
+              }
+
+              for (const { pos, userId, disconnected } of playersToUpdate) {
+                const team = pos % 2 === 0 ? 0 : 1;
+                const won = winTeam === team;
+                const firstOut = finishOrder[0] === pos;
+
+                // Tichu stats for this player across all rounds
+                const playerTichus = allTichuResults.filter((r) => r.position === pos);
+                const tichuCall = playerTichus.some((r) => r.call === 'tichu');
+                const tichuSuccess = playerTichus.some((r) => r.call === 'tichu' && r.success);
+                const grandTichuCall = playerTichus.some((r) => r.call === 'grand_tichu');
+                const grandTichuSuccess = playerTichus.some((r) => r.call === 'grand_tichu' && r.success);
+
+                // Double victories for this player's team
+                const doubleVictory = allDoubleVictories.some((r) => r.doubleVictory === team);
+
+                // Points scored by this player's team
+                const teamPoints = team === 0 ? s[0] : s[1];
+
+                this.db.updateUserStats(userId, {
+                  won,
+                  firstOut,
+                  tichuCall,
+                  tichuSuccess,
+                  grandTichuCall,
+                  grandTichuSuccess,
+                  doubleVictory,
+                  roundsPlayed: roundHistory.length,
+                  pointsScored: teamPoints,
+                  disconnected,
+                });
+
+                // Compute rating
+                this.computeAndUpdateRating(userId);
+              }
+            }
+
             roomGameIds.delete(info.room.code);
           }
         }
@@ -484,6 +557,28 @@ export class SocketHandler {
     } catch (err) {
       socket.emit('game:error', (err as Error).message);
     }
+  }
+
+  private computeAndUpdateRating(userId: number): void {
+    if (!this.db) return;
+    const stats = this.db.getUserLeaderboardStats(userId);
+    if (!stats || stats.games_played === 0) return;
+
+    const gp = stats.games_played;
+    // Win rate (40%)
+    const winRate = stats.games_won / gp;
+    // First out rate (20%)
+    const firstOutRate = stats.first_out_count / gp;
+    // Tichu efficiency (20%) — success rate when called, 0 if never called
+    const tichuEff = stats.tichu_calls > 0 ? stats.tichu_successes / stats.tichu_calls : 0;
+    // Grand tichu bonus (10%) — success rate when called
+    const grandEff = stats.grand_tichu_calls > 0 ? stats.grand_tichu_successes / stats.grand_tichu_calls : 0;
+    // Double victory rate (10%)
+    const dvRate = stats.double_victories / gp;
+
+    const rating = (winRate * 40 + firstOutRate * 20 + tichuEff * 20 + grandEff * 10 + dvRate * 10) * 10;
+    // Scale 0-1000, clamp
+    this.db.updateUserRating(userId, Math.round(Math.max(0, Math.min(1000, rating))));
   }
 
   private broadcastRoomState(roomCode: string): void {
@@ -621,6 +716,16 @@ export class SocketHandler {
 
     const timer = setTimeout(() => {
       this.disconnectTimers.delete(timerKey);
+
+      // Save userId before replacement so game-end can still credit them
+      const roomBeforeReplace = this.rooms.getRoom(roomCode);
+      const playerBeforeReplace = roomBeforeReplace?.players.get(position);
+      if (playerBeforeReplace?.userId) {
+        if (!this.disconnectedPlayers.has(roomCode)) {
+          this.disconnectedPlayers.set(roomCode, new Map());
+        }
+        this.disconnectedPlayers.get(roomCode)!.set(position, playerBeforeReplace.userId);
+      }
 
       const replaced = this.rooms.replacePlayerWithBot(roomCode, position);
       if (!replaced) return;

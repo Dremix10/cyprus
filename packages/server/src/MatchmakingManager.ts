@@ -9,6 +9,7 @@ interface QueueEntry {
   nickname: string;
   targetScore: number;
   joinedAt: number;
+  userId?: number;
 }
 
 const QUEUE_TIMEOUT_MS = 60_000; // 1 minute max wait
@@ -34,7 +35,7 @@ export class MatchmakingManager {
     clearInterval(this.updateInterval);
   }
 
-  enqueue(socketId: string, nickname: string, targetScore: number): { success: true } | { error: string } {
+  enqueue(socketId: string, nickname: string, targetScore: number, userId?: number): { success: true } | { error: string } {
     // Check if already in queue
     if (this.queue.some((e) => e.socketId === socketId)) {
       return { error: 'Already in queue' };
@@ -45,6 +46,7 @@ export class MatchmakingManager {
       nickname,
       targetScore,
       joinedAt: Date.now(),
+      userId,
     });
 
     // Immediate check — might already have enough players
@@ -114,7 +116,7 @@ export class MatchmakingManager {
 
     // First player creates the room
     const creator = players[0];
-    const createResult = this.rooms.createRoom(creator.socketId, creator.nickname, targetScore);
+    const createResult = this.rooms.createRoom(creator.socketId, creator.nickname, targetScore, creator.userId);
     if ('error' in createResult) {
       // Put players back in queue
       this.queue.unshift(...players);
@@ -139,7 +141,7 @@ export class MatchmakingManager {
       const p = players[i];
       // Determine seat: for 2 humans, second goes to pos 1 (opponent)
       // For 3 humans, they go to 1 and 2. For 4, 1, 2, 3.
-      const joinResult = this.rooms.joinRoom(p.socketId, roomCode, p.nickname);
+      const joinResult = this.rooms.joinRoom(p.socketId, roomCode, p.nickname, p.userId);
       if ('error' in joinResult) continue;
 
       socketIds.push(p.socketId);

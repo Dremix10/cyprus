@@ -123,6 +123,24 @@ export class TrackerDB {
         used INTEGER DEFAULT 0
       );
 
+      CREATE TABLE IF NOT EXISTS user_stats (
+        user_id INTEGER PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+        games_played INTEGER DEFAULT 0,
+        games_won INTEGER DEFAULT 0,
+        games_lost INTEGER DEFAULT 0,
+        first_out_count INTEGER DEFAULT 0,
+        tichu_calls INTEGER DEFAULT 0,
+        tichu_successes INTEGER DEFAULT 0,
+        grand_tichu_calls INTEGER DEFAULT 0,
+        grand_tichu_successes INTEGER DEFAULT 0,
+        double_victories INTEGER DEFAULT 0,
+        total_rounds INTEGER DEFAULT 0,
+        total_points_scored INTEGER DEFAULT 0,
+        disconnects INTEGER DEFAULT 0,
+        rating REAL DEFAULT 0,
+        updated_at TEXT DEFAULT (datetime('now'))
+      );
+
       CREATE INDEX IF NOT EXISTS idx_conn_ip ON connections(ip);
       CREATE INDEX IF NOT EXISTS idx_conn_at ON connections(connected_at);
       CREATE INDEX IF NOT EXISTS idx_conn_socket ON connections(socket_id);
@@ -141,6 +159,7 @@ export class TrackerDB {
     const addColumnMigrations = [
       `ALTER TABLE users ADD COLUMN email TEXT COLLATE NOCASE`,
       `ALTER TABLE users ADD COLUMN google_id TEXT`,
+      `ALTER TABLE game_players ADD COLUMN user_id INTEGER`,
     ];
     for (const sql of addColumnMigrations) {
       try { this.db.exec(sql); } catch { /* column already exists */ }
@@ -219,7 +238,7 @@ export class TrackerDB {
     targetScore: number,
     isSolo: boolean,
     botDifficulty: string | null,
-    players: Array<{ nickname: string; position: number; isBot: boolean; ip: string | null }>
+    players: Array<{ nickname: string; position: number; isBot: boolean; ip: string | null; userId?: number }>
   ): number {
     const result = this.db.prepare(
       `INSERT INTO games (room_code, target_score, is_solo, bot_difficulty) VALUES (?, ?, ?, ?)`
@@ -227,11 +246,11 @@ export class TrackerDB {
 
     const gameId = Number(result.lastInsertRowid);
     const stmt = this.db.prepare(
-      `INSERT INTO game_players (game_id, nickname, position, is_bot, ip) VALUES (?, ?, ?, ?, ?)`
+      `INSERT INTO game_players (game_id, nickname, position, is_bot, ip, user_id) VALUES (?, ?, ?, ?, ?, ?)`
     );
 
     for (const p of players) {
-      stmt.run(gameId, p.nickname, p.position, p.isBot ? 1 : 0, p.ip);
+      stmt.run(gameId, p.nickname, p.position, p.isBot ? 1 : 0, p.ip, p.userId ?? null);
     }
 
     return gameId;
@@ -528,6 +547,154 @@ export class TrackerDB {
       `SELECT COALESCE(SUM(games_played), 0) as games_played, COALESCE(SUM(games_won), 0) as games_won FROM players WHERE nickname = ?`
     ).get(displayName) as { games_played: number; games_won: number };
     return row;
+  }
+
+  // ─── User Stats (Leaderboard) ───────────────────────────────────
+
+  ensureUserStats(userId: number): void {
+    this.db.prepare(
+      `INSERT OR IGNORE INTO user_stats (user_id) VALUES (?)`
+    ).run(userId);
+  }
+
+  updateUserStats(
+    userId: number,
+    data: {
+      won: boolean;
+      firstOut: boolean;
+      tichuCall: boolean;
+      tichuSuccess: boolean;
+      grandTichuCall: boolean;
+      grandTichuSuccess: boolean;
+      doubleVictory: boolean;
+      roundsPlayed: number;
+      pointsScored: number;
+      disconnected: boolean;
+    }
+  ): void {
+    this.ensureUserStats(userId);
+    this.db.prepare(`
+      UPDATE user_stats SET
+        games_played = games_played + 1,
+        games_won = games_won + ?,
+        games_lost = games_lost + ?,
+        first_out_count = first_out_count + ?,
+        tichu_calls = tichu_calls + ?,
+        tichu_successes = tichu_successes + ?,
+        grand_tichu_calls = grand_tichu_calls + ?,
+        grand_tichu_successes = grand_tichu_successes + ?,
+        double_victories = double_victories + ?,
+        total_rounds = total_rounds + ?,
+        total_points_scored = total_points_scored + ?,
+        disconnects = disconnects + ?,
+        updated_at = datetime('now')
+      WHERE user_id = ?
+    `).run(
+      data.won ? 1 : 0,
+      data.won ? 0 : 1,
+      data.firstOut ? 1 : 0,
+      data.tichuCall ? 1 : 0,
+      data.tichuSuccess ? 1 : 0,
+      data.grandTichuCall ? 1 : 0,
+      data.grandTichuSuccess ? 1 : 0,
+      data.doubleVictory ? 1 : 0,
+      data.roundsPlayed,
+      data.pointsScored,
+      data.disconnected ? 1 : 0,
+      userId
+    );
+  }
+
+  updateUserRating(userId: number, rating: number): void {
+    this.ensureUserStats(userId);
+    this.db.prepare(
+      `UPDATE user_stats SET rating = ?, updated_at = datetime('now') WHERE user_id = ?`
+    ).run(rating, userId);
+  }
+
+  recordDisconnect(userId: number): void {
+    this.ensureUserStats(userId);
+    this.db.prepare(
+      `UPDATE user_stats SET
+        games_played = games_played + 1,
+        games_lost = games_lost + 1,
+        disconnects = disconnects + 1,
+        updated_at = datetime('now')
+      WHERE user_id = ?`
+    ).run(userId);
+  }
+
+  getLeaderboard(limit: number = 50): Array<{
+    user_id: number;
+    username: string;
+    display_name: string;
+    games_played: number;
+    games_won: number;
+    games_lost: number;
+    first_out_count: number;
+    tichu_calls: number;
+    tichu_successes: number;
+    grand_tichu_calls: number;
+    grand_tichu_successes: number;
+    double_victories: number;
+    total_rounds: number;
+    disconnects: number;
+    rating: number;
+  }> {
+    return this.db.prepare(`
+      SELECT
+        us.user_id, u.username, u.display_name,
+        us.games_played, us.games_won, us.games_lost,
+        us.first_out_count, us.tichu_calls, us.tichu_successes,
+        us.grand_tichu_calls, us.grand_tichu_successes,
+        us.double_victories, us.total_rounds, us.disconnects,
+        us.rating
+      FROM user_stats us
+      JOIN users u ON u.id = us.user_id
+      WHERE us.games_played >= 3
+      ORDER BY us.rating DESC
+      LIMIT ?
+    `).all(limit) as ReturnType<TrackerDB['getLeaderboard']>;
+  }
+
+  getUserLeaderboardStats(userId: number): {
+    user_id: number;
+    games_played: number;
+    games_won: number;
+    games_lost: number;
+    first_out_count: number;
+    tichu_calls: number;
+    tichu_successes: number;
+    grand_tichu_calls: number;
+    grand_tichu_successes: number;
+    double_victories: number;
+    total_rounds: number;
+    disconnects: number;
+    rating: number;
+    rank: number;
+  } | undefined {
+    this.ensureUserStats(userId);
+    const stats = this.db.prepare(`
+      SELECT user_id, games_played, games_won, games_lost,
+        first_out_count, tichu_calls, tichu_successes,
+        grand_tichu_calls, grand_tichu_successes,
+        double_victories, total_rounds, disconnects, rating
+      FROM user_stats WHERE user_id = ?
+    `).get(userId) as {
+      user_id: number; games_played: number; games_won: number; games_lost: number;
+      first_out_count: number; tichu_calls: number; tichu_successes: number;
+      grand_tichu_calls: number; grand_tichu_successes: number;
+      double_victories: number; total_rounds: number; disconnects: number; rating: number;
+    } | undefined;
+    if (!stats) return undefined;
+
+    const rankRow = this.db.prepare(`
+      SELECT COUNT(*) + 1 as rank FROM user_stats
+      WHERE rating > (SELECT rating FROM user_stats WHERE user_id = ?)
+      AND games_played >= 3
+    `).get(userId) as { rank: number };
+
+    return { ...stats, rank: stats.games_played >= 3 ? rankRow.rank : 0 };
   }
 
   // ─── Read-Only Query ─────────────────────────────────────────────

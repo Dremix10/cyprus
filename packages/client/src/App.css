@@ -897,6 +897,180 @@ body {
   border-color: #c9a84c;
 }
 
+/* ─── Leaderboard Button ────────────────────── */
+
+.btn-leaderboard {
+  background: transparent;
+  border: 1px solid rgba(201, 168, 76, 0.4);
+  color: #c9a84c;
+  font-size: 0.85rem;
+  margin-top: 0.3rem;
+}
+
+.btn-leaderboard:hover {
+  background: rgba(201, 168, 76, 0.1);
+  border-color: #c9a84c;
+}
+
+/* ─── Leaderboard Screen ────────────────────── */
+
+.leaderboard-fullscreen {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #0a0a1a;
+  overflow-y: auto;
+}
+
+.leaderboard-content {
+  position: relative;
+  z-index: 2;
+  width: 100%;
+  max-width: 800px;
+  padding: 2rem 1.5rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1.5rem;
+}
+
+.leaderboard-header {
+  text-align: center;
+}
+
+.leaderboard-header .title-greek {
+  font-size: 2rem;
+  margin-bottom: 0.25rem;
+}
+
+.leaderboard-header .subtitle-greek {
+  font-size: 0.9rem;
+  opacity: 0.7;
+}
+
+.leaderboard-my-stats {
+  background: rgba(201, 168, 76, 0.08);
+  border: 1px solid rgba(201, 168, 76, 0.3);
+  border-radius: 12px;
+  padding: 1rem 1.5rem;
+  width: 100%;
+}
+
+.leaderboard-my-stats h3 {
+  color: #c9a84c;
+  font-size: 0.9rem;
+  margin-bottom: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.my-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.75rem;
+}
+
+@media (min-width: 600px) {
+  .my-stats-grid {
+    grid-template-columns: repeat(6, 1fr);
+  }
+}
+
+.stat-item {
+  text-align: center;
+}
+
+.stat-value {
+  display: block;
+  font-size: 1.2rem;
+  font-weight: 700;
+  color: #fff;
+}
+
+.stat-label {
+  display: block;
+  font-size: 0.7rem;
+  color: rgba(255, 255, 255, 0.5);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-top: 2px;
+}
+
+.leaderboard-loading,
+.leaderboard-empty {
+  color: rgba(255, 255, 255, 0.5);
+  text-align: center;
+  padding: 2rem;
+}
+
+.leaderboard-table-wrapper {
+  width: 100%;
+  overflow-x: auto;
+}
+
+.leaderboard-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.85rem;
+}
+
+.leaderboard-table th {
+  color: #c9a84c;
+  text-transform: uppercase;
+  font-size: 0.7rem;
+  letter-spacing: 0.5px;
+  padding: 0.5rem 0.4rem;
+  border-bottom: 1px solid rgba(201, 168, 76, 0.3);
+  text-align: center;
+  white-space: nowrap;
+}
+
+.leaderboard-table td {
+  padding: 0.5rem 0.4rem;
+  text-align: center;
+  color: rgba(255, 255, 255, 0.8);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.leaderboard-table .rank-cell {
+  font-weight: 700;
+  font-size: 1rem;
+}
+
+.leaderboard-table .name-cell {
+  text-align: left;
+  font-weight: 600;
+  color: #fff;
+}
+
+.leaderboard-table .rating-cell {
+  color: #c9a84c;
+  font-weight: 700;
+}
+
+.leaderboard-row-me {
+  background: rgba(201, 168, 76, 0.1);
+}
+
+.leaderboard-row-me td {
+  color: #c9a84c;
+}
+
+.btn-back-lobby {
+  background: transparent;
+  border: 1px solid rgba(201, 168, 76, 0.4);
+  color: #c9a84c;
+  font-size: 0.85rem;
+  margin-top: 1rem;
+}
+
+.btn-back-lobby:hover {
+  background: rgba(201, 168, 76, 0.1);
+  border-color: #c9a84c;
+}
+
 .btn-back {
   margin-top: auto;
   padding-top: 1rem;
