@@ -17,6 +17,7 @@ if ss -tlnp | grep -q ":3001 "; then
   exit 1
 fi
 echo "Starting server..."
+set -a; [ -f .env ] && source .env; set +a
 nohup node packages/server/dist/index.js >> server.log 2>&1 &
 sleep 2
 curl -s http://localhost:3001/health && echo "" && echo "Server is live!"
