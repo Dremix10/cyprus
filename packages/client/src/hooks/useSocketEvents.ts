@@ -10,6 +10,7 @@ export function useSocketEvents() {
   const handleEvent = useGameStore((s) => s.handleEvent);
   const setGameError = useGameStore((s) => s.setError);
   const setRoomError = useRoomStore((s) => s.setError);
+  const setQueueInfo = useRoomStore((s) => s.setQueueInfo);
 
   useEffect(() => {
     const onRoomState = (state: Parameters<typeof setRoomState>[0]) => {
@@ -45,6 +46,30 @@ export function useSocketEvents() {
       setTimeout(() => setRoomError(null), 3000);
     };
 
+    const onMatchmakingUpdate = (data: { playersInQueue: number; elapsed: number }) => {
+      setQueueInfo(data);
+    };
+
+    const onMatchmakingFound = (data: { roomCode: string; sessionId: string }) => {
+      const { nickname } = useRoomStore.getState();
+      // Save session for reconnect support
+      localStorage.setItem('cyprus-session', JSON.stringify({
+        sessionId: data.sessionId,
+        roomCode: data.roomCode,
+        nickname,
+      }));
+      useRoomStore.setState({
+        roomCode: data.roomCode,
+        queueInfo: null,
+        error: null,
+      });
+      // Game state will arrive via game:state event, which sets view to 'game'
+    };
+
+    const onMatchmakingCancelled = () => {
+      useRoomStore.setState({ view: 'lobby', queueInfo: null });
+    };
+
     // On socket reconnect, try to rejoin via session
     const onReconnect = () => {
       const { trySessionReconnect } = useRoomStore.getState();
@@ -57,6 +82,9 @@ export function useSocketEvents() {
     socket.on('game:error', onGameError);
     socket.on('room:player_disconnected', onPlayerDisconnected);
     socket.on('room:player_reconnected', onPlayerReconnected);
+    socket.on('matchmaking:update', onMatchmakingUpdate);
+    socket.on('matchmaking:found', onMatchmakingFound);
+    socket.on('matchmaking:cancelled', onMatchmakingCancelled);
     socket.io.on('reconnect', onReconnect);
 
     return () => {
@@ -66,7 +94,10 @@ export function useSocketEvents() {
       socket.off('game:error', onGameError);
       socket.off('room:player_disconnected', onPlayerDisconnected);
       socket.off('room:player_reconnected', onPlayerReconnected);
+      socket.off('matchmaking:update', onMatchmakingUpdate);
+      socket.off('matchmaking:found', onMatchmakingFound);
+      socket.off('matchmaking:cancelled', onMatchmakingCancelled);
       socket.io.off('reconnect', onReconnect);
     };
-  }, [setRoomState, setView, setGameState, handleEvent, setGameError, setRoomError]);
+  }, [setRoomState, setView, setGameState, handleEvent, setGameError, setRoomError, setQueueInfo]);
 }

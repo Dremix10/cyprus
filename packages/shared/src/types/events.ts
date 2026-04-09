@@ -47,6 +47,15 @@ export interface ClientToServerEvents {
   'room:sit': (position: PlayerPosition) => void;
   'room:start': () => void;
 
+  'matchmaking:join': (
+    nickname: string,
+    targetScore: number,
+    callback: (response: { success: true } | { error: string }) => void
+  ) => void;
+  'matchmaking:leave': (
+    callback: (response: { success: true } | { error: string }) => void
+  ) => void;
+
   'game:grand_tichu_decision': (call: boolean) => void;
   'game:pass_cards': (cards: {
     left: string;
@@ -68,4 +77,8 @@ export interface ServerToClientEvents {
   'game:event': (event: GameEvent) => void;
   'room:player_disconnected': (nickname: string) => void;
   'room:player_reconnected': (nickname: string) => void;
+
+  'matchmaking:update': (data: { playersInQueue: number; elapsed: number }) => void;
+  'matchmaking:found': (data: { roomCode: string; sessionId: string }) => void;
+  'matchmaking:cancelled': () => void;
 }

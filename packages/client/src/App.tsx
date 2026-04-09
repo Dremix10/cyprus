@@ -5,6 +5,7 @@ import { useSocketEvents } from './hooks/useSocketEvents.js';
 import { Lobby } from './components/Lobby.js';
 import { WaitingRoom } from './components/WaitingRoom.js';
 import { GameBoard } from './components/GameBoard.js';
+import { MatchmakingQueue } from './components/MatchmakingQueue.js';
 import { Tutorial } from './components/Tutorial.js';
 import { ConnectionStatus } from './components/ConnectionStatus.js';
 import './App.css';
@@ -45,6 +46,7 @@ export default function App() {
     <div className="app">
       <ConnectionStatus />
       {view === 'lobby' && <Lobby onTutorial={() => setShowTutorial(true)} />}
+      {view === 'queue' && <MatchmakingQueue />}
       {view === 'waiting' && <WaitingRoom />}
       {view === 'game' && <GameBoard />}
     </div>

@@ -4,7 +4,7 @@ import { socket } from '../socket.js';
 
 const SESSION_KEY = 'cyprus-session';
 
-type RoomView = 'lobby' | 'waiting' | 'game';
+type RoomView = 'lobby' | 'waiting' | 'game' | 'queue';
 
 function saveSession(sessionId: string, roomCode: string, nickname: string): void {
   localStorage.setItem(SESSION_KEY, JSON.stringify({ sessionId, roomCode, nickname }));
@@ -32,18 +32,22 @@ interface RoomStore {
   roomState: RoomState | null;
   error: string | null;
   reconnecting: boolean;
+  queueInfo: { playersInQueue: number; elapsed: number } | null;
 
   setNickname: (name: string) => void;
   setTargetScore: (score: number) => void;
   createRoom: () => Promise<void>;
   createSoloRoom: (difficulty: string) => Promise<void>;
   joinRoom: (code: string) => Promise<void>;
+  joinMatchmaking: () => Promise<void>;
+  leaveMatchmaking: () => void;
   trySessionReconnect: () => Promise<boolean>;
   sitAt: (position: PlayerPosition) => void;
   startGame: () => void;
   setView: (view: RoomView) => void;
   setRoomState: (state: RoomState) => void;
   setError: (error: string | null) => void;
+  setQueueInfo: (info: { playersInQueue: number; elapsed: number }) => void;
   reset: () => void;
 }
 
@@ -55,6 +59,7 @@ export const useRoomStore = create<RoomStore>((set, get) => ({
   roomState: null,
   error: null,
   reconnecting: false,
+  queueInfo: null,
 
   setNickname: (name) => set({ nickname: name }),
   setTargetScore: (score) => set({ targetScore: score }),
@@ -144,6 +149,33 @@ export const useRoomStore = create<RoomStore>((set, get) => ({
     });
   },
 
+  joinMatchmaking: () => {
+    return new Promise<void>((resolve) => {
+      const { nickname, targetScore } = get();
+      if (!nickname.trim()) {
+        set({ error: 'Enter a nickname' });
+        resolve();
+        return;
+      }
+
+      if (!socket.connected) socket.connect();
+
+      socket.emit('matchmaking:join', nickname.trim(), targetScore, (response) => {
+        if ('error' in response) {
+          set({ error: response.error });
+        } else {
+          set({ view: 'queue', error: null, queueInfo: { playersInQueue: 1, elapsed: 0 } });
+        }
+        resolve();
+      });
+    });
+  },
+
+  leaveMatchmaking: () => {
+    socket.emit('matchmaking:leave', () => {});
+    set({ view: 'lobby', queueInfo: null, error: null });
+  },
+
   trySessionReconnect: () => {
     return new Promise<boolean>((resolve) => {
       const session = loadSession();
@@ -216,6 +248,7 @@ export const useRoomStore = create<RoomStore>((set, get) => ({
   setView: (view) => set({ view }),
   setRoomState: (state) => set({ roomState: state }),
   setError: (error) => set({ error }),
+  setQueueInfo: (info) => set({ queueInfo: info }),
 
   reset: () => {
     clearSession();
@@ -226,6 +259,7 @@ export const useRoomStore = create<RoomStore>((set, get) => ({
       roomState: null,
       error: null,
       reconnecting: false,
+      queueInfo: null,
     });
   },
 }));

@@ -60,6 +60,7 @@ export function Lobby({ onTutorial }: { onTutorial: () => void }) {
   const createRoom = useRoomStore((s) => s.createRoom);
   const createSoloRoom = useRoomStore((s) => s.createSoloRoom);
   const joinRoom = useRoomStore((s) => s.joinRoom);
+  const joinMatchmaking = useRoomStore((s) => s.joinMatchmaking);
   const error = useRoomStore((s) => s.error);
 
   const authUser = useAuthStore((s) => s.user);
@@ -125,6 +126,17 @@ export function Lobby({ onTutorial }: { onTutorial: () => void }) {
                     className="input input-score input-greek"
                   />
                   <span>pts</span>
+                </div>
+
+                <button
+                  className="btn btn-olympus btn-play-online"
+                  onClick={joinMatchmaking}
+                >
+                  Play Online
+                </button>
+
+                <div className="divider divider-greek">
+                  <span>or</span>
                 </div>
 
                 <button
