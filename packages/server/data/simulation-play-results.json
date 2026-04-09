@@ -1,45 +1,44 @@
 {
-  "timestamp": "2026-04-08T05:37:10.012Z",
+  "timestamp": "2026-04-09T01:12:00.855Z",
   "numGames": 10000,
   "baseline": {
     "label": "Hard Baseline",
     "games": 10000,
     "errors": 0,
     "winRate": [
-      0.5012,
-      0.4988
+      0.5187,
+      0.4813
     ],
     "avgScores": [
-      871.4955,
-      873.4645
+      878.6605,
+      867.7595
     ],
-    "avgRounds": 13.0918,
-    "playRate": 48.3,
-    "passRate": 51.7,
-    "bombsPerGame": 0,
-    "dragonsPerGame": 12.7,
-    "doubleVictoriesPerGame": 3.86,
+    "avgRounds": 13.103,
+    "playRate": 48.5,
+    "passRate": 51.5,
+    "bombsPerGame": 3.2,
+    "dragonsPerGame": 12.8,
+    "doubleVictoriesPerGame": 3.87,
     "tichu": {
-      "callsPerGame": 1,
-      "successRate": 74.1,
+      "callsPerGame": 0.9,
+      "successRate": 74.6,
       "netPointsPerGame": 46.5
     },
     "grandTichu": {
       "callsPerGame": 0.03,
-      "successRate": 74.5,
-      "netPointsPerGame": 3.2
+      "successRate": 75,
+      "netPointsPerGame": 3
     },
     "firstOutDistribution": [
-      25,
-      25.1,
+      25.2,
       24.9,
-      25
+      25,
+      24.9
     ]
   },
   "recommendations": [
-    "PASS RATE HIGH (51.7%): Bots pass too often. Consider lowering the threshold for playing cards — less passing means more control over tricks.",
-    "BOMBS LOW (0/game): Bots are too conservative with bombs. Lower the trickPoints threshold for bombing.",
-    "DOUBLE VICTORIES (3.86/game): High rate suggests good team coordination.",
+    "PASS RATE HIGH (51.5%): Bots pass too often. Consider lowering the threshold for playing cards — less passing means more control over tricks.",
+    "DOUBLE VICTORIES (3.87/game): High rate suggests good team coordination.",
     "GRAND TICHU UNDER-CALLED: Very high success but almost never called. Could loosen slightly."
   ]
 }
