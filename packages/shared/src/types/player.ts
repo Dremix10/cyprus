@@ -10,6 +10,7 @@ export type PublicPlayerState = {
   cardCount: number;
   collectedCards: number;
   hasPassed: boolean;
+  grandTichuDecided: boolean;
   tichuCall: TichuCall;
   isOut: boolean;
   finishOrder: number | null;

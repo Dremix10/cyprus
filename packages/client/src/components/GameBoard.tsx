@@ -86,7 +86,7 @@ export function GameBoard() {
       )}
       <div className="game-info">
         <span className="name-teammate">
-          {myTeam === 0 ? 'Your Team' : 'Opponents'}: {gameState.scores[0]} / {gameState.targetScore}
+          Your Team: {gameState.scores[myTeam]} / {gameState.targetScore}
         </span>
         <span className="phase-label">
           {roomCode && <span className="room-code-badge">{roomCode}</span>}
@@ -102,14 +102,14 @@ export function GameBoard() {
           </button>
         </span>
         <span className="name-opponent">
-          {myTeam === 1 ? 'Your Team' : 'Opponents'}: {gameState.scores[1]} / {gameState.targetScore}
+          Opponents: {gameState.scores[1 - myTeam]} / {gameState.targetScore}
         </span>
       </div>
 
       {showHistory && gameState.roundHistory && (
         <div className="history-modal-overlay" onClick={() => setShowHistory(false)}>
           <div className="history-modal" onClick={(e) => e.stopPropagation()}>
-            <ScoreHistory history={gameState.roundHistory} onClose={() => setShowHistory(false)} />
+            <ScoreHistory history={gameState.roundHistory} myTeam={myTeam} onClose={() => setShowHistory(false)} />
           </div>
         </div>
       )}
@@ -163,7 +163,20 @@ function GrandTichuView() {
   const [confirming, setConfirming] = useState(false);
 
   if (!gameState.grandTichuPending) {
-    return <p className="info">Waiting for other players to decide...</p>;
+    const myTeam = gameState.myPosition % 2;
+    const waiting = gameState.players.filter((p) => !p.grandTichuDecided);
+    return (
+      <p className="info">
+        Waiting for{' '}
+        {waiting.map((p, i) => (
+          <span key={p.position}>
+            {i > 0 && ', '}
+            <strong className={p.position % 2 === myTeam ? 'name-teammate' : 'name-opponent'}>{p.nickname}</strong>
+          </span>
+        ))}
+        ...
+      </p>
+    );
   }
 
   return (
@@ -245,10 +258,21 @@ function PassingView() {
   const [activeCard, setActiveCard] = useState<string | null>(null);
 
   if (hasPassed) {
+    const myTeam = gameState.myPosition % 2;
+    const waiting = gameState.players.filter((p) => !p.hasPassed);
     return (
       <div className="phase-view">
         <TichuCallBadges />
-        <p className="info">Waiting for others to pass cards...</p>
+        <p className="info">
+          Waiting for{' '}
+          {waiting.map((p, i) => (
+            <span key={p.position}>
+              {i > 0 && ', '}
+              <strong className={p.position % 2 === myTeam ? 'name-teammate' : 'name-opponent'}>{p.nickname}</strong>
+            </span>
+          ))}
+          ...
+        </p>
       </div>
     );
   }
@@ -774,7 +798,7 @@ function ScoreBreakdown({ breakdown, players, myTeam }: { breakdown: RoundScoreB
       ) : (
         <>
           <div className="breakdown-item">
-            Card points: <span className={teamClass(0)}>Team A</span> <strong>{breakdown.cardPoints[0]}</strong> &mdash; <span className={teamClass(1)}>Team B</span> <strong>{breakdown.cardPoints[1]}</strong>
+            Card points: <span className={teamClass(myTeam as 0 | 1)}>Your Team</span> <strong>{breakdown.cardPoints[myTeam]}</strong> &mdash; <span className={teamClass((1 - myTeam) as 0 | 1)}>Opponents</span> <strong>{breakdown.cardPoints[1 - myTeam]}</strong>
           </div>
           {breakdown.lastPlayerHandPoints !== 0 && breakdown.lastPlayerHandTeam !== null && (
             <div className="breakdown-item">
@@ -800,7 +824,7 @@ function ScoringView() {
   return (
     <div className="scoring-layout">
       {gameState.roundTrickCards && (
-        <PointCards cards={gameState.roundTrickCards[0]} team={myTeam === 0 ? 'Your Team' : 'Opponents'} />
+        <PointCards cards={gameState.roundTrickCards[myTeam]} team="Your Team" />
       )}
 
       <div className="phase-view">
@@ -812,19 +836,19 @@ function ScoringView() {
 
         <div className="scores">
           <div className="score-row">
-            <span className="score-team name-teammate">{myTeam === 0 ? 'Your Team' : 'Opponents'}</span>
-            <span className="score-round">+{gameState.roundScores[0]}</span>
-            <span className="score-total">{gameState.scores[0]}</span>
+            <span className="score-team name-teammate">Your Team</span>
+            <span className="score-round">+{gameState.roundScores[myTeam]}</span>
+            <span className="score-total">{gameState.scores[myTeam]}</span>
           </div>
           <div className="score-row">
-            <span className="score-team name-opponent">{myTeam === 1 ? 'Your Team' : 'Opponents'}</span>
-            <span className="score-round">+{gameState.roundScores[1]}</span>
-            <span className="score-total">{gameState.scores[1]}</span>
+            <span className="score-team name-opponent">Opponents</span>
+            <span className="score-round">+{gameState.roundScores[1 - myTeam]}</span>
+            <span className="score-total">{gameState.scores[1 - myTeam]}</span>
           </div>
         </div>
 
         {gameState.roundHistory && gameState.roundHistory.length > 1 && (
-          <ScoreHistory history={gameState.roundHistory} />
+          <ScoreHistory history={gameState.roundHistory} myTeam={myTeam} />
         )}
 
         <button className="btn btn-primary" onClick={nextRound}>
@@ -833,7 +857,7 @@ function ScoringView() {
       </div>
 
       {gameState.roundTrickCards && (
-        <PointCards cards={gameState.roundTrickCards[1]} team={myTeam === 1 ? 'Your Team' : 'Opponents'} />
+        <PointCards cards={gameState.roundTrickCards[1 - myTeam]} team="Opponents" />
       )}
     </div>
   );
@@ -868,12 +892,12 @@ function GameOverView() {
 
       <div className="scores">
         <div className="score-row">
-          <span className="score-team name-teammate">{myTeam === 0 ? 'Your Team' : 'Opponents'}</span>
-          <span className="score-total">{gameState.scores[0]}</span>
+          <span className="score-team name-teammate">Your Team</span>
+          <span className="score-total">{gameState.scores[myTeam]}</span>
         </div>
         <div className="score-row">
-          <span className="score-team name-opponent">{myTeam === 1 ? 'Your Team' : 'Opponents'}</span>
-          <span className="score-total">{gameState.scores[1]}</span>
+          <span className="score-team name-opponent">Opponents</span>
+          <span className="score-total">{gameState.scores[1 - myTeam]}</span>
         </div>
       </div>
 
@@ -905,7 +929,7 @@ function GameOverView() {
       )}
 
       {gameState.roundHistory && gameState.roundHistory.length > 0 && (
-        <ScoreHistory history={gameState.roundHistory} />
+        <ScoreHistory history={gameState.roundHistory} myTeam={myTeam} />
       )}
 
       <button className="btn btn-primary btn-play-again" onClick={reset}>
