@@ -1,5 +1,7 @@
 import express, { type Request, type Response } from 'express';
+import { OAuth2Client } from 'google-auth-library';
 import type { AuthService } from './AuthService.js';
+import { sendPasswordResetEmail, isEmailConfigured } from './EmailService.js';
 
 const SESSION_COOKIE = 'cyprus_auth';
 const COOKIE_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
@@ -7,8 +9,8 @@ const COOKIE_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
 // ─── IP-based rate limiter ──────────────────────────────────────────
 
 const authAttempts = new Map<string, { count: number; resetAt: number }>();
-const AUTH_RATE_WINDOW_MS = 60_000; // 1 minute
-const AUTH_RATE_MAX = 5; // 5 attempts per minute per IP
+const AUTH_RATE_WINDOW_MS = 60_000;
+const AUTH_RATE_MAX = 5;
 
 function isAuthRateLimited(ip: string): boolean {
   const now = Date.now();
@@ -21,13 +23,27 @@ function isAuthRateLimited(ip: string): boolean {
   return entry.count > AUTH_RATE_MAX;
 }
 
-// Clean up stale entries every 5 minutes
 setInterval(() => {
   const now = Date.now();
   for (const [ip, entry] of authAttempts) {
     if (now > entry.resetAt) authAttempts.delete(ip);
   }
 }, 5 * 60_000).unref();
+
+// ─── Forgot-password rate limiter (stricter: 3 per 15 min per IP) ──
+
+const resetAttempts = new Map<string, { count: number; resetAt: number }>();
+
+function isResetRateLimited(ip: string): boolean {
+  const now = Date.now();
+  const entry = resetAttempts.get(ip);
+  if (!entry || now > entry.resetAt) {
+    resetAttempts.set(ip, { count: 1, resetAt: now + 15 * 60_000 });
+    return false;
+  }
+  entry.count++;
+  return entry.count > 3;
+}
 
 // ─── Cookie helpers ─────────────────────────────────────────────────
 
@@ -56,6 +72,18 @@ function getAuthToken(req: Request): string | null {
   return null;
 }
 
+// ─── Google OAuth Client ────────────────────────────────────────────
+
+let googleClient: OAuth2Client | null = null;
+const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID;
+
+if (GOOGLE_CLIENT_ID) {
+  googleClient = new OAuth2Client(GOOGLE_CLIENT_ID);
+  console.log('Google Sign-In configured');
+} else {
+  console.log('Google Sign-In not configured — set GOOGLE_CLIENT_ID to enable');
+}
+
 // ─── Router ─────────────────────────────────────────────────────────
 
 export { SESSION_COOKIE, getAuthToken };
@@ -72,8 +100,8 @@ export function createAuthRouter(auth: AuthService, isProduction: boolean): expr
       return;
     }
 
-    const { username, password, displayName } = req.body || {};
-    const result = await auth.register(username, password, displayName);
+    const { username, password, displayName, email } = req.body || {};
+    const result = await auth.register(username, password, displayName, email);
 
     if ('error' in result) {
       res.status(400).json(result);
@@ -87,7 +115,6 @@ export function createAuthRouter(auth: AuthService, isProduction: boolean): expr
     );
 
     if ('error' in loginResult) {
-      // Registration succeeded but login failed (shouldn't happen)
       res.status(201).json(result);
       return;
     }
@@ -119,6 +146,96 @@ export function createAuthRouter(auth: AuthService, isProduction: boolean): expr
     res.json({ user: result.user });
   });
 
+  // ── POST /auth/google ────────────────────────────────────────────
+  router.post('/google', async (req: Request, res: Response) => {
+    if (!googleClient || !GOOGLE_CLIENT_ID) {
+      res.status(501).json({ error: 'Google Sign-In is not configured' });
+      return;
+    }
+
+    const ip = req.ip || req.socket.remoteAddress || 'unknown';
+    if (isAuthRateLimited(ip)) {
+      res.status(429).json({ error: 'Too many requests. Try again later' });
+      return;
+    }
+
+    const { credential } = req.body || {};
+    if (!credential || typeof credential !== 'string') {
+      res.status(400).json({ error: 'Missing Google credential' });
+      return;
+    }
+
+    try {
+      const ticket = await googleClient.verifyIdToken({
+        idToken: credential,
+        audience: GOOGLE_CLIENT_ID,
+      });
+      const payload = ticket.getPayload();
+      if (!payload?.sub || !payload.email) {
+        res.status(400).json({ error: 'Invalid Google token' });
+        return;
+      }
+
+      const result = await auth.loginWithGoogle(
+        payload.sub,
+        payload.email,
+        payload.name || payload.email.split('@')[0],
+        ip,
+        req.headers['user-agent'] || null
+      );
+
+      setAuthCookie(res, result.token, isProduction);
+      res.json({ user: result.user });
+    } catch (err) {
+      console.error('Google auth error:', err);
+      res.status(401).json({ error: 'Google authentication failed' });
+    }
+  });
+
+  // ── POST /auth/forgot-password ───────────────────────────────────
+  router.post('/forgot-password', async (req: Request, res: Response) => {
+    const ip = req.ip || req.socket.remoteAddress || 'unknown';
+    if (isResetRateLimited(ip)) {
+      res.status(429).json({ error: 'Too many requests. Try again later' });
+      return;
+    }
+
+    const { email } = req.body || {};
+    const result = auth.forgotPassword(email);
+
+    // Always return success to prevent email enumeration
+    if ('error' in result) {
+      if (result.error !== '__silent__') {
+        res.status(400).json({ error: result.error });
+        return;
+      }
+      // Silent: email doesn't exist, but don't reveal that
+      res.json({ success: true, message: 'If an account with that email exists, a reset link has been sent' });
+      return;
+    }
+
+    // Send the email
+    const emailSent = await sendPasswordResetEmail(email.trim().toLowerCase(), result.token);
+    if (!emailSent && isEmailConfigured()) {
+      console.error(`Failed to send reset email to ${email}`);
+    }
+
+    res.json({ success: true, message: 'If an account with that email exists, a reset link has been sent' });
+  });
+
+  // ── POST /auth/reset-password ────────────────────────────────────
+  router.post('/reset-password', async (req: Request, res: Response) => {
+    const { token, newPassword } = req.body || {};
+    const result = await auth.resetPassword(token, newPassword);
+
+    if ('error' in result) {
+      res.status(400).json(result);
+      return;
+    }
+
+    res.json({ success: true });
+  });
+
   // ── POST /auth/logout ────────────────────────────────────────────
   router.post('/logout', (req: Request, res: Response) => {
     const token = getAuthToken(req);
@@ -145,30 +262,23 @@ export function createAuthRouter(auth: AuthService, isProduction: boolean): expr
     res.json({ user });
   });
 
+  // ── GET /auth/google-client-id ───────────────────────────────────
+  // Public endpoint — client needs the ID to render the Google button
+  router.get('/google-client-id', (_req: Request, res: Response) => {
+    res.json({ clientId: GOOGLE_CLIENT_ID || null });
+  });
+
   // ── POST /auth/change-password ───────────────────────────────────
   router.post('/change-password', async (req: Request, res: Response) => {
     const token = getAuthToken(req);
-    if (!token) {
-      res.status(401).json({ error: 'Not authenticated' });
-      return;
-    }
-
+    if (!token) { res.status(401).json({ error: 'Not authenticated' }); return; }
     const session = auth.validateSession(token);
-    if (!session) {
-      clearAuthCookie(res);
-      res.status(401).json({ error: 'Session expired' });
-      return;
-    }
+    if (!session) { clearAuthCookie(res); res.status(401).json({ error: 'Session expired' }); return; }
 
     const { currentPassword, newPassword } = req.body || {};
     const result = await auth.changePassword(session.userId, currentPassword, newPassword);
+    if ('error' in result) { res.status(400).json(result); return; }
 
-    if ('error' in result) {
-      res.status(400).json(result);
-      return;
-    }
-
-    // Re-login with new session after password change
     clearAuthCookie(res);
     res.json({ success: true });
   });
@@ -176,25 +286,13 @@ export function createAuthRouter(auth: AuthService, isProduction: boolean): expr
   // ── POST /auth/delete-account ────────────────────────────────────
   router.post('/delete-account', async (req: Request, res: Response) => {
     const token = getAuthToken(req);
-    if (!token) {
-      res.status(401).json({ error: 'Not authenticated' });
-      return;
-    }
-
+    if (!token) { res.status(401).json({ error: 'Not authenticated' }); return; }
     const session = auth.validateSession(token);
-    if (!session) {
-      clearAuthCookie(res);
-      res.status(401).json({ error: 'Session expired' });
-      return;
-    }
+    if (!session) { clearAuthCookie(res); res.status(401).json({ error: 'Session expired' }); return; }
 
     const { password } = req.body || {};
     const result = await auth.deleteAccount(session.userId, password);
-
-    if ('error' in result) {
-      res.status(400).json(result);
-      return;
-    }
+    if ('error' in result) { res.status(400).json(result); return; }
 
     clearAuthCookie(res);
     res.json({ success: true });

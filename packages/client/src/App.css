@@ -561,6 +561,33 @@ body {
   opacity: 1;
 }
 
+.auth-title {
+  color: #c9a84c;
+  font-size: 1.1rem;
+  text-align: center;
+  margin-bottom: 0.25rem;
+}
+
+.auth-success {
+  color: var(--success);
+  font-size: 0.9rem;
+  text-align: center;
+  padding: 0.5rem;
+}
+
+.auth-forgot-link {
+  display: block;
+  text-align: right;
+  font-size: 0.8rem;
+  margin-top: -0.25rem;
+}
+
+.google-signin-btn {
+  display: flex;
+  justify-content: center;
+  margin: 0.25rem 0;
+}
+
 .auth-loading {
   text-align: center;
   color: var(--text-muted);

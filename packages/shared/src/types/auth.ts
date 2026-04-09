@@ -2,6 +2,9 @@ export interface AuthUser {
   id: number;
   username: string;
   displayName: string;
+  email: string | null;
+  hasPassword: boolean;
+  hasGoogle: boolean;
   createdAt: string;
   gamesPlayed: number;
   gamesWon: number;
@@ -11,6 +14,7 @@ export interface RegisterRequest {
   username: string;
   password: string;
   displayName: string;
+  email: string;
 }
 
 export interface LoginRequest {
@@ -24,5 +28,5 @@ export interface AuthResponse {
 
 export interface AuthError {
   error: string;
-  field?: 'username' | 'password' | 'displayName';
+  field?: 'username' | 'password' | 'displayName' | 'email';
 }

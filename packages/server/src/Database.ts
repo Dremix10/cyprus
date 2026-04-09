@@ -96,7 +96,9 @@ export class TrackerDB {
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         username TEXT NOT NULL UNIQUE COLLATE NOCASE,
         display_name TEXT NOT NULL,
-        password_hash TEXT NOT NULL,
+        password_hash TEXT,
+        email TEXT UNIQUE COLLATE NOCASE,
+        google_id TEXT UNIQUE,
         created_at TEXT DEFAULT (datetime('now')),
         updated_at TEXT DEFAULT (datetime('now')),
         locked_until TEXT,
@@ -113,6 +115,14 @@ export class TrackerDB {
         user_agent TEXT
       );
 
+      CREATE TABLE IF NOT EXISTS password_reset_tokens (
+        token_hash TEXT PRIMARY KEY,
+        user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        created_at TEXT DEFAULT (datetime('now')),
+        expires_at TEXT NOT NULL,
+        used INTEGER DEFAULT 0
+      );
+
       CREATE INDEX IF NOT EXISTS idx_conn_ip ON connections(ip);
       CREATE INDEX IF NOT EXISTS idx_conn_at ON connections(connected_at);
       CREATE INDEX IF NOT EXISTS idx_conn_socket ON connections(socket_id);
@@ -121,9 +131,23 @@ export class TrackerDB {
       CREATE INDEX IF NOT EXISTS idx_game_events_gid ON game_events(game_id);
       CREATE INDEX IF NOT EXISTS idx_http_at ON http_requests(created_at);
       CREATE INDEX IF NOT EXISTS idx_users_username ON users(username);
+      CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
+      CREATE INDEX IF NOT EXISTS idx_users_google ON users(google_id);
       CREATE INDEX IF NOT EXISTS idx_user_sessions_user ON user_sessions(user_id);
       CREATE INDEX IF NOT EXISTS idx_user_sessions_expires ON user_sessions(expires_at);
+      CREATE INDEX IF NOT EXISTS idx_reset_tokens_expires ON password_reset_tokens(expires_at);
     `);
+
+    // ─── Migrations for existing databases ──────────────────────────
+    // Add columns that may not exist yet (SQLite ADD COLUMN is safe if column exists → catch error)
+    const migrations = [
+      `ALTER TABLE users ADD COLUMN email TEXT UNIQUE COLLATE NOCASE`,
+      `ALTER TABLE users ADD COLUMN google_id TEXT UNIQUE`,
+    ];
+    for (const sql of migrations) {
+      try { this.db.exec(sql); } catch { /* column already exists */ }
+    }
+
   }
 
   // ─── Connections ────────────────────────────────────────────────────
@@ -348,28 +372,51 @@ export class TrackerDB {
 
   // ─── Users ──────────────────────────────────────────────────────────
 
-  createUser(username: string, displayName: string, passwordHash: string): number {
+  createUser(username: string, displayName: string, passwordHash: string | null, email: string | null = null, googleId: string | null = null): number {
     const result = this.db.prepare(
-      `INSERT INTO users (username, display_name, password_hash) VALUES (?, ?, ?)`
-    ).run(username, displayName, passwordHash);
+      `INSERT INTO users (username, display_name, password_hash, email, google_id) VALUES (?, ?, ?, ?, ?)`
+    ).run(username, displayName, passwordHash, email, googleId);
     return Number(result.lastInsertRowid);
   }
 
   getUserByUsername(username: string): {
-    id: number; username: string; display_name: string; password_hash: string;
+    id: number; username: string; display_name: string; password_hash: string | null;
+    email: string | null; google_id: string | null;
     created_at: string; locked_until: string | null; failed_login_attempts: number;
   } | undefined {
     return this.db.prepare(
-      `SELECT id, username, display_name, password_hash, created_at, locked_until, failed_login_attempts FROM users WHERE username = ?`
+      `SELECT id, username, display_name, password_hash, email, google_id, created_at, locked_until, failed_login_attempts FROM users WHERE username = ?`
     ).get(username) as ReturnType<TrackerDB['getUserByUsername']>;
+  }
+
+  getUserByEmail(email: string): ReturnType<TrackerDB['getUserByUsername']> {
+    return this.db.prepare(
+      `SELECT id, username, display_name, password_hash, email, google_id, created_at, locked_until, failed_login_attempts FROM users WHERE email = ?`
+    ).get(email) as ReturnType<TrackerDB['getUserByEmail']>;
+  }
+
+  getUserByGoogleId(googleId: string): ReturnType<TrackerDB['getUserByUsername']> {
+    return this.db.prepare(
+      `SELECT id, username, display_name, password_hash, email, google_id, created_at, locked_until, failed_login_attempts FROM users WHERE google_id = ?`
+    ).get(googleId) as ReturnType<TrackerDB['getUserByGoogleId']>;
+  }
+
+  linkGoogleAccount(userId: number, googleId: string, email: string): void {
+    this.db.prepare(
+      `UPDATE users SET google_id = ?, email = COALESCE(email, ?), updated_at = datetime('now') WHERE id = ?`
+    ).run(googleId, email, userId);
+  }
+
+  updateUserEmail(userId: number, email: string): void {
+    this.db.prepare(`UPDATE users SET email = ?, updated_at = datetime('now') WHERE id = ?`).run(email, userId);
   }
 
   getUserById(id: number): {
     id: number; username: string; display_name: string; created_at: string;
-    last_login_at: string | null;
+    last_login_at: string | null; email: string | null;
   } | undefined {
     return this.db.prepare(
-      `SELECT id, username, display_name, created_at, last_login_at FROM users WHERE id = ?`
+      `SELECT id, username, display_name, created_at, last_login_at, email FROM users WHERE id = ?`
     ).get(id) as ReturnType<TrackerDB['getUserById']>;
   }
 
@@ -404,6 +451,30 @@ export class TrackerDB {
 
   deleteUser(userId: number): void {
     this.db.prepare(`DELETE FROM users WHERE id = ?`).run(userId);
+  }
+
+  // ─── Password Reset Tokens ─────────────────────────────────────────
+
+  createPasswordResetToken(tokenHash: string, userId: number, expiresInMinutes: number = 60): void {
+    // Invalidate any existing tokens for this user
+    this.db.prepare(`DELETE FROM password_reset_tokens WHERE user_id = ?`).run(userId);
+    this.db.prepare(
+      `INSERT INTO password_reset_tokens (token_hash, user_id, expires_at) VALUES (?, ?, datetime('now', '+' || ? || ' minutes'))`
+    ).run(tokenHash, userId, expiresInMinutes);
+  }
+
+  validatePasswordResetToken(tokenHash: string): { user_id: number } | undefined {
+    return this.db.prepare(
+      `SELECT user_id FROM password_reset_tokens WHERE token_hash = ? AND expires_at > datetime('now') AND used = 0`
+    ).get(tokenHash) as { user_id: number } | undefined;
+  }
+
+  markPasswordResetTokenUsed(tokenHash: string): void {
+    this.db.prepare(`UPDATE password_reset_tokens SET used = 1 WHERE token_hash = ?`).run(tokenHash);
+  }
+
+  cleanExpiredResetTokens(): void {
+    this.db.prepare(`DELETE FROM password_reset_tokens WHERE expires_at <= datetime('now') OR used = 1`).run();
   }
 
   // ─── User Sessions ─────────────────────────────────────────────────

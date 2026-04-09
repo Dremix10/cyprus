@@ -8,7 +8,13 @@ import { GameBoard } from './components/GameBoard.js';
 import { MatchmakingQueue } from './components/MatchmakingQueue.js';
 import { Tutorial } from './components/Tutorial.js';
 import { ConnectionStatus } from './components/ConnectionStatus.js';
+import { ResetPasswordForm } from './components/AuthForms.js';
 import './App.css';
+
+function getResetToken(): string | null {
+  const params = new URLSearchParams(window.location.search);
+  return params.get('resetToken');
+}
 
 export default function App() {
   useSocketEvents();
@@ -17,6 +23,7 @@ export default function App() {
   const trySessionReconnect = useRoomStore((s) => s.trySessionReconnect);
   const checkAuth = useAuthStore((s) => s.checkAuth);
   const [showTutorial, setShowTutorial] = useState(false);
+  const [resetToken, setResetToken] = useState<string | null>(getResetToken);
 
   // Check auth and attempt session reconnect on mount
   useEffect(() => {
@@ -29,6 +36,28 @@ export default function App() {
       <div className="app">
         <div className="reconnecting-screen">
           <p>Reconnecting to game...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (resetToken) {
+    return (
+      <div className="app">
+        <div className="lobby-fullscreen">
+          <div className="lobby-bg-clouds" />
+          <div className="lobby-bg-zeus" />
+          <div className="lobby-bg-overlay" />
+          <div className="lobby-content">
+            <div className="lobby-header">
+              <h1 className="title-greek">TICHU</h1>
+            </div>
+            <div className="lobby-form-card">
+              <div className="lobby-form">
+                <ResetPasswordForm token={resetToken} onDone={() => { setResetToken(null); window.history.replaceState({}, '', '/'); }} />
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     );
