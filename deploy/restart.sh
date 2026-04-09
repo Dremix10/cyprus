@@ -9,6 +9,9 @@ echo "=== Deploy started at $(date) ==="
 
 cd "$APP_DIR"
 
+echo "Resetting runtime data files before pull..."
+git checkout -- packages/server/data/ 2>/dev/null || true
+
 echo "Pulling latest from main..."
 git pull origin main
 
@@ -44,6 +47,7 @@ else
 fi
 
 echo "Starting new process..."
+set -a; [ -f .env ] && source .env; set +a
 nohup node "$ENTRY" >> "$LOG_FILE" 2>&1 &
 NEW_PID=$!
 echo "New process started (PID: $NEW_PID)"
