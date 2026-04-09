@@ -51,19 +51,7 @@ export function useSocketEvents() {
     };
 
     const onMatchmakingFound = (data: { roomCode: string; sessionId: string }) => {
-      const { nickname } = useRoomStore.getState();
-      // Save session for reconnect support
-      localStorage.setItem('cyprus-session', JSON.stringify({
-        sessionId: data.sessionId,
-        roomCode: data.roomCode,
-        nickname,
-      }));
-      useRoomStore.setState({
-        roomCode: data.roomCode,
-        queueInfo: null,
-        error: null,
-      });
-      // Game state will arrive via game:state event, which sets view to 'game'
+      useRoomStore.getState().handleMatchFound(data.roomCode, data.sessionId);
     };
 
     const onMatchmakingCancelled = () => {
