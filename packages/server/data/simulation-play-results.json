@@ -1,44 +1,44 @@
 {
-  "timestamp": "2026-04-09T01:12:00.855Z",
+  "timestamp": "2026-04-09T02:16:37.452Z",
   "numGames": 10000,
   "baseline": {
     "label": "Hard Baseline",
     "games": 10000,
     "errors": 0,
     "winRate": [
-      0.5187,
-      0.4813
+      0.5067,
+      0.4933
     ],
     "avgScores": [
-      878.6605,
-      867.7595
+      871.182,
+      871.508
     ],
-    "avgRounds": 13.103,
+    "avgRounds": 13.1031,
     "playRate": 48.5,
     "passRate": 51.5,
     "bombsPerGame": 3.2,
     "dragonsPerGame": 12.8,
-    "doubleVictoriesPerGame": 3.87,
+    "doubleVictoriesPerGame": 3.83,
     "tichu": {
       "callsPerGame": 0.9,
-      "successRate": 74.6,
-      "netPointsPerGame": 46.5
+      "successRate": 74.4,
+      "netPointsPerGame": 46.4
     },
     "grandTichu": {
       "callsPerGame": 0.03,
-      "successRate": 75,
-      "netPointsPerGame": 3
+      "successRate": 77,
+      "netPointsPerGame": 3.3
     },
     "firstOutDistribution": [
-      25.2,
       24.9,
       25,
-      24.9
+      25.1,
+      25
     ]
   },
   "recommendations": [
     "PASS RATE HIGH (51.5%): Bots pass too often. Consider lowering the threshold for playing cards — less passing means more control over tricks.",
-    "DOUBLE VICTORIES (3.87/game): High rate suggests good team coordination.",
+    "DOUBLE VICTORIES (3.83/game): High rate suggests good team coordination.",
     "GRAND TICHU UNDER-CALLED: Very high success but almost never called. Could loosen slightly."
   ]
 }
