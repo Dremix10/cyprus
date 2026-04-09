@@ -65,6 +65,7 @@ export class SocketHandler {
   private turnDeadlines = new Map<string, number>(); // roomCode -> deadline timestamp
   private disconnectTimers = new Map<string, NodeJS.Timeout>(); // "roomCode-position" -> timer
   private dogTimers = new Map<string, NodeJS.Timeout>(); // roomCode -> Dog resolve timer
+  private trickWonTimers = new Map<string, NodeJS.Timeout>(); // roomCode -> trick won delay timer
   private socketToSession = new Map<string, string>(); // socketId -> sessionId (for auto-recovery)
   private rateLimiter = new RateLimiter();
   private rateLimitCleanup: ReturnType<typeof setInterval>;
@@ -88,6 +89,7 @@ export class SocketHandler {
     for (const timer of this.turnTimers.values()) clearTimeout(timer);
     for (const timer of this.disconnectTimers.values()) clearTimeout(timer);
     for (const timer of this.dogTimers.values()) clearTimeout(timer);
+    for (const timer of this.trickWonTimers.values()) clearTimeout(timer);
     if (this.persistTimer) clearTimeout(this.persistTimer);
     // Final persist before shutdown
     this.persistRoomsSync();
@@ -526,6 +528,12 @@ export class SocketHandler {
       return; // Don't schedule bot actions while Dog is pending
     }
 
+    // If trick was just won, show it for a moment before clearing
+    if (room.engine.state.trickWonPending) {
+      this.scheduleTrickWonResolve(roomCode);
+      return; // Don't schedule bot actions while trick is showing
+    }
+
     // Schedule bot actions if this is a solo room
     this.scheduleBotAction(roomCode);
   }
@@ -659,6 +667,29 @@ export class SocketHandler {
     }, 1500);
 
     this.dogTimers.set(roomCode, timer);
+  }
+
+  private scheduleTrickWonResolve(roomCode: string): void {
+    const existing = this.trickWonTimers.get(roomCode);
+    if (existing) clearTimeout(existing);
+
+    const timer = setTimeout(() => {
+      this.trickWonTimers.delete(roomCode);
+      const room = this.rooms.getRoom(roomCode);
+      if (!room || !room.engine || !room.engine.state.trickWonPending) return;
+
+      try {
+        const events = room.engine.completeTrickWon();
+        for (const event of events) {
+          this.io.to(roomCode).emit('game:event', event);
+        }
+        this.broadcastGameState(roomCode);
+      } catch (err) {
+        console.error(`Trick won resolve error in room ${roomCode}:`, err);
+      }
+    }, 1200);
+
+    this.trickWonTimers.set(roomCode, timer);
   }
 
   // ─── Turn Timer ────────────────────────────────────────────────────────

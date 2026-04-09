@@ -57,6 +57,7 @@ export type GameEngineState = {
   wish: WishState;
   wishPending: PlayerPosition | null; // position of player who must choose a wish before play continues
   dogPending: boolean; // Dog was played, waiting for visual delay before resolving
+  trickWonPending: boolean; // Trick was won, waiting for visual delay before clearing
   finishOrder: PlayerPosition[];
   scores: [number, number];
   roundScores: [number, number];
@@ -100,6 +101,7 @@ export class GameEngine {
       wish: { active: false, wishedRank: null, wishedBy: null },
       wishPending: null,
       dogPending: false,
+      trickWonPending: false,
       finishOrder: [],
       scores: [0, 0],
       roundScores: [0, 0],
@@ -133,6 +135,7 @@ export class GameEngine {
     this.state.currentTrick = { plays: [], currentWinner: null, passCount: 0, passedPlayers: [] };
     this.state.lastTrick = null;
     this.state.dogPending = false;
+    this.state.trickWonPending = false;
     this.state.wish = { active: false, wishedRank: null, wishedBy: null };
     this.state.wishPending = null;
     this.state.finishOrder = [];
@@ -600,7 +603,23 @@ export class GameEngine {
       return;
     }
 
-    // Clear wish when the trick ends — it only lasts for the trick it was made in
+    // Pause here — keep the trick visible on the table
+    // SocketHandler will call completeTrickWon() after a delay
+    this.state.trickWonPending = true;
+  }
+
+  /** Phase 2 of trick resolution: collect cards, clear trick, set next leader. */
+  completeTrickWon(): GameEvent[] {
+    this.events = [];
+    if (!this.state.trickWonPending) return this.events;
+    this.state.trickWonPending = false;
+
+    const winner = this.state.currentTrick.currentWinner!;
+    const trickCards = this.state.currentTrick.plays.flatMap(
+      (p) => p.combination.cards
+    );
+
+    // Clear wish when the trick ends
     if (this.state.wish.active) {
       this.state.wish = { active: false, wishedRank: null, wishedBy: null };
       this.emit({ type: 'WISH_FULFILLED' });
@@ -623,6 +642,7 @@ export class GameEngine {
     }
 
     this.checkRoundEnd();
+    return this.events;
   }
 
   private checkPlayerOut(player: PlayerState): void {
@@ -846,6 +866,7 @@ export class GameEngine {
       hasPlayedCards: player.hasPlayedCards,
       wishPending: this.state.wishPending,
       dogPending: this.state.dogPending || undefined,
+      trickWonPending: this.state.trickWonPending || undefined,
       roundHistory: this.roundHistory.length > 0 ? this.roundHistory : undefined,
       receivedCards: !player.hasPlayedCards && this.state.receivedCards[position]?.length > 0
         ? this.state.receivedCards[position].map((rc) => ({

@@ -89,6 +89,11 @@ function runRound(engine: GameEngine, bots: BotAI[], stats: RoundStats): void {
     (engine.state.phase === GamePhase.PLAYING || engine.state.phase === GamePhase.DRAGON_GIVE) &&
     ++safety < 500
   ) {
+    if (engine.state.trickWonPending) {
+      engine.completeTrickWon();
+      continue;
+    }
+
     if (engine.state.dogPending) {
       engine.resolveDog();
       continue;
