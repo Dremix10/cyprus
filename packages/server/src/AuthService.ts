@@ -129,7 +129,8 @@ export class AuthService {
       this.db.pruneOldestUserSessions(userId, MAX_SESSIONS_PER_USER - 1);
     }
     const token = randomBytes(32).toString('hex');
-    this.db.createUserSession(token, userId, SESSION_EXPIRY_HOURS, ip, userAgent);
+    const tokenHash = hashToken(token);
+    this.db.createUserSession(tokenHash, userId, SESSION_EXPIRY_HOURS, ip, userAgent);
     return token;
   }
 
@@ -308,7 +309,7 @@ export class AuthService {
   // ─── Session Management ─────────────────────────────────────────
 
   logout(token: string): void {
-    this.db.deleteUserSession(token);
+    this.db.deleteUserSession(hashToken(token));
   }
 
   logoutAll(userId: number): void {
@@ -317,7 +318,7 @@ export class AuthService {
 
   validateSession(token: string): { userId: number } | null {
     if (!token || typeof token !== 'string') return null;
-    const session = this.db.validateUserSession(token);
+    const session = this.db.validateUserSession(hashToken(token));
     return session ? { userId: session.user_id } : null;
   }
 
