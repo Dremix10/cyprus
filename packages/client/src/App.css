@@ -1151,6 +1151,45 @@ body {
   margin-top: 2px;
 }
 
+.game-history-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+  grid-column: 1 / -1;
+}
+
+.game-history-dots {
+  display: flex;
+  gap: 0.4rem;
+}
+
+.game-dot {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  cursor: default;
+}
+
+.game-dot-win {
+  background: rgba(76, 175, 80, 0.25);
+  color: #4caf50;
+  border: 1px solid rgba(76, 175, 80, 0.4);
+}
+
+.game-dot-loss {
+  background: rgba(244, 67, 54, 0.25);
+  color: #f44336;
+  border: 1px solid rgba(244, 67, 54, 0.4);
+}
+
 .leaderboard-loading,
 .leaderboard-empty {
   color: rgba(255, 255, 255, 0.5);
@@ -1980,7 +2019,6 @@ body {
 
 .trick-player {
   font-size: 0.8rem;
-  color: var(--text-muted);
   min-width: 60px;
   text-align: right;
 }
