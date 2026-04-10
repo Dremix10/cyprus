@@ -267,10 +267,58 @@ function analyzePlayedCards(playedCards: Card[], myHand: Card[]): CardCountInfo 
   };
 }
 
+// ─── Bot Config (tunable parameters for hard mode) ─────────────────────
+
+export interface BotConfig {
+  // Bombing thresholds
+  bombPointThreshold: number;     // bomb tricks worth this many points (default: 15)
+  bombEndgameCards: number;       // bomb any trick when hand <= this (default: 5)
+
+  // Leading preferences
+  leadDragonAgainstTichu: boolean;  // lead Dragon when opponent called Tichu (default: true)
+  leadAcesAgainstTichu: boolean;    // lead Aces when opponent called Tichu (default: true)
+
+  // Dragon usage when following
+  dragonFollowMinPoints: number;    // only play Dragon on tricks worth >= this (default: 10)
+
+  // Phoenix usage when following
+  phoenixFollowMinPoints: number;   // only play Phoenix on tricks worth >= this (default: 5)
+  phoenixFollowMaxCards: number;    // only save Phoenix when hand > this many cards (default: 5)
+
+  // Partner coordination
+  dogPlayMaxCards: number;          // play Dog when hand <= this many cards (default: 14 = always)
+  dogPlayPartnerCards: number;      // play Dog when partner has <= this many cards (default: 14 = always)
+
+  // Passing strategy
+  passAceToPartner: boolean;        // pass an Ace to partner when not holding a bomb (default: true)
+
+  // Monte Carlo simulation
+  useMonteCarlo: boolean;           // use MC simulation for key decisions (default: false)
+}
+
+export const DEFAULT_BOT_CONFIG: BotConfig = {
+  bombPointThreshold: 15,
+  bombEndgameCards: 5,
+  leadDragonAgainstTichu: true,
+  leadAcesAgainstTichu: true,
+  dragonFollowMinPoints: 10,
+  phoenixFollowMinPoints: 5,
+  phoenixFollowMaxCards: 5,
+  dogPlayMaxCards: 14,
+  dogPlayPartnerCards: 14,
+  passAceToPartner: true,
+  useMonteCarlo: false,
+};
+
 // ─── Bot AI ─────────────────────────────────────────────────────────────
 
 export class BotAI {
-  constructor(private difficulty: BotDifficulty) {}
+  public config: BotConfig;
+  public inRollout: boolean = false; // true during MC rollouts (prevents recursion)
+
+  constructor(private difficulty: BotDifficulty, config?: Partial<BotConfig>) {
+    this.config = { ...DEFAULT_BOT_CONFIG, ...config };
+  }
 
   // ─── Grand Tichu ────────────────────────────────────────────────────
 
@@ -537,6 +585,21 @@ export class BotAI {
     let toAcross: string;
     if (partnerGift) {
       toAcross = partnerGift;
+    } else if (this.config.passAceToPartner && bombRanks.size === 0) {
+      // Pass an Ace to partner if we have one (and not keeping it for a bomb)
+      const aces = hand.filter((c) =>
+        isNormalCard(c) && c.rank === NR.ACE &&
+        c.id !== toLeft && c.id !== toRight &&
+        !bombRanks.has(c.rank)
+      );
+      if (aces.length > 0) {
+        toAcross = aces[0].id;
+      } else {
+        const forPartner = scored
+          .filter((s) => s.card.id !== toLeft && s.card.id !== toRight)
+          .sort((a, b) => b.value - a.value);
+        toAcross = forPartner[0]?.card.id ?? hand[2].id;
+      }
     } else {
       const forPartner = scored
         .filter((s) => s.card.id !== toLeft && s.card.id !== toRight)
@@ -554,7 +617,8 @@ export class BotAI {
     currentTrick: TrickState,
     wish: WishState,
     botPosition: PlayerPosition,
-    context?: GameContext
+    context?: GameContext,
+    mcEvaluate?: (candidates: (Card[] | null)[]) => string[] | null,
   ): string[] | null {
     const isLeading = currentTrick.plays.length === 0;
     const trickTop = isLeading
@@ -573,7 +637,13 @@ export class BotAI {
       return this.chooseFollowMedium(hand, playable, currentTrick, botPosition, context);
     }
 
-    // Hard mode
+    // Hard mode — try Monte Carlo for leading decisions only
+    if (this.config.useMonteCarlo && !this.inRollout && mcEvaluate && isLeading && hand.length >= 5 && playable.length >= 3) {
+      const result = mcEvaluate(playable);
+      if (result !== undefined) return result;
+    }
+
+    // Heuristic fallback
     const cardInfo = context?.playedCards
       ? analyzePlayedCards(context.playedCards, hand)
       : null;
@@ -660,10 +730,10 @@ export class BotAI {
 
     // Proactive bombing: bomb high-value tricks even with regular plays available
     if (bombs.length > 0 && !partnerWinning) {
-      if (trickPoints >= 15) {
+      if (trickPoints >= this.config.bombPointThreshold) {
         return this.pickLowestCombo(bombs);
       }
-      if (hand.length <= 5) {
+      if (hand.length <= this.config.bombEndgameCards) {
         return this.pickLowestCombo(bombs);
       }
     }
@@ -672,7 +742,7 @@ export class BotAI {
     if (partnerWinning) return null;
 
     if (regular.length === 0) {
-      if (hand.length <= 5 && bombs.length > 0) {
+      if (hand.length <= this.config.bombEndgameCards && bombs.length > 0) {
         return this.pickLowestCombo(bombs);
       }
       return null;
@@ -721,12 +791,13 @@ export class BotAI {
       const partnerCalledTichu = context.tichuCalls[partnerPos] === 'tichu' ||
         context.tichuCalls[partnerPos] === 'grand_tichu';
 
-      // Play Dog if partner called Tichu, partner has few cards, or bot has ≤6 cards (avoid holding Dog late)
-      if (!partnerOut && (partnerCalledTichu || (partnerCards <= 5 && partnerCards > 0) || hand.length <= 6)) {
+      // Play Dog if partner called Tichu, partner has few cards, or bot is holding it too long
+      if (!partnerOut && (partnerCalledTichu || (partnerCards <= this.config.dogPlayPartnerCards && partnerCards > 0) || hand.length <= this.config.dogPlayMaxCards)) {
         return dogPlay.map((c) => c.id);
       }
     }
 
+    // ── Lead with Mahjong: prefer using it in a straight over leading as singleton ──
     // ── Lead with Mahjong first (it's the lowest card, hardest to get rid of later) ──
     const mahjongPlay = combos.singles.find((c) => isSpecial(c[0], SpecialCardType.MAHJONG));
     if (mahjongPlay) {
@@ -751,17 +822,21 @@ export class BotAI {
 
     // ── Counter opponent Tichu: lead high to steal tricks from them ──
     if (context && this.hasOpponentTichuCall(botPosition, context)) {
-      // Lead Dragon if we have it — guaranteed trick win
-      const dragonPlay = combos.singles.find((c) => isSpecial(c[0], SpecialCardType.DRAGON));
-      if (dragonPlay) {
-        return dragonPlay.map((c) => c.id);
+      // Lead Dragon if configured (default: yes)
+      if (this.config.leadDragonAgainstTichu) {
+        const dragonPlay = combos.singles.find((c) => isSpecial(c[0], SpecialCardType.DRAGON));
+        if (dragonPlay) {
+          return dragonPlay.map((c) => c.id);
+        }
       }
-      // Lead aces as singles
-      const aceSingles = combos.nonSpecialSingles.filter(
-        (c) => isNormalCard(c[0]) && c[0].rank === NR.ACE
-      );
-      if (aceSingles.length > 0) {
-        return aceSingles[0].map((c) => c.id);
+      // Lead aces as singles if configured (default: yes)
+      if (this.config.leadAcesAgainstTichu) {
+        const aceSingles = combos.nonSpecialSingles.filter(
+          (c) => isNormalCard(c[0]) && c[0].rank === NR.ACE
+        );
+        if (aceSingles.length > 0) {
+          return aceSingles[0].map((c) => c.id);
+        }
       }
       // Lead high singles (King+) to pressure them
       const highSingles = combos.nonSpecialSingles.filter(
@@ -907,7 +982,7 @@ export class BotAI {
     // ── Proactive bombing: bomb high-value tricks even when regular plays exist ──
     if (bombs.length > 0 && !partnerWinning) {
       // Bomb valuable tricks (15+ points) — worth spending a bomb to steal
-      if (trickPoints >= 15) {
+      if (trickPoints >= this.config.bombPointThreshold) {
         return this.pickLowestCombo(bombs);
       }
       // Bomb 10+ point tricks if opponent is about to go out or has Tichu
@@ -915,7 +990,7 @@ export class BotAI {
         return this.pickLowestCombo(bombs);
       }
       // Bomb any trick if close to going out (use bombs before hand empties)
-      if (hand.length <= 5) {
+      if (hand.length <= this.config.bombEndgameCards) {
         return this.pickLowestCombo(bombs);
       }
     }
@@ -953,14 +1028,17 @@ export class BotAI {
     const lowestBeat = sorted[0];
     const lowestCombo = detectCombination(lowestBeat);
 
-    // Dragon always wins singles — play it (but never over a teammate)
+    // Dragon wins singles — but only on tricks worth enough points (configurable)
     if (lowestBeat.length === 1 && isSpecial(lowestBeat[0], SpecialCardType.DRAGON) && !partnerWinning) {
-      return lowestBeat.map((c) => c.id);
+      if (trickPoints >= this.config.dragonFollowMinPoints || hand.length <= 3) {
+        return lowestBeat.map((c) => c.id);
+      }
+      return null; // pass instead of wasting Dragon on a low-value trick
     }
 
     // Don't waste Phoenix on worthless tricks (unless close to going out)
     if (lowestBeat.length === 1 && isSpecial(lowestBeat[0], SpecialCardType.PHOENIX)) {
-      if (trickPoints < 5 && hand.length > 5) return null;
+      if (trickPoints < this.config.phoenixFollowMinPoints && hand.length > this.config.phoenixFollowMaxCards) return null;
     }
 
     // Pass if cheapest beat is Ace+ on a pointless trick and we have many cards

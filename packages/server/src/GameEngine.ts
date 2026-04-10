@@ -818,6 +818,19 @@ export class GameEngine {
     return engine;
   }
 
+  /** Fast deep clone for Monte Carlo simulation. Skips events/history (not needed for rollouts). */
+  clone(): GameEngine {
+    const nicknames = this.state.players.map(p => p.nickname) as [string, string, string, string];
+    const copy = new GameEngine(nicknames, this.targetScore);
+    // JSON round-trip is faster than structuredClone for plain data objects
+    copy.state = JSON.parse(JSON.stringify(this.state));
+    copy.roundTrickCards = JSON.parse(JSON.stringify(this.roundTrickCards));
+    copy.roundBreakdown = this.roundBreakdown ? JSON.parse(JSON.stringify(this.roundBreakdown)) : null;
+    copy.grandTichuRemaining = JSON.parse(JSON.stringify(this.grandTichuRemaining));
+    // Skip events and roundHistory — not needed for simulation
+    return copy;
+  }
+
   getRoundHistory() {
     return this.roundHistory;
   }

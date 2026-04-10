@@ -9,6 +9,7 @@ import type { Room, RoomManager } from './RoomManager.js';
 import type { GameEngine } from './GameEngine.js';
 import { BotAI } from './BotAI.js';
 import type { BotDifficulty, GameContext } from './BotAI.js';
+import { monteCarloEvaluate } from './MonteCarloSim.js';
 import type { TrackerDB } from './Database.js';
 
 type EmitFn = (roomCode: string, event: string, ...args: unknown[]) => void;
@@ -28,7 +29,7 @@ export class BotController {
     if (!room || !room.engine || room.botPositions.size === 0) return;
 
     const engine = room.engine;
-    const botAI = new BotAI(room.botDifficulty);
+    const botAI = new BotAI(room.botDifficulty, room.botDifficulty === 'hard' ? { useMonteCarlo: true } : {});
 
     const action = this.findBotAction(room, engine, botAI);
     if (!action) return;
@@ -153,12 +154,18 @@ export class BotController {
       const hand = player.hand;
       const gameContext = this.buildGameContext(engine);
 
+      // Build MC evaluator for hard mode bots
+      const mcEval = botAI.config.useMonteCarlo
+        ? (candidates: (Card[] | null)[]) => monteCarloEvaluate(engine, currentPlayer, candidates)
+        : undefined;
+
       let cardIds = botAI.choosePlay(
         hand,
         engine.state.currentTrick,
         engine.state.wish,
         currentPlayer,
-        gameContext
+        gameContext,
+        mcEval
       );
 
       if (!cardIds && engine.state.wish.active && engine.state.wish.wishedRank !== null) {
