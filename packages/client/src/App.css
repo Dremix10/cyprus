@@ -1190,6 +1190,21 @@ body {
   border: 1px solid rgba(244, 67, 54, 0.4);
 }
 
+.lobby-game-history {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.lobby-history-label {
+  font-size: 0.7rem;
+  color: rgba(255, 255, 255, 0.5);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
 .leaderboard-loading,
 .leaderboard-empty {
   color: rgba(255, 255, 255, 0.5);
