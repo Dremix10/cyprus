@@ -3,7 +3,7 @@ import { GamePhase, findPlayableFromHand } from '@cyprus/shared';
 import type { RoomManager, Room } from './RoomManager.js';
 
 const TURN_TIMEOUT_MS = 60_000;
-const DISCONNECT_REPLACE_MS = 120_000;
+const DISCONNECT_REPLACE_MS = 60_000;
 
 type BroadcastFn = (roomCode: string) => void;
 type EmitFn = (roomCode: string, event: string, ...args: unknown[]) => void;

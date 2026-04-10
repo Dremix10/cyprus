@@ -200,10 +200,10 @@ export const useRoomStore = create<RoomStore>((set, get) => ({
           if (attempt < maxAttempts - 1) {
             doReconnect(attempt + 1);
           } else {
-            // Don't clear session — store as stale so lobby can show reconnect button
             set({
               reconnecting: false,
               staleSession: { roomCode: session.roomCode, nickname: session.nickname },
+              error: 'Reconnect timed out. Try again or dismiss.',
             });
             resolve(false);
           }
@@ -213,13 +213,22 @@ export const useRoomStore = create<RoomStore>((set, get) => ({
           socket.emit('session:reconnect', session.sessionId, (response) => {
             clearTimeout(timeout);
             if ('error' in response) {
+              const permanent = ['Session expired', 'Room no longer exists', 'Session invalid', 'You were replaced by a bot'].some(
+                (msg) => response.error.includes(msg)
+              );
+              if (permanent) {
+                clearSession();
+                set({ reconnecting: false, staleSession: null, error: response.error });
+                resolve(false);
+                return;
+              }
               if (attempt < maxAttempts - 1) {
                 setTimeout(() => doReconnect(attempt + 1), 1000);
               } else {
-                // Keep session in localStorage for manual retry
                 set({
                   reconnecting: false,
                   staleSession: { roomCode: session.roomCode, nickname: session.nickname },
+                  error: 'Could not reconnect. Try again or dismiss.',
                 });
                 resolve(false);
               }

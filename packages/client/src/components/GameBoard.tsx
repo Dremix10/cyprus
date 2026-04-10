@@ -386,16 +386,14 @@ function PlayingLayout({
       {/* Turn indicator */}
       <div className="turn-indicator">
         {isMyTurn ? (
-          <>
-            <span className="your-turn">Your turn</span>
-            {gameState.turnDeadline && (
-              <TurnTimer deadline={gameState.turnDeadline} />
-            )}
-          </>
+          <span className="your-turn">Your turn</span>
         ) : (
           <span className="info">
             {gameState.players[gameState.currentPlayer]?.nickname}'s turn
           </span>
+        )}
+        {gameState.turnDeadline && (
+          <TurnTimer deadline={gameState.turnDeadline} />
         )}
       </div>
 
