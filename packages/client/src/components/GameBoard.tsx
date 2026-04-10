@@ -274,8 +274,8 @@ function PlayingLayout({
   useEffect(() => {
     if (lastEvent?.type === 'PLAYER_OUT' && lastEvent.playerPosition !== undefined) {
       const name = gameState.players[lastEvent.playerPosition]?.nickname ?? 'Player';
-      const order = gameState.players[lastEvent.playerPosition]?.finishOrder;
-      setPlayerOutName(`${name} is out! #${order}`);
+      const order = lastEvent.data?.place ?? gameState.players[lastEvent.playerPosition]?.finishOrder;
+      setPlayerOutName(`${name} is out!${order ? ` #${order}` : ''}`);
       const t = setTimeout(() => setPlayerOutName(null), 2000);
       return () => clearTimeout(t);
     }

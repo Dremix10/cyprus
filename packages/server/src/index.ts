@@ -180,6 +180,34 @@ app.get('/api/leaderboard/me', (req, res) => {
   res.json({ ...stats, username: user.username, display_name: user.display_name });
 });
 
+app.get('/api/leaderboard/history', (req, res) => {
+  let token: string | undefined;
+  const cookieHeader = req.headers.cookie;
+  if (cookieHeader) {
+    for (const pair of cookieHeader.split(';')) {
+      const [key, val] = pair.trim().split('=');
+      if (key === SESSION_COOKIE) { token = val; break; }
+    }
+  }
+  if (!token) { res.status(401).json({ error: 'Not authenticated' }); return; }
+  const session = db.validateUserSession(token);
+  if (!session) { res.status(401).json({ error: 'Invalid session' }); return; }
+
+  const history = db.getUserGameHistory(session.user_id, 5);
+  const results = history.map((g) => {
+    const myTeam = g.player_position % 2 === 0 ? '02' : '13';
+    return {
+      game_id: g.game_id,
+      ended_at: g.ended_at,
+      won: g.winner_team === myTeam,
+      myScore: myTeam === '02' ? g.final_score_02 : g.final_score_13,
+      opponentScore: myTeam === '02' ? g.final_score_13 : g.final_score_02,
+      botDifficulty: g.bot_difficulty,
+    };
+  });
+  res.json(results);
+});
+
 // Auth routes
 app.use('/auth', createAuthRouter(authService, isProduction));
 

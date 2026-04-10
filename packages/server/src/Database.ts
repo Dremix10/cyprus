@@ -698,6 +698,34 @@ export class TrackerDB {
     return { ...stats, rank: stats.games_played >= 3 ? rankRow.rank : 0 };
   }
 
+  getUserGameHistory(userId: number, limit: number = 5): Array<{
+    game_id: number;
+    ended_at: string;
+    final_score_02: number;
+    final_score_13: number;
+    winner_team: string;
+    player_position: number;
+    bot_difficulty: string | null;
+  }> {
+    return this.db.prepare(`
+      SELECT g.id as game_id, g.ended_at, g.final_score_02, g.final_score_13,
+             g.winner_team, gp.position as player_position, g.bot_difficulty
+      FROM games g
+      JOIN game_players gp ON gp.game_id = g.id
+      WHERE gp.user_id = ? AND g.ended_at IS NOT NULL
+      ORDER BY g.ended_at DESC
+      LIMIT ?
+    `).all(userId, limit) as Array<{
+      game_id: number;
+      ended_at: string;
+      final_score_02: number;
+      final_score_13: number;
+      winner_team: string;
+      player_position: number;
+      bot_difficulty: string | null;
+    }>;
+  }
+
   // ─── Read-Only Query ─────────────────────────────────────────────
 
   runReadOnlyQuery(sql: string, limit: number = 200): { columns: string[]; rows: unknown[][]; rowCount: number } {

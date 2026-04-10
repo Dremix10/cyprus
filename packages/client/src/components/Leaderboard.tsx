@@ -2,9 +2,19 @@ import { useState, useEffect } from 'react';
 import type { LeaderboardEntry, MyLeaderboardStats } from '@cyprus/shared';
 import { useAuthStore } from '../stores/authStore.js';
 
+type GameHistoryEntry = {
+  game_id: number;
+  ended_at: string;
+  won: boolean;
+  myScore: number;
+  opponentScore: number;
+  botDifficulty: string | null;
+};
+
 export function Leaderboard({ onBack }: { onBack: () => void }) {
   const [entries, setEntries] = useState<LeaderboardEntry[]>([]);
   const [myStats, setMyStats] = useState<MyLeaderboardStats | null>(null);
+  const [gameHistory, setGameHistory] = useState<GameHistoryEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const authUser = useAuthStore((s) => s.user);
 
@@ -19,7 +29,10 @@ export function Leaderboard({ onBack }: { onBack: () => void }) {
       fetches.push(
         fetch('/api/leaderboard/me')
           .then((r) => (r.ok ? r.json() : null))
-          .then((data) => setMyStats(data))
+          .then((data) => setMyStats(data)),
+        fetch('/api/leaderboard/history')
+          .then((r) => (r.ok ? r.json() : []))
+          .then((data) => setGameHistory(data)),
       );
     }
     Promise.all(fetches).finally(() => setLoading(false));
@@ -76,6 +89,22 @@ export function Leaderboard({ onBack }: { onBack: () => void }) {
                 <span className="stat-label">Grand</span>
               </div>
             </div>
+            {gameHistory.length > 0 && (
+              <div className="game-history-row">
+                <span className="stat-label">Recent</span>
+                <div className="game-history-dots">
+                  {gameHistory.map((g) => (
+                    <span
+                      key={g.game_id}
+                      className={`game-dot ${g.won ? 'game-dot-win' : 'game-dot-loss'}`}
+                      title={`${g.won ? 'Win' : 'Loss'} — ${g.myScore}-${g.opponentScore}${g.botDifficulty ? ` (${g.botDifficulty} bots)` : ''}`}
+                    >
+                      {g.won ? 'W' : 'L'}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         )}
 
