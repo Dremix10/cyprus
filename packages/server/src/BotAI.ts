@@ -315,17 +315,24 @@ export const DEFAULT_BOT_CONFIG: BotConfig = {
 export class BotAI {
   public config: BotConfig;
   public inRollout: boolean = false; // true during MC rollouts (prevents recursion)
+  private effectiveDifficulty: BotDifficulty;
 
   constructor(private difficulty: BotDifficulty, config?: Partial<BotConfig>) {
     this.config = { ...DEFAULT_BOT_CONFIG, ...config };
+    // Shift difficulties up: easy→medium logic, medium→hard logic, hard→hard+MC
+    switch (difficulty) {
+      case 'easy': this.effectiveDifficulty = 'medium'; break;
+      case 'medium': this.effectiveDifficulty = 'hard'; break;
+      case 'hard': this.effectiveDifficulty = 'hard'; break;
+    }
   }
 
   // ─── Grand Tichu ────────────────────────────────────────────────────
 
   decideGrandTichu(hand: Card[]): boolean {
-    if (this.difficulty === 'easy') return false;
+    if (this.effectiveDifficulty === 'easy') return false;
 
-    if (this.difficulty === 'medium') {
+    if (this.effectiveDifficulty === 'medium') {
       let strength = 0;
       for (const card of hand) {
         if (isSpecial(card, SpecialCardType.DRAGON)) strength += 3;
@@ -389,11 +396,11 @@ export class BotAI {
   // ─── Regular Tichu ──────────────────────────────────────────────────
 
   decideTichu(hand: Card[]): boolean {
-    if (this.difficulty === 'easy') return false;
+    if (this.effectiveDifficulty === 'easy') return false;
 
     const plan = planHand(hand);
 
-    if (this.difficulty === 'medium') {
+    if (this.effectiveDifficulty === 'medium') {
       // Medium: call Tichu if very strong (few turns, many control)
       return plan.turnsToOut <= 4 && plan.controlCount >= 4;
     }
@@ -438,7 +445,7 @@ export class BotAI {
     botPosition?: PlayerPosition,
     tichuCalls?: Record<PlayerPosition, TichuCall>,
   ): { left: string; across: string; right: string } {
-    if (this.difficulty === 'easy') {
+    if (this.effectiveDifficulty === 'easy') {
       const shuffled = [...hand].sort(() => Math.random() - 0.5);
       return {
         left: shuffled[0].id,
@@ -447,7 +454,7 @@ export class BotAI {
       };
     }
 
-    if (this.difficulty === 'medium') {
+    if (this.effectiveDifficulty === 'medium') {
       return this.passCardsMedium(hand);
     }
 
@@ -628,11 +635,11 @@ export class BotAI {
     const playable = findPlayableFromHand(hand, trickTop, wish);
     if (playable.length === 0) return null;
 
-    if (this.difficulty === 'easy') {
+    if (this.effectiveDifficulty === 'easy') {
       return this.choosePlayEasy(playable, isLeading);
     }
 
-    if (this.difficulty === 'medium') {
+    if (this.effectiveDifficulty === 'medium') {
       if (isLeading) return this.chooseLeadMedium(hand, playable, botPosition, context);
       return this.chooseFollowMedium(hand, playable, currentTrick, botPosition, context);
     }
@@ -1267,11 +1274,11 @@ export class BotAI {
     playerCardCounts: Map<PlayerPosition, number>,
     context?: GameContext
   ): PlayerPosition {
-    if (this.difficulty === 'easy') {
+    if (this.effectiveDifficulty === 'easy') {
       return opponents[Math.floor(Math.random() * opponents.length)];
     }
 
-    if (this.difficulty === 'hard' && context) {
+    if (this.effectiveDifficulty === 'hard' && context) {
       // Give to opponent who benefits LEAST from the +25 points
       // Prefer giving to the opponent with more cards (further from going out)
       // But also consider: if one opponent's team is ahead, give to the other
@@ -1303,7 +1310,7 @@ export class BotAI {
   // ─── Wish ────────────────────────────────────────────────────────
 
   chooseWish(hand: Card[], context?: GameContext): NormalRank {
-    if (this.difficulty === 'easy') {
+    if (this.effectiveDifficulty === 'easy') {
       const ranks = [
         NR.TWO, NR.THREE, NR.FOUR, NR.FIVE, NR.SIX, NR.SEVEN,
         NR.EIGHT, NR.NINE, NR.TEN, NR.JACK, NR.QUEEN, NR.KING, NR.ACE,
