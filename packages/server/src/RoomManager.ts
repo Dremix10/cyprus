@@ -12,6 +12,7 @@ export type RoomPlayer = {
   avatar?: string;
   sessionId?: string;
   userId?: number; // linked auth user ID (undefined for guests/bots)
+  replacedPlayer?: { nickname: string; sessionId?: string; userId?: number }; // original player info if replaced by bot
 };
 
 export type Room = {
@@ -224,10 +225,34 @@ export class RoomManager {
       return { error: 'Session invalid' };
     }
 
-    // If player was replaced by a bot, session is no longer valid
+    // If player was replaced by a bot, reclaim their seat
     if (room.botPositions.has(info.position)) {
-      this.sessionToRoom.delete(sessionId);
-      return { error: 'You were replaced by a bot' };
+      const botPlayer = room.players.get(info.position);
+      const original = botPlayer?.replacedPlayer;
+      if (!original || original.sessionId !== sessionId) {
+        this.sessionToRoom.delete(sessionId);
+        return { error: 'Session invalid' };
+      }
+
+      // Restore the original player, kicking the bot
+      room.botPositions.delete(info.position);
+      room.players.set(info.position, {
+        socketId,
+        nickname: original.nickname,
+        position: info.position,
+        connected: true,
+        sessionId,
+        userId: original.userId,
+      });
+      this.socketToRoom.set(socketId, { roomCode: info.roomCode, position: info.position });
+
+      // Restore nickname in engine
+      if (room.engine) {
+        room.engine.state.players[info.position].nickname = original.nickname;
+      }
+
+      room.lastActivity = Date.now();
+      return { success: true, roomCode: info.roomCode, position: info.position, nickname: original.nickname };
     }
 
     // Clean up old socket mapping if it still exists
@@ -403,10 +428,10 @@ export class RoomManager {
     const available = BOT_PROFILES.filter((bp) => !usedNames.has(bp.name));
     const profile = available[0] ?? BOT_PROFILES[0];
 
-    // Clean up old session
-    if (player.sessionId) {
-      this.sessionToRoom.delete(player.sessionId);
-    }
+    // Keep session mapping so player can reclaim their seat
+    const originalNickname = player.nickname;
+    const originalSessionId = player.sessionId;
+    const originalUserId = player.userId;
 
     // Replace the player with a bot
     room.players.set(position, {
@@ -415,6 +440,8 @@ export class RoomManager {
       position,
       connected: true,
       avatar: randomBotAvatar(profile.avatarBase),
+      // Store original player info for reclaim
+      replacedPlayer: { nickname: originalNickname, sessionId: originalSessionId, userId: originalUserId },
     });
 
     room.botPositions.add(position);
@@ -456,6 +483,7 @@ export class RoomManager {
       avatar?: string;
       sessionId?: string;
       isBot: boolean;
+      replacedPlayer?: { nickname: string; sessionId?: string; userId?: number };
     }>;
     engineState: string;
   }> {
@@ -470,6 +498,7 @@ export class RoomManager {
         avatar?: string;
         sessionId?: string;
         isBot: boolean;
+        replacedPlayer?: { nickname: string; sessionId?: string; userId?: number };
       }>;
       engineState: string;
     }> = [];
@@ -483,6 +512,7 @@ export class RoomManager {
         avatar: p.avatar,
         sessionId: p.sessionId,
         isBot: room.botPositions.has(p.position),
+        replacedPlayer: p.replacedPlayer,
       }));
 
       result.push({
@@ -525,6 +555,7 @@ export class RoomManager {
           connected: p.isBot, // Bots are always connected; humans need to reconnect
           avatar: p.avatar,
           sessionId: p.sessionId,
+          replacedPlayer: p.replacedPlayer,
         };
         if (!p.isBot) {
           rp.disconnectedAt = Date.now(); // Mark humans as disconnected until they reconnect
@@ -534,6 +565,10 @@ export class RoomManager {
         // Rebuild session index
         if (p.sessionId && !p.isBot) {
           this.sessionToRoom.set(p.sessionId, { roomCode: entry.code, position: p.position });
+        }
+        // Rebuild session index for bot-replaced players so they can reclaim
+        if (p.isBot && p.replacedPlayer?.sessionId) {
+          this.sessionToRoom.set(p.replacedPlayer.sessionId, { roomCode: entry.code, position: p.position });
         }
       }
 
