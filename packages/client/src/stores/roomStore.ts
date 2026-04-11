@@ -6,8 +6,10 @@ const SESSION_KEY = 'cyprus-session';
 
 type RoomView = 'lobby' | 'waiting' | 'game' | 'queue';
 
+const SESSION_TTL_MS = 4 * 60 * 60 * 1000; // 4 hours
+
 function saveSession(sessionId: string, roomCode: string, nickname: string): void {
-  localStorage.setItem(SESSION_KEY, JSON.stringify({ sessionId, roomCode, nickname }));
+  localStorage.setItem(SESSION_KEY, JSON.stringify({ sessionId, roomCode, nickname, expiresAt: Date.now() + SESSION_TTL_MS }));
 }
 
 function clearSession(): void {
@@ -18,7 +20,12 @@ function loadSession(): { sessionId: string; roomCode: string; nickname: string 
   try {
     const raw = localStorage.getItem(SESSION_KEY);
     if (!raw) return null;
-    return JSON.parse(raw);
+    const parsed = JSON.parse(raw);
+    if (parsed.expiresAt && Date.now() > parsed.expiresAt) {
+      localStorage.removeItem(SESSION_KEY);
+      return null;
+    }
+    return parsed;
   } catch {
     return null;
   }

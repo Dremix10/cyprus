@@ -45,7 +45,8 @@ const ROOM_INACTIVE_TIMEOUT_MS = 30 * 60_000; // 30 minutes
 export class RoomManager {
   private rooms = new Map<string, Room>();
   private socketToRoom = new Map<string, { roomCode: string; position: PlayerPosition }>();
-  private sessionToRoom = new Map<string, { roomCode: string; position: PlayerPosition }>();
+  private sessionToRoom = new Map<string, { roomCode: string; position: PlayerPosition; userId?: number }>();
+  onRoomDeleted?: (roomCode: string) => void;
   private cleanupInterval: ReturnType<typeof setInterval>;
 
   constructor() {
@@ -60,6 +61,7 @@ export class RoomManager {
     const nickErr = this.validateNickname(nickname);
     if (nickErr) return { error: nickErr };
     if (targetScore < 250) targetScore = 250;
+    if (targetScore > 10000) targetScore = 10000;
     const code = this.generateCode();
     const room: Room = {
       code,
@@ -84,7 +86,7 @@ export class RoomManager {
     };
     room.players.set(0, player);
     this.socketToRoom.set(socketId, { roomCode: code, position: 0 });
-    this.sessionToRoom.set(sessionId, { roomCode: code, position: 0 });
+    this.sessionToRoom.set(sessionId, { roomCode: code, position: 0, userId });
 
     return { roomCode: code, sessionId };
   }
@@ -99,6 +101,7 @@ export class RoomManager {
     const nickErr = this.validateNickname(nickname);
     if (nickErr) return { error: nickErr };
     if (targetScore < 250) targetScore = 250;
+    if (targetScore > 10000) targetScore = 10000;
     const code = this.generateCode();
 
     const botPositions = new Set<PlayerPosition>([1, 2, 3] as PlayerPosition[]);
@@ -125,7 +128,7 @@ export class RoomManager {
     };
     room.players.set(0, player);
     this.socketToRoom.set(socketId, { roomCode: code, position: 0 });
-    this.sessionToRoom.set(sessionId, { roomCode: code, position: 0 });
+    this.sessionToRoom.set(sessionId, { roomCode: code, position: 0, userId });
 
     // Bots at positions 1, 2, 3
     for (let i = 0; i < 3; i++) {
@@ -165,7 +168,7 @@ export class RoomManager {
         delete player.disconnectedAt;
         if (!player.sessionId) {
           player.sessionId = randomUUID();
-          this.sessionToRoom.set(player.sessionId, { roomCode: code, position: pos });
+          this.sessionToRoom.set(player.sessionId, { roomCode: code, position: pos, userId: player.userId });
         }
         this.socketToRoom.set(socketId, { roomCode: code, position: pos });
         room.lastActivity = Date.now();
@@ -199,7 +202,7 @@ export class RoomManager {
     };
     room.players.set(openPos, player);
     this.socketToRoom.set(socketId, { roomCode: code, position: openPos });
-    this.sessionToRoom.set(sessionId, { roomCode: code, position: openPos });
+    this.sessionToRoom.set(sessionId, { roomCode: code, position: openPos, userId });
     room.lastActivity = Date.now();
 
     return { success: true, position: openPos, sessionId };
@@ -208,10 +211,16 @@ export class RoomManager {
   /** Reconnect a player using their session token. */
   reconnectBySession(
     socketId: string,
-    sessionId: string
+    sessionId: string,
+    userId?: number
   ): { success: true; roomCode: string; position: PlayerPosition; nickname: string } | { error: string } {
     const info = this.sessionToRoom.get(sessionId);
     if (!info) return { error: 'Session expired' };
+
+    // If session is bound to a user, verify the reconnecting user matches
+    if (info.userId && userId && info.userId !== userId) {
+      return { error: 'Session invalid' };
+    }
 
     const room = this.rooms.get(info.roomCode);
     if (!room) {
@@ -232,6 +241,16 @@ export class RoomManager {
       if (!original || original.sessionId !== sessionId) {
         this.sessionToRoom.delete(sessionId);
         return { error: 'Session invalid' };
+      }
+
+      // If the bot already finished (isOut), let the player reconnect as observer
+      // but keep bot designation until next round
+      const posIsOut = room.engine?.state.players[info.position]?.isOut;
+      if (posIsOut) {
+        // Reconnect as observer — update socket mapping but keep bot active
+        this.socketToRoom.set(socketId, { roomCode: info.roomCode, position: info.position });
+        room.lastActivity = Date.now();
+        return { success: true, roomCode: info.roomCode, position: info.position, nickname: original.nickname };
       }
 
       // Restore the original player, kicking the bot
@@ -435,7 +454,7 @@ export class RoomManager {
 
     // Replace the player with a bot
     room.players.set(position, {
-      socketId: `bot-${position}`,
+      socketId: `bot-${room.code}-${position}`,
       nickname: profile.name,
       position,
       connected: true,
@@ -564,11 +583,11 @@ export class RoomManager {
 
         // Rebuild session index
         if (p.sessionId && !p.isBot) {
-          this.sessionToRoom.set(p.sessionId, { roomCode: entry.code, position: p.position });
+          this.sessionToRoom.set(p.sessionId, { roomCode: entry.code, position: p.position, userId: rp.userId });
         }
         // Rebuild session index for bot-replaced players so they can reclaim
         if (p.isBot && p.replacedPlayer?.sessionId) {
-          this.sessionToRoom.set(p.replacedPlayer.sessionId, { roomCode: entry.code, position: p.position });
+          this.sessionToRoom.set(p.replacedPlayer.sessionId, { roomCode: entry.code, position: p.position, userId: p.replacedPlayer.userId });
         }
       }
 
@@ -595,11 +614,12 @@ export class RoomManager {
         }
       }
 
-      // Clean up inactive rooms — also clean up sessions
+      // Clean up inactive rooms — also clean up sessions and timers
       if (now - room.lastActivity > ROOM_INACTIVE_TIMEOUT_MS) {
         for (const [, player] of room.players) {
           if (player.sessionId) this.sessionToRoom.delete(player.sessionId);
         }
+        this.onRoomDeleted?.(code);
         this.rooms.delete(code);
       }
     }

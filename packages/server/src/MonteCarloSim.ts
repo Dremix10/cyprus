@@ -158,7 +158,7 @@ function determinize(engine: GameEngine, botPosition: PlayerPosition): GameEngin
 
 // ─── Rollout ──────────────────────────────────────────────────────────
 
-function rollout(engine: GameEngine): void {
+function rollout(engine: GameEngine, deadline: number): void {
   let safety = 0;
 
   while (
@@ -166,6 +166,8 @@ function rollout(engine: GameEngine): void {
     safety < 500
   ) {
     safety++;
+    // Abort if we've exceeded the time budget (check every 20 iterations to avoid syscall overhead)
+    if (safety % 20 === 0 && performance.now() > deadline) return;
 
     if (engine.state.dogPending) { engine.resolveDog(); continue; }
     if (engine.state.trickWonPending) { engine.completeTrickWon(); continue; }
@@ -260,6 +262,7 @@ export function monteCarloEvaluate(
   }
 
   const start = performance.now();
+  const deadline = start + timeBudgetMs;
   const mc: MCCandidate[] = filtered.map((cards) => ({
     cardIds: cards ? cards.map((c) => c.id) : null,
     totalScore: 0,
@@ -290,7 +293,7 @@ export function monteCarloEvaluate(
         ));
       }
 
-      rollout(sim);
+      rollout(sim, deadline);
 
       const score = evaluateOutcome(sim, botPosition);
       candidate.totalScore += score;
