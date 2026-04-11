@@ -202,7 +202,7 @@ export class GameEngine {
     }
     for (const id of cardIds) {
       if (!player.hand.find((c) => c.id === id)) {
-        throw new Error(`Card ${id} not in hand`);
+        throw new Error('Card not in hand');
       }
     }
 
@@ -310,7 +310,7 @@ export class GameEngine {
     const cards: Card[] = [];
     for (const id of cardIds) {
       const card = player.hand.find((c) => c.id === id);
-      if (!card) throw new Error(`Card ${id} not in hand`);
+      if (!card) throw new Error('Card not in hand');
       cards.push(card);
     }
 
@@ -438,6 +438,12 @@ export class GameEngine {
   setWish(position: PlayerPosition, rank: NormalRank): GameEvent[] {
     this.events = [];
 
+    // Validate wish rank is a valid normal card rank (2-14)
+    const validRanks = [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14];
+    if (!validRanks.includes(rank)) {
+      throw new Error('Invalid wish rank');
+    }
+
     // Validate the last play included the Mahjong by this player
     const lastPlay = this.state.currentTrick.plays[this.state.currentTrick.plays.length - 1];
     if (!lastPlay || lastPlay.playerPosition !== position) {
@@ -533,6 +539,10 @@ export class GameEngine {
   dragonGive(position: PlayerPosition, opponentPos: PlayerPosition): GameEvent[] {
     this.events = [];
     this.assertPhase(GamePhase.DRAGON_GIVE);
+
+    if (![0, 1, 2, 3].includes(opponentPos)) {
+      throw new Error('Invalid position');
+    }
 
     if (this.state.dragonWinner !== position) {
       throw new Error('Not the Dragon trick winner');

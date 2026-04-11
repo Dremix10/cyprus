@@ -34,6 +34,24 @@ export class TimerManager {
     for (const timer of this.trickWonTimers.values()) clearTimeout(timer);
   }
 
+  /** Clear all timers associated with a room (called when room is deleted). */
+  clearAllTimersForRoom(roomCode: string): void {
+    this.clearTurnTimer(roomCode);
+    for (const pos of [0, 1, 2, 3]) {
+      const timerKey = `${roomCode}-${pos}`;
+      const existing = this.disconnectTimers.get(timerKey);
+      if (existing) {
+        clearTimeout(existing);
+        this.disconnectTimers.delete(timerKey);
+      }
+    }
+    const dogTimer = this.dogTimers.get(roomCode);
+    if (dogTimer) { clearTimeout(dogTimer); this.dogTimers.delete(roomCode); }
+    const trickTimer = this.trickWonTimers.get(roomCode);
+    if (trickTimer) { clearTimeout(trickTimer); this.trickWonTimers.delete(roomCode); }
+    this.disconnectedPlayers.delete(roomCode);
+  }
+
   // ─── Turn Timer ────────────────────────────────────────────────────
 
   clearTurnTimer(roomCode: string): void {

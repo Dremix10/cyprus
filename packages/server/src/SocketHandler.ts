@@ -70,6 +70,9 @@ export class SocketHandler {
     this.persistence = new GamePersistence(rooms);
     this.bots = new BotController(rooms, emitToRoom, broadcastGameState, db, (rc) => roomGameIds.get(rc) ?? null);
 
+    // Clean up timers when rooms are deleted
+    rooms.onRoomDeleted = (code) => this.timers.clearAllTimersForRoom(code);
+
     this.matchmaking = new MatchmakingManager(io, rooms, (roomCode, socketIds) => {
       this.onMatchCreated(roomCode, socketIds);
     });
@@ -267,7 +270,7 @@ export class SocketHandler {
         callback({ error: 'Invalid session' });
         return;
       }
-      const result = this.rooms.reconnectBySession(socket.id, sessionId);
+      const result = this.rooms.reconnectBySession(socket.id, sessionId, socket.data.userId as number | undefined);
       if ('error' in result) {
         console.log(`[reconnect] FAILED socket=${socket.id} reason="${result.error}" sessionId=${sessionId.slice(0, 8)}...`);
         callback({ error: result.error });
@@ -363,7 +366,7 @@ export class SocketHandler {
     if (!info) {
       const sessionId = this.socketToSession.get(socket.id);
       if (sessionId) {
-        const result = this.rooms.reconnectBySession(socket.id, sessionId);
+        const result = this.rooms.reconnectBySession(socket.id, sessionId, socket.data.userId as number | undefined);
         if (!('error' in result)) {
           socket.join(result.roomCode);
           info = this.rooms.getRoomForSocket(socket.id);
