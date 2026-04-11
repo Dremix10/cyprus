@@ -738,7 +738,7 @@ export class TrackerDB {
     }
 
     // Block dangerous keywords that could appear inside CTEs or subqueries
-    const forbidden = /\b(INSERT|UPDATE|DELETE|DROP|ALTER|CREATE|ATTACH|DETACH|REPLACE|PRAGMA[\s_(])\b/i;
+    const forbidden = /\b(INSERT|UPDATE|DELETE|DROP|ALTER|CREATE|ATTACH|DETACH|REPLACE|PRAGMA)\b|pragma_/i;
     if (forbidden.test(trimmed)) {
       throw new Error('Query contains forbidden keywords');
     }
