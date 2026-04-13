@@ -1,5 +1,7 @@
 import type { PublicPlayerState } from '@cyprus/shared';
 import { CardComponent } from './CardComponent.js';
+import { useAuthStore } from '../stores/authStore.js';
+import { AddFriendButton } from './Friends.js';
 
 interface OpponentHandProps {
   player: PublicPlayerState;
@@ -11,8 +13,9 @@ interface OpponentHandProps {
 
 export function OpponentHand({ player, position, isCurrentTurn, isTeammate, hasPassed }: OpponentHandProps) {
   const hasRevealedHand = player.hand && player.hand.length > 0;
-
   const isDisconnected = player.connected === false;
+  const authUser = useAuthStore((s) => s.user);
+  const showAddFriend = authUser && player.userId && player.userId !== authUser.id;
 
   return (
     <div className={`opponent-panel opponent-${position} ${isCurrentTurn ? 'opponent-active' : ''} ${isDisconnected ? 'opponent-disconnected' : ''}`}>
@@ -21,6 +24,7 @@ export function OpponentHand({ player, position, isCurrentTurn, isTeammate, hasP
           <img className={`player-avatar ${isDisconnected ? 'avatar-disconnected' : ''}`} src={player.avatar} alt={player.nickname} />
         )}
         <span className={`opponent-name ${isTeammate ? 'name-teammate' : 'name-opponent'}`}>{player.nickname}</span>
+        {showAddFriend && <AddFriendButton userId={player.userId!} displayName={player.nickname} />}
         {isDisconnected && <span className="disconnect-badge">OFFLINE</span>}
         {player.tichuCall !== 'none' && (
           <span className={`tichu-badge ${player.tichuCall === 'grand_tichu' ? 'tichu-badge-grand' : ''}`}>

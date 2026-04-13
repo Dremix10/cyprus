@@ -170,6 +170,20 @@ export class TrackerDB {
       CREATE UNIQUE INDEX IF NOT EXISTS idx_users_email ON users(email);
       CREATE UNIQUE INDEX IF NOT EXISTS idx_users_google ON users(google_id);
     `);
+
+    // Friendships table
+    this.db.exec(`
+      CREATE TABLE IF NOT EXISTS friendships (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        friend_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        status TEXT NOT NULL DEFAULT 'pending',
+        created_at TEXT DEFAULT (datetime('now')),
+        UNIQUE(user_id, friend_id)
+      );
+      CREATE INDEX IF NOT EXISTS idx_friendships_user ON friendships(user_id);
+      CREATE INDEX IF NOT EXISTS idx_friendships_friend ON friendships(friend_id);
+    `);
   }
 
   // ─── Connections ────────────────────────────────────────────────────
@@ -724,6 +738,95 @@ export class TrackerDB {
       player_position: number;
       bot_difficulty: string | null;
     }>;
+  }
+
+  // ─── Friendships ────────────────────────────────────────────────
+
+  sendFriendRequest(userId: number, friendId: number): { success: boolean; error?: string } {
+    if (userId === friendId) return { success: false, error: 'Cannot add yourself' };
+
+    // Check if any relationship already exists (either direction)
+    const existing = this.db.prepare(
+      `SELECT id, status, user_id FROM friendships
+       WHERE (user_id = ? AND friend_id = ?) OR (user_id = ? AND friend_id = ?)`
+    ).get(userId, friendId, friendId, userId) as { id: number; status: string; user_id: number } | undefined;
+
+    if (existing) {
+      if (existing.status === 'accepted') return { success: false, error: 'Already friends' };
+      if (existing.status === 'pending' && existing.user_id === userId) return { success: false, error: 'Request already sent' };
+      if (existing.status === 'pending' && existing.user_id === friendId) {
+        // They sent us a request — auto-accept
+        this.db.prepare(`UPDATE friendships SET status = 'accepted' WHERE id = ?`).run(existing.id);
+        return { success: true };
+      }
+    }
+
+    this.db.prepare(
+      `INSERT INTO friendships (user_id, friend_id, status) VALUES (?, ?, 'pending')`
+    ).run(userId, friendId);
+    return { success: true };
+  }
+
+  acceptFriendRequest(userId: number, requesterId: number): boolean {
+    const result = this.db.prepare(
+      `UPDATE friendships SET status = 'accepted' WHERE user_id = ? AND friend_id = ? AND status = 'pending'`
+    ).run(requesterId, userId);
+    return result.changes > 0;
+  }
+
+  rejectFriendRequest(userId: number, requesterId: number): boolean {
+    const result = this.db.prepare(
+      `DELETE FROM friendships WHERE user_id = ? AND friend_id = ? AND status = 'pending'`
+    ).run(requesterId, userId);
+    return result.changes > 0;
+  }
+
+  removeFriend(userId: number, friendId: number): boolean {
+    const result = this.db.prepare(
+      `DELETE FROM friendships WHERE (user_id = ? AND friend_id = ?) OR (user_id = ? AND friend_id = ?)`
+    ).run(userId, friendId, friendId, userId);
+    return result.changes > 0;
+  }
+
+  getFriends(userId: number): Array<{ id: number; username: string; displayName: string }> {
+    return this.db.prepare(`
+      SELECT u.id, u.username, u.display_name as displayName FROM users u
+      WHERE u.id IN (
+        SELECT friend_id FROM friendships WHERE user_id = ? AND status = 'accepted'
+        UNION
+        SELECT user_id FROM friendships WHERE friend_id = ? AND status = 'accepted'
+      )
+      ORDER BY u.display_name
+    `).all(userId, userId) as Array<{ id: number; username: string; displayName: string }>;
+  }
+
+  getPendingRequests(userId: number): Array<{ id: number; username: string; displayName: string }> {
+    return this.db.prepare(`
+      SELECT u.id, u.username, u.display_name as displayName FROM users u
+      JOIN friendships f ON f.user_id = u.id
+      WHERE f.friend_id = ? AND f.status = 'pending'
+      ORDER BY f.created_at DESC
+    `).all(userId) as Array<{ id: number; username: string; displayName: string }>;
+  }
+
+  searchUsers(query: string, excludeUserId: number, limit: number = 10): Array<{ id: number; username: string; displayName: string }> {
+    const pattern = `%${query}%`;
+    return this.db.prepare(`
+      SELECT id, username, display_name as displayName FROM users
+      WHERE id != ? AND (username LIKE ? OR display_name LIKE ?)
+      LIMIT ?
+    `).all(excludeUserId, pattern, pattern, limit) as Array<{ id: number; username: string; displayName: string }>;
+  }
+
+  getFriendshipStatus(userId: number, otherUserId: number): 'none' | 'friends' | 'pending_sent' | 'pending_received' {
+    const row = this.db.prepare(
+      `SELECT user_id, status FROM friendships
+       WHERE (user_id = ? AND friend_id = ?) OR (user_id = ? AND friend_id = ?)`
+    ).get(userId, otherUserId, otherUserId, userId) as { user_id: number; status: string } | undefined;
+
+    if (!row) return 'none';
+    if (row.status === 'accepted') return 'friends';
+    return row.user_id === userId ? 'pending_sent' : 'pending_received';
   }
 
   // ─── Read-Only Query ─────────────────────────────────────────────

@@ -1205,6 +1205,220 @@ body {
   letter-spacing: 0.5px;
 }
 
+/* ─── Friends Panel ─────────────────────────────────────────── */
+
+.friends-panel {
+  width: 100%;
+  margin-bottom: 0.5rem;
+}
+
+.friends-toggle {
+  width: 100%;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(201, 168, 76, 0.2);
+  border-radius: 6px;
+  color: var(--text);
+  padding: 0.5rem 0.75rem;
+  font-size: 0.85rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  transition: background 0.2s;
+}
+
+.friends-toggle:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.friends-badge {
+  background: var(--primary);
+  color: #fff;
+  font-size: 0.65rem;
+  font-weight: 700;
+  padding: 1px 6px;
+  border-radius: 10px;
+  min-width: 18px;
+  text-align: center;
+}
+
+.friends-chevron {
+  margin-left: auto;
+  font-size: 0.7rem;
+  transition: transform 0.2s;
+}
+
+.friends-chevron-up {
+  transform: rotate(180deg);
+}
+
+.friends-content {
+  border: 1px solid rgba(201, 168, 76, 0.15);
+  border-top: none;
+  border-radius: 0 0 6px 6px;
+  padding: 0.5rem;
+  background: rgba(0, 0, 0, 0.2);
+  max-height: 250px;
+  overflow-y: auto;
+}
+
+.friends-search-input {
+  width: 100%;
+  padding: 0.35rem 0.5rem !important;
+  font-size: 0.8rem !important;
+  margin-bottom: 0.4rem;
+}
+
+.friends-section {
+  margin-bottom: 0.4rem;
+}
+
+.friends-section-title {
+  font-size: 0.7rem;
+  color: rgba(255, 255, 255, 0.4);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin: 0.3rem 0 0.2rem;
+}
+
+.friends-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.friend-item {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.25rem 0.3rem;
+  border-radius: 4px;
+  font-size: 0.8rem;
+}
+
+.friend-item:hover {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.friend-online-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #4caf50;
+  flex-shrink: 0;
+}
+
+.friend-offline-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.2);
+  flex-shrink: 0;
+}
+
+.friend-name {
+  color: var(--text);
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.friend-name-offline {
+  color: rgba(255, 255, 255, 0.4);
+}
+
+.friend-actions {
+  display: flex;
+  gap: 0.3rem;
+}
+
+.btn-friend {
+  border: none;
+  border-radius: 4px;
+  padding: 2px 8px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity 0.2s;
+}
+
+.btn-friend:hover {
+  opacity: 0.85;
+}
+
+.btn-friend-add {
+  background: rgba(201, 168, 76, 0.3);
+  color: #c9a84c;
+}
+
+.btn-friend-accept {
+  background: rgba(76, 175, 80, 0.3);
+  color: #4caf50;
+}
+
+.btn-friend-reject {
+  background: rgba(244, 67, 54, 0.25);
+  color: #f44336;
+}
+
+.btn-friend-remove {
+  background: none;
+  color: rgba(255, 255, 255, 0.25);
+  font-size: 0.75rem;
+  padding: 0 4px;
+  margin-left: auto;
+}
+
+.btn-friend-remove:hover {
+  color: #f44336;
+}
+
+.friend-status-label {
+  font-size: 0.7rem;
+  color: rgba(255, 255, 255, 0.35);
+}
+
+.friend-action-feedback {
+  font-size: 0.7rem;
+  color: #c9a84c;
+}
+
+.friends-empty {
+  color: rgba(255, 255, 255, 0.35);
+  font-size: 0.75rem;
+  text-align: center;
+  padding: 0.5rem;
+}
+
+/* In-game add friend button */
+.btn-friend-ingame {
+  background: rgba(201, 168, 76, 0.3);
+  color: #c9a84c;
+  border: none;
+  border-radius: 50%;
+  width: 18px;
+  height: 18px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: opacity 0.2s;
+  flex-shrink: 0;
+}
+
+.btn-friend-ingame:hover {
+  opacity: 0.8;
+  background: rgba(201, 168, 76, 0.5);
+}
+
+.friend-status-label-small {
+  font-size: 0.6rem;
+  color: rgba(255, 255, 255, 0.35);
+}
+
 .leaderboard-loading,
 .leaderboard-empty {
   color: rgba(255, 255, 255, 0.5);

@@ -44,6 +44,14 @@ class RateLimiter {
 // Track active game IDs per room for DB logging
 const roomGameIds = new Map<string, number>();
 
+// Track online user IDs (userId → Set of socketIds for multi-tab support)
+const onlineUsers = new Map<number, Set<string>>();
+
+export function isUserOnline(userId: number): boolean {
+  const sockets = onlineUsers.get(userId);
+  return !!sockets && sockets.size > 0;
+}
+
 export class SocketHandler {
   private socketToSession = new Map<string, string>();
   private rateLimiter = new RateLimiter();
@@ -113,6 +121,13 @@ export class SocketHandler {
       }
 
       this.db?.logConnection(socket.id, ip, ua);
+
+      // Track online presence for authenticated users
+      const userId = socket.data.userId as number | undefined;
+      if (userId) {
+        if (!onlineUsers.has(userId)) onlineUsers.set(userId, new Set());
+        onlineUsers.get(userId)!.add(socket.id);
+      }
 
       this.registerRoomEvents(socket, ip);
       this.registerMatchmakingEvents(socket, ip);
@@ -299,6 +314,16 @@ export class SocketHandler {
       this.db?.logDisconnection(socket.id);
       this.socketToSession.delete(socket.id);
       this.matchmaking.handleDisconnect(socket.id);
+
+      // Clean up online presence
+      const disconnectedUserId = socket.data.userId as number | undefined;
+      if (disconnectedUserId) {
+        const sockets = onlineUsers.get(disconnectedUserId);
+        if (sockets) {
+          sockets.delete(socket.id);
+          if (sockets.size === 0) onlineUsers.delete(disconnectedUserId);
+        }
+      }
 
       const info = this.rooms.getRoomForSocket(socket.id);
       const result = this.rooms.handleDisconnect(socket.id);
@@ -520,11 +545,24 @@ export class SocketHandler {
     this.timers.scheduleTurnTimer(roomCode);
     const deadline = this.timers.getTurnDeadline(roomCode);
 
+    // Build userId map for friend-add buttons (exclude bots)
+    const userIds = new Map<number, number>();
+    for (const [pos, player] of room.players) {
+      if (player.userId && !room.botPositions.has(pos)) {
+        userIds.set(pos, player.userId);
+      }
+    }
+
     const sockets = this.rooms.getSocketIdsForRoom(roomCode);
     for (const [position, socketId] of sockets) {
       const isSolo = room.botPositions.size === 3;
       const state = room.engine.getClientState(position, roomCode, room.botPositions, avatars, disconnected, isSolo);
       state.turnDeadline = deadline;
+      // Attach user IDs for friend feature
+      for (const p of state.players) {
+        const uid = userIds.get(p.position);
+        if (uid) p.userId = uid;
+      }
       this.io.to(socketId).emit('game:state', state);
     }
 

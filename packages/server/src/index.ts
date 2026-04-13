@@ -11,6 +11,7 @@ import { TrackerDB } from './Database.js';
 import { createAdminRouter } from './AdminDashboard.js';
 import { AuthService } from './AuthService.js';
 import { createAuthRouter, SESSION_COOKIE } from './AuthRoutes.js';
+import { createFriendRouter } from './FriendRoutes.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
@@ -210,6 +211,7 @@ app.get('/api/leaderboard/history', (req, res) => {
 
 // Auth routes
 app.use('/auth', createAuthRouter(authService, isProduction));
+app.use('/api/friends', createFriendRouter(db));
 
 // Admin dashboard
 app.use('/admin', createAdminRouter(db));
