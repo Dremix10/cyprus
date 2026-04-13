@@ -6,3 +6,4 @@ export * from './room.js';
 export * from './events.js';
 export * from './auth.js';
 export * from './leaderboard.js';
+export * from './friends.js';

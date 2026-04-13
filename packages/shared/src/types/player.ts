@@ -17,6 +17,7 @@ export type PublicPlayerState = {
   hand?: Card[];
   avatar?: string;
   connected?: boolean;
+  userId?: number;
 };
 
 export type PrivatePlayerState = PublicPlayerState & {

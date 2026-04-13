@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useRoomStore } from '../stores/roomStore.js';
 import { useAuthStore } from '../stores/authStore.js';
 import { AuthForms, UserBadge } from './AuthForms.js';
+import { FriendsPanel } from './Friends.js';
 
 type GameHistoryEntry = {
   game_id: number;
@@ -146,6 +147,7 @@ export function Lobby({ onTutorial, onLeaderboard }: { onTutorial: () => void; o
               </div>
             </div>
           )}
+          {authUser && <FriendsPanel />}
           <div className="lobby-form">
             {authLoading ? (
               <p className="auth-loading">Loading...</p>
