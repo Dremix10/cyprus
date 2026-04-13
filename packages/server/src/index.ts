@@ -167,13 +167,13 @@ app.get('/api/leaderboard/me', (req, res) => {
     res.status(401).json({ error: 'Not authenticated' });
     return;
   }
-  const session = db.validateUserSession(token);
+  const session = authService.validateSession(token);
   if (!session) {
     res.status(401).json({ error: 'Invalid session' });
     return;
   }
-  const stats = db.getUserLeaderboardStats(session.user_id);
-  const user = db.getUserById(session.user_id);
+  const stats = db.getUserLeaderboardStats(session.userId);
+  const user = db.getUserById(session.userId);
   if (!stats || !user) {
     res.status(404).json({ error: 'No stats found' });
     return;
@@ -191,10 +191,10 @@ app.get('/api/leaderboard/history', (req, res) => {
     }
   }
   if (!token) { res.status(401).json({ error: 'Not authenticated' }); return; }
-  const session = db.validateUserSession(token);
+  const session = authService.validateSession(token);
   if (!session) { res.status(401).json({ error: 'Invalid session' }); return; }
 
-  const history = db.getUserGameHistory(session.user_id, 5);
+  const history = db.getUserGameHistory(session.userId, 5);
   const results = history.map((g) => {
     const myTeam = g.player_position % 2 === 0 ? '02' : '13';
     return {
