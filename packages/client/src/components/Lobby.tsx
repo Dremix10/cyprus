@@ -1,16 +1,8 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useRoomStore } from '../stores/roomStore.js';
 import { useAuthStore } from '../stores/authStore.js';
 import { AuthForms, UserBadge } from './AuthForms.js';
 import { FriendsPanel } from './Friends.js';
-
-type GameHistoryEntry = {
-  game_id: number;
-  won: boolean;
-  myScore: number;
-  opponentScore: number;
-  botDifficulty: string | null;
-};
 
 function MeanderBorder() {
   return (
@@ -80,16 +72,6 @@ export function Lobby({ onTutorial, onLeaderboard }: { onTutorial: () => void; o
   const authUser = useAuthStore((s) => s.user);
   const authLoading = useAuthStore((s) => s.loading);
   const showGameForm = authUser || guestMode;
-  const [gameHistory, setGameHistory] = useState<GameHistoryEntry[]>([]);
-
-  useEffect(() => {
-    if (!authUser) return;
-    fetch('/api/leaderboard/history')
-      .then((r) => (r.ok ? r.json() : []))
-      .then((data) => setGameHistory(data))
-      .catch(() => {});
-  }, [authUser]);
-
   // Pre-fill nickname from display name on first auth load
   const [authPrefilled, setAuthPrefilled] = useState(false);
   if (authUser && !authPrefilled && !nickname) {
@@ -131,22 +113,6 @@ export function Lobby({ onTutorial, onLeaderboard }: { onTutorial: () => void; o
             </div>
           )}
           {authUser && <UserBadge />}
-          {gameHistory.length > 0 && (
-            <div className="lobby-game-history">
-              <span className="lobby-history-label">Recent</span>
-              <div className="game-history-dots">
-                {gameHistory.map((g) => (
-                  <span
-                    key={g.game_id}
-                    className={`game-dot ${g.won ? 'game-dot-win' : 'game-dot-loss'}`}
-                    title={`${g.won ? 'Win' : 'Loss'} — ${g.myScore}-${g.opponentScore}${g.botDifficulty ? ` (${g.botDifficulty} bots)` : ''}`}
-                  >
-                    {g.won ? 'W' : 'L'}
-                  </span>
-                ))}
-              </div>
-            </div>
-          )}
           {authUser && <FriendsPanel />}
           <div className="lobby-form">
             {authLoading ? (
