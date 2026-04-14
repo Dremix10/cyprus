@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useGameStore } from '../stores/gameStore.js';
 import { useRoomStore } from '../stores/roomStore.js';
-import { GamePhase, SpecialCardType, CombinationType, getRankLabel, sortCards, findPlayableFromHand } from '@cyprus/shared';
+import { GamePhase, SpecialCardType, CombinationType, getRankLabel, sortCards } from '@cyprus/shared';
 import type { Card, Combination, PlayerPosition, TrickState } from '@cyprus/shared';
 
 /** Sort cards for display: Phoenix placed at its effective position in the combo. */
@@ -316,37 +316,16 @@ function PlayingLayout({
 
   const isMyTurn = gameState.currentPlayer === gameState.myPosition;
   const myInfo = gameState.players[gameState.myPosition];
-  const canCallTichu = myInfo?.tichuCall === 'none' && !gameState.hasPlayedCards;
-  const hasTrickOnTable = gameState.currentTrick.plays.length > 0;
   const isDragonGive = gameState.phase === GamePhase.DRAGON_GIVE;
   const isTeammate = (pos: PlayerPosition) => pos % 2 === gameState.myPosition % 2;
-
-  // Check if we need to show the wish selector (I played the Mahjong and haven't wished yet)
   const showWishSelector = gameState.wishPending === gameState.myPosition;
-  // Block play/pass while any player's wish is pending or Dog is resolving
-  const wishBlocking = (gameState.wishPending !== null && gameState.wishPending !== undefined) || !!gameState.dogPending || !!gameState.trickWonPending;
-  // Track which players passed in the current trick
   const passedSet = new Set(gameState.currentTrick.passedPlayers ?? []);
 
-
-  // Playability is validated server-side — the client always shows both Play and Pass buttons.
-  // The server rejects invalid plays and the pass button is always available when there's a trick.
-
-  // Whether the wish forces the player to play (blocks pass button)
-  const wishForcesPlay = (() => {
-    if (!isMyTurn || !gameState.wish.active || !gameState.wish.wishedRank) return false;
-    const trick = gameState.currentTrick;
-    if (trick.plays.length === 0) return false;
-    const wishedCard = gameState.myHand.find(
-      (c) => c.type === 'normal' && c.rank === gameState.wish.wishedRank
-    );
-    if (!wishedCard) return false;
-    const currentTop = trick.plays[trick.plays.length - 1].combination;
-    const playable = findPlayableFromHand(gameState.myHand, currentTop, gameState.wish);
-    return playable.some((cards) =>
-      cards.some((c) => c.type === 'normal' && c.rank === gameState.wish.wishedRank)
-    );
-  })();
+  // All action flags computed server-side — single source of truth
+  const canAct = gameState.canAct ?? true;
+  const canPass = gameState.canPass ?? false;
+  const canCallTichu = gameState.canCallTichu ?? false;
+  const mustPlayWish = gameState.mustPlayWish ?? false;
 
   return (
     <div className="playing-layout">
@@ -485,7 +464,7 @@ function PlayingLayout({
             {gameState.players[gameState.currentTrick.currentWinner!]?.nickname} is choosing who to give the Dragon trick to...
           </span>
         )}
-        {!isDragonGive && isMyTurn && !wishBlocking && (
+        {!isDragonGive && isMyTurn && canAct && (
           <div className="play-pass-group">
             <button
               className="btn btn-play"
@@ -494,12 +473,12 @@ function PlayingLayout({
             >
               Play
             </button>
-            {hasTrickOnTable && !wishForcesPlay && (
+            {canPass && !mustPlayWish && (
               <button className="btn btn-pass" onClick={passTurn}>
                 Pass
               </button>
             )}
-            {wishForcesPlay && (
+            {mustPlayWish && (
               <span className="wish-forced-label">Wish active — you must play!</span>
             )}
           </div>
