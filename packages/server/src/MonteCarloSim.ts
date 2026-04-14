@@ -22,6 +22,7 @@ import {
 } from '@cyprus/shared';
 import { GameEngine } from './GameEngine.js';
 import { BotAI, type GameContext } from './BotAI.js';
+import type { GameMonitor } from './GameMonitor.js';
 
 // ─── Shared rollout bots (reused across all simulations) ──────────────
 const rolloutBots = [
@@ -287,6 +288,8 @@ export function monteCarloEvaluate(
   candidates: (Card[] | null)[],
   maxSimulations: number = 200,
   timeBudgetMs: number = 150,
+  monitor?: GameMonitor,
+  roomCode?: string,
 ): string[] | null {
   if (candidates.length <= 1) {
     const only = candidates[0];
@@ -348,6 +351,11 @@ export function monteCarloEvaluate(
     } catch {
       totalSims++;
     }
+  }
+
+  const durationMs = Math.round(performance.now() - start);
+  if (monitor && roomCode) {
+    monitor.mcSimPerformance(roomCode, totalSims, durationMs, filtered.length);
   }
 
   // Pick best average

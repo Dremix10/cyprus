@@ -2,6 +2,7 @@ import express, { type Request, type Response } from 'express';
 import { OAuth2Client } from 'google-auth-library';
 import type { AuthService } from './AuthService.js';
 import { sendPasswordResetEmail, isEmailConfigured } from './EmailService.js';
+import type { GameMonitor } from './GameMonitor.js';
 
 const SESSION_COOKIE = 'cyprus_auth';
 const COOKIE_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
@@ -88,7 +89,7 @@ if (GOOGLE_CLIENT_ID) {
 
 export { SESSION_COOKIE, getAuthToken };
 
-export function createAuthRouter(auth: AuthService, isProduction: boolean): express.Router {
+export function createAuthRouter(auth: AuthService, isProduction: boolean, monitor?: GameMonitor): express.Router {
   const router = express.Router();
   router.use(express.json({ limit: '16kb' }));
 
@@ -108,6 +109,8 @@ export function createAuthRouter(auth: AuthService, isProduction: boolean): expr
       return;
     }
 
+    monitor?.accountCreated(result.user.id, username);
+
     // Auto-login after registration
     const loginResult = await auth.login(
       username, password,
@@ -119,6 +122,7 @@ export function createAuthRouter(auth: AuthService, isProduction: boolean): expr
       return;
     }
 
+    monitor?.loginSuccess(loginResult.user.id, loginResult.user.username, ip);
     setAuthCookie(res, loginResult.token, isProduction);
     res.status(201).json({ user: loginResult.user });
   });
@@ -138,10 +142,12 @@ export function createAuthRouter(auth: AuthService, isProduction: boolean): expr
     );
 
     if ('error' in result) {
+      monitor?.loginFailed(username ?? '', ip, result.error);
       res.status(401).json({ error: result.error });
       return;
     }
 
+    monitor?.loginSuccess(result.user.id, result.user.username, ip);
     setAuthCookie(res, result.token, isProduction);
     res.json({ user: result.user });
   });
@@ -184,10 +190,12 @@ export function createAuthRouter(auth: AuthService, isProduction: boolean): expr
         req.headers['user-agent'] || null
       );
 
+      monitor?.loginSuccess(result.user.id, result.user.username, ip);
       setAuthCookie(res, result.token, isProduction);
       res.json({ user: result.user });
     } catch (err) {
       console.error('Google auth error:', err);
+      monitor?.loginFailed('google-oauth', ip, (err as Error).message);
       res.status(401).json({ error: 'Google authentication failed' });
     }
   });
