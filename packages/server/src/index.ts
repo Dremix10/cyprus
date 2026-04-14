@@ -1,3 +1,4 @@
+import { timingSafeEqual } from 'crypto';
 import express from 'express';
 import { createServer } from 'http';
 import { fileURLToPath } from 'url';
@@ -218,6 +219,27 @@ app.use('/api/friends', createFriendRouter(db, authService));
 
 // Admin dashboard
 app.use('/admin', createAdminRouter(db));
+
+// Shutdown endpoint for deploy scripts (same auth as admin API)
+app.post('/admin/api/shutdown', (req, res) => {
+  const apiKey = process.env.DATA_API_KEY;
+  const auth = req.headers.authorization;
+  if (!apiKey || !auth?.startsWith('Bearer ')) {
+    res.status(401).json({ error: 'Unauthorized' });
+    return;
+  }
+  try {
+    if (!timingSafeEqual(Buffer.from(auth.slice(7)), Buffer.from(apiKey))) {
+      res.status(401).json({ error: 'Unauthorized' });
+      return;
+    }
+  } catch {
+    res.status(401).json({ error: 'Unauthorized' });
+    return;
+  }
+  res.json({ status: 'shutting down' });
+  setTimeout(() => shutdown('DEPLOY'), 500);
+});
 
 // Serve the client build (always — not just production)
 const clientDist = path.resolve(__dirname, '../../client/dist');
