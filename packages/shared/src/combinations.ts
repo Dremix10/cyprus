@@ -524,7 +524,17 @@ export function findPlayableFromHand(
     // Must beat the current trick
     playable = allCombos.filter((cards) => {
       const combo = detectCombination(cards);
-      return combo !== null && canBeat(currentTrickTop, combo);
+      if (!combo) return false;
+      // Adjust Phoenix single rank to beat the current trick (same logic as GameEngine.playCards)
+      if (
+        combo.type === CombinationType.SINGLE &&
+        cards.length === 1 &&
+        cards[0].type === 'special' &&
+        (cards[0] as any).specialType === SpecialCardType.PHOENIX
+      ) {
+        combo.rank = getPhoenixSingleRank(currentTrickTop.rank);
+      }
+      return canBeat(currentTrickTop, combo);
     });
   }
 
