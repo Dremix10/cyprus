@@ -16,6 +16,12 @@ function clearSession(): void {
   localStorage.removeItem(SESSION_KEY);
 }
 
+function ensureConnected(): Promise<void> {
+  if (socket.connected) return Promise.resolve();
+  socket.connect();
+  return new Promise((resolve) => socket.once('connect', resolve));
+}
+
 function loadSession(): { sessionId: string; roomCode: string; nickname: string } | null {
   try {
     const raw = localStorage.getItem(SESSION_KEY);
@@ -76,7 +82,7 @@ export const useRoomStore = create<RoomStore>((set, get) => ({
   setTargetScore: (score) => set({ targetScore: score }),
 
   createRoom: () => {
-    return new Promise<void>((resolve) => {
+    return new Promise<void>(async (resolve) => {
       const { nickname, targetScore } = get();
       if (!nickname.trim()) {
         set({ error: 'Enter a nickname' });
@@ -84,7 +90,7 @@ export const useRoomStore = create<RoomStore>((set, get) => ({
         return;
       }
 
-      if (!socket.connected) socket.connect();
+      await ensureConnected();
 
       socket.emit('room:create', nickname.trim(), targetScore, (response) => {
         if ('error' in response) {
@@ -103,7 +109,7 @@ export const useRoomStore = create<RoomStore>((set, get) => ({
   },
 
   createSoloRoom: (difficulty: string) => {
-    return new Promise<void>((resolve) => {
+    return new Promise<void>(async (resolve) => {
       const { nickname, targetScore } = get();
       if (!nickname.trim()) {
         set({ error: 'Enter a nickname' });
@@ -111,7 +117,7 @@ export const useRoomStore = create<RoomStore>((set, get) => ({
         return;
       }
 
-      if (!socket.connected) socket.connect();
+      await ensureConnected();
 
       socket.emit('room:create_solo', nickname.trim(), targetScore, difficulty, (response) => {
         if ('error' in response) {
@@ -129,7 +135,7 @@ export const useRoomStore = create<RoomStore>((set, get) => ({
   },
 
   joinRoom: (code: string) => {
-    return new Promise<void>((resolve) => {
+    return new Promise<void>(async (resolve) => {
       const { nickname } = get();
       if (!nickname.trim()) {
         set({ error: 'Enter a nickname' });
@@ -142,7 +148,7 @@ export const useRoomStore = create<RoomStore>((set, get) => ({
         return;
       }
 
-      if (!socket.connected) socket.connect();
+      await ensureConnected();
 
       socket.emit('room:join', code.trim().toUpperCase(), nickname.trim(), (response) => {
         if ('error' in response) {
@@ -161,7 +167,7 @@ export const useRoomStore = create<RoomStore>((set, get) => ({
   },
 
   joinMatchmaking: () => {
-    return new Promise<void>((resolve) => {
+    return new Promise<void>(async (resolve) => {
       const { nickname, targetScore } = get();
       if (!nickname.trim()) {
         set({ error: 'Enter a nickname' });
@@ -169,7 +175,7 @@ export const useRoomStore = create<RoomStore>((set, get) => ({
         return;
       }
 
-      if (!socket.connected) socket.connect();
+      await ensureConnected();
 
       socket.emit('matchmaking:join', nickname.trim(), targetScore, (response) => {
         if ('error' in response) {
@@ -197,7 +203,7 @@ export const useRoomStore = create<RoomStore>((set, get) => ({
 
       set({ reconnecting: true });
 
-      if (!socket.connected) socket.connect();
+      await ensureConnected();
 
       const maxAttempts = 5;
       const timeoutMs = 12_000;
