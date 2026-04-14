@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useGameStore } from '../stores/gameStore.js';
 import { useRoomStore } from '../stores/roomStore.js';
 import { GamePhase, SpecialCardType, CombinationType, getRankLabel, sortCards, findPlayableFromHand } from '@cyprus/shared';
-import type { Card, Combination, PlayerPosition, TrickState } from '@cyprus/shared';
+import type { Card, Combination, PlayerPosition } from '@cyprus/shared';
 
 /** Sort cards for display: Phoenix placed at its effective position in the combo. */
 function sortForDisplay(combo: Combination): Card[] {
@@ -91,16 +91,16 @@ export function GameBoard() {
   const reset = useRoomStore((s) => s.reset);
   const [showHistory, setShowHistory] = useState(false);
   const [leaveConfirm, setLeaveConfirm] = useState(false);
-  const [showLastTrick, setShowLastTrick] = useState(false);
+  const [showScoring, setShowScoring] = useState(false);
 
-  // When round ends, show last trick for 3 seconds before scoring view
+  // When round ends, keep the board visible for 3s so players can see the last trick, then show scoring
   useEffect(() => {
-    if (gameState?.phase === GamePhase.ROUND_SCORING && gameState.lastTrick && gameState.lastTrick.plays.length > 0) {
-      setShowLastTrick(true);
-      const timer = setTimeout(() => setShowLastTrick(false), 3000);
+    if (gameState?.phase === GamePhase.ROUND_SCORING) {
+      setShowScoring(false);
+      const timer = setTimeout(() => setShowScoring(true), 3000);
       return () => clearTimeout(timer);
     }
-    setShowLastTrick(false);
+    setShowScoring(false);
   }, [gameState?.phase]);
 
   if (!gameState) {
@@ -165,13 +165,11 @@ export function GameBoard() {
       {gameState.phase === GamePhase.GRAND_TICHU && <GrandTichuView />}
       {gameState.phase === GamePhase.PASSING && <PassingView />}
       {(gameState.phase === GamePhase.PLAYING ||
-        gameState.phase === GamePhase.DRAGON_GIVE) && (
+        gameState.phase === GamePhase.DRAGON_GIVE ||
+        (gameState.phase === GamePhase.ROUND_SCORING && !showScoring)) && (
         <PlayingLayout rel={rel} />
       )}
-      {gameState.phase === GamePhase.ROUND_SCORING && showLastTrick && (
-        <LastTrickView lastTrick={gameState.lastTrick!} rel={rel} />
-      )}
-      {gameState.phase === GamePhase.ROUND_SCORING && !showLastTrick && <ScoringView />}
+      {gameState.phase === GamePhase.ROUND_SCORING && showScoring && <ScoringView />}
       {gameState.phase === GamePhase.GAME_OVER && <GameOverView />}
     </div>
   );
@@ -210,48 +208,6 @@ function TurnTimer({ deadline }: { deadline: number }) {
     <span className={`turn-timer ${urgent ? 'turn-timer-urgent' : ''}`}>
       {secondsLeft}s
     </span>
-  );
-}
-
-function LastTrickView({
-  lastTrick,
-  rel,
-}: {
-  lastTrick: TrickState;
-  rel: { left: PlayerPosition; top: PlayerPosition; right: PlayerPosition };
-}) {
-  const gameState = useGameStore((s) => s.gameState);
-  if (!gameState) return null;
-
-  const isTeammate = (pos: PlayerPosition) =>
-    (pos % 2) === (gameState.myPosition % 2);
-
-  return (
-    <div className="playing-layout">
-      <div className="layout-top" />
-      <div className="layout-middle">
-        <div />
-        <div className="trick-area">
-          <div className="last-trick-label">Round Over</div>
-          <div className="trick-cards">
-            {lastTrick.plays.slice(-2).map((play, i) => (
-              <div key={i} className="trick-play">
-                <span className={`trick-player ${isTeammate(play.playerPosition) ? 'name-teammate' : 'name-opponent'}`}>
-                  {gameState.players[play.playerPosition]?.nickname}
-                </span>
-                <div className="trick-combo">
-                  {sortForDisplay(play.combination).map((c) => (
-                    <CardComponent key={c.id} card={c} size="small" />
-                  ))}
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-        <div />
-      </div>
-      <div className="layout-bottom" />
-    </div>
   );
 }
 
