@@ -93,6 +93,10 @@ function runRound(engine: GameEngine, bots: BotAI[], stats: RoundStats): void {
       engine.completeTrickWon();
       continue;
     }
+    if (engine.state.roundEndPending) {
+      engine.completeRoundEnd();
+      continue;
+    }
 
     if (engine.state.dogPending) {
       engine.resolveDog();

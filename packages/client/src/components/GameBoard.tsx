@@ -91,17 +91,6 @@ export function GameBoard() {
   const reset = useRoomStore((s) => s.reset);
   const [showHistory, setShowHistory] = useState(false);
   const [leaveConfirm, setLeaveConfirm] = useState(false);
-  const [showScoring, setShowScoring] = useState(false);
-
-  // When round ends, keep the board visible for 3s so players can see the last trick, then show scoring
-  useEffect(() => {
-    if (gameState?.phase === GamePhase.ROUND_SCORING) {
-      setShowScoring(false);
-      const timer = setTimeout(() => setShowScoring(true), 3000);
-      return () => clearTimeout(timer);
-    }
-    setShowScoring(false);
-  }, [gameState?.phase]);
 
   if (!gameState) {
     return <div className="game-board">Loading game...</div>;
@@ -165,11 +154,10 @@ export function GameBoard() {
       {gameState.phase === GamePhase.GRAND_TICHU && <GrandTichuView />}
       {gameState.phase === GamePhase.PASSING && <PassingView />}
       {(gameState.phase === GamePhase.PLAYING ||
-        gameState.phase === GamePhase.DRAGON_GIVE ||
-        (gameState.phase === GamePhase.ROUND_SCORING && !showScoring)) && (
+        gameState.phase === GamePhase.DRAGON_GIVE) && (
         <PlayingLayout rel={rel} />
       )}
-      {gameState.phase === GamePhase.ROUND_SCORING && showScoring && <ScoringView />}
+      {gameState.phase === GamePhase.ROUND_SCORING && <ScoringView />}
       {gameState.phase === GamePhase.GAME_OVER && <GameOverView />}
     </div>
   );

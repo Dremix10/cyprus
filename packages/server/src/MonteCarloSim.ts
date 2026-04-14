@@ -189,6 +189,7 @@ function rollout(engine: GameEngine, deadline: number): void {
 
     if (engine.state.dogPending) { engine.resolveDog(); continue; }
     if (engine.state.trickWonPending) { engine.completeTrickWon(); continue; }
+    if (engine.state.roundEndPending) { engine.completeRoundEnd(); continue; }
 
     if (engine.state.wishPending !== null) {
       const wp = engine.state.wishPending;
@@ -336,6 +337,7 @@ export function monteCarloEvaluate(
       // Resolve immediate pending states
       if (sim.state.dogPending) sim.resolveDog();
       if (sim.state.trickWonPending) sim.completeTrickWon();
+      if (sim.state.roundEndPending) sim.completeRoundEnd();
       if (sim.state.wishPending === botPosition) {
         sim.setWish(botPosition, rolloutBots[botPosition].chooseWish(
           sim.state.players[botPosition].hand, buildRolloutCtx(sim)

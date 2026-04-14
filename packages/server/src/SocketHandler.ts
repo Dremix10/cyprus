@@ -599,6 +599,10 @@ export class SocketHandler {
       this.timers.scheduleTrickWonResolve(roomCode);
       return;
     }
+    if (room.engine.state.roundEndPending) {
+      this.timers.scheduleRoundEndResolve(roomCode);
+      return;
+    }
 
     this.bots.scheduleBotAction(roomCode);
   }
