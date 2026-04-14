@@ -227,6 +227,12 @@ export const useRoomStore = create<RoomStore>((set, get) => ({
         return;
       }
 
+      // Prevent concurrent reconnect attempts
+      if (get().reconnecting) {
+        resolve(false);
+        return;
+      }
+
       set({ reconnecting: true });
 
       try { await ensureConnected(); } catch {
@@ -235,64 +241,64 @@ export const useRoomStore = create<RoomStore>((set, get) => ({
         return;
       }
 
-      const maxAttempts = 5;
-      const timeoutMs = 12_000;
-
-      const doReconnect = (attempt: number) => {
-        const timeout = setTimeout(() => {
-          if (attempt < maxAttempts - 1) {
-            doReconnect(attempt + 1);
-          } else {
-            set({
-              reconnecting: false,
-              staleSession: { roomCode: session.roomCode, nickname: session.nickname },
-              error: 'Reconnect timed out. Try again or dismiss.',
-            });
-            resolve(false);
-          }
-        }, timeoutMs);
-
-        const emitReconnect = () => {
-          socket.emit('session:reconnect', session.sessionId, (response) => {
-            clearTimeout(timeout);
-            if ('error' in response) {
-              const permanent = ['Session expired', 'Room no longer exists', 'Session invalid', 'You were replaced by a bot'].some(
-                (msg) => response.error.includes(msg)
-              );
-              if (permanent) {
-                clearSession();
-                set({ reconnecting: false, staleSession: null, error: response.error });
-                resolve(false);
-                return;
-              }
-              if (attempt < maxAttempts - 1) {
-                setTimeout(() => doReconnect(attempt + 1), 1000);
-              } else {
-                set({
-                  reconnecting: false,
-                  staleSession: { roomCode: session.roomCode, nickname: session.nickname },
-                  error: 'Could not reconnect. Try again or dismiss.',
-                });
-                resolve(false);
-              }
-              return;
-            }
-            set({
-              nickname: session.nickname,
-              roomCode: response.roomCode,
-              view: response.hasGame ? 'game' : 'waiting',
-              error: null,
-              reconnecting: false,
-              staleSession: null,
-            });
-            resolve(true);
-          });
-        };
-
-        emitReconnect();
+      let settled = false;
+      const finish = (success: boolean, stateUpdate: Partial<RoomStore>) => {
+        if (settled) return;
+        settled = true;
+        clearTimeout(timer);
+        socket.off('connect', onConnect);
+        set(stateUpdate as Parameters<typeof set>[0]);
+        resolve(success);
       };
 
-      doReconnect(0);
+      const timer = setTimeout(() => {
+        // Timed out — release the lock so Socket.IO's next reconnect can retry
+        finish(false, {
+          reconnecting: false,
+          staleSession: { roomCode: session.roomCode, nickname: session.nickname },
+          error: 'Reconnect timed out. Retrying...',
+        });
+      }, 15_000);
+
+      const emitReconnect = () => {
+        if (settled) return;
+        socket.emit('session:reconnect', session.sessionId, (response) => {
+          if (settled) return;
+          if ('error' in response) {
+            const permanent = ['Session expired', 'Room no longer exists', 'Session invalid', 'You were replaced by a bot'].some(
+              (msg) => response.error.includes(msg)
+            );
+            if (permanent) {
+              clearSession();
+              finish(false, { reconnecting: false, staleSession: null, error: response.error });
+            } else {
+              // Non-permanent error — release lock, Socket.IO auto-reconnect will retry
+              finish(false, {
+                reconnecting: false,
+                staleSession: { roomCode: session.roomCode, nickname: session.nickname },
+                error: 'Could not reconnect. Retrying...',
+              });
+            }
+            return;
+          }
+          finish(true, {
+            nickname: session.nickname,
+            roomCode: response.roomCode,
+            view: response.hasGame ? 'game' : 'waiting',
+            error: null,
+            reconnecting: false,
+            staleSession: null,
+          });
+        });
+      };
+
+      const onConnect = () => emitReconnect();
+
+      if (socket.connected) {
+        emitReconnect();
+      } else {
+        socket.once('connect', onConnect);
+      }
     });
   },
 

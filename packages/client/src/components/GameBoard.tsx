@@ -296,6 +296,16 @@ function PlayingLayout({
   const passedSet = new Set(gameState.currentTrick.passedPlayers ?? []);
 
 
+  // Whether the current player has no valid plays and must pass
+  const mustAutoPass = (() => {
+    if (!isMyTurn || !hasTrickOnTable) return false;
+    if (wishBlocking) return false;
+    const currentTop = gameState.currentTrick.plays[gameState.currentTrick.plays.length - 1]?.combination;
+    if (!currentTop) return false;
+    const playable = findPlayableFromHand(gameState.myHand, currentTop, gameState.wish);
+    return playable.length === 0;
+  })();
+
   // Whether the wish forces the player to play (blocks pass button)
   const wishForcesPlay = (() => {
     if (!isMyTurn || !gameState.wish.active || !gameState.wish.wishedRank) return false;
@@ -449,7 +459,12 @@ function PlayingLayout({
             {gameState.players[gameState.currentTrick.currentWinner!]?.nickname} is choosing who to give the Dragon trick to...
           </span>
         )}
-        {!isDragonGive && isMyTurn && !wishBlocking && (
+        {!isDragonGive && isMyTurn && !wishBlocking && mustAutoPass && (
+          <div className="play-pass-group">
+            <span className="auto-pass-label">No valid play — auto-passing...</span>
+          </div>
+        )}
+        {!isDragonGive && isMyTurn && !wishBlocking && !mustAutoPass && (
           <div className="play-pass-group">
             <button
               className="btn btn-play"
