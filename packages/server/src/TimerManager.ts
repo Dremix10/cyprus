@@ -3,7 +3,8 @@ import { GamePhase, findPlayableFromHand } from '@cyprus/shared';
 import type { RoomManager, Room } from './RoomManager.js';
 
 const TURN_TIMEOUT_MS = 60_000;
-const DISCONNECT_REPLACE_MS = 60_000;
+const DISCONNECT_REPLACE_MS = 120_000;
+const AUTO_PASS_DELAY_MS = 1_500;
 
 type BroadcastFn = (roomCode: string) => void;
 type EmitFn = (roomCode: string, event: string, ...args: unknown[]) => void;
@@ -14,6 +15,7 @@ export class TimerManager {
   private disconnectTimers = new Map<string, NodeJS.Timeout>();
   private dogTimers = new Map<string, NodeJS.Timeout>();
   private trickWonTimers = new Map<string, NodeJS.Timeout>();
+  private autoPassTimers = new Map<string, NodeJS.Timeout>();
   /** Tracks userId of players replaced by bots, so game-end can still credit them */
   readonly disconnectedPlayers = new Map<string, Map<number, number>>();
 
@@ -32,11 +34,14 @@ export class TimerManager {
     for (const timer of this.disconnectTimers.values()) clearTimeout(timer);
     for (const timer of this.dogTimers.values()) clearTimeout(timer);
     for (const timer of this.trickWonTimers.values()) clearTimeout(timer);
+    for (const timer of this.autoPassTimers.values()) clearTimeout(timer);
   }
 
   /** Clear all timers associated with a room (called when room is deleted). */
   clearAllTimersForRoom(roomCode: string): void {
     this.clearTurnTimer(roomCode);
+    const autoPass = this.autoPassTimers.get(roomCode);
+    if (autoPass) { clearTimeout(autoPass); this.autoPassTimers.delete(roomCode); }
     for (const pos of [0, 1, 2, 3]) {
       const timerKey = `${roomCode}-${pos}`;
       const existing = this.disconnectTimers.get(timerKey);
@@ -125,6 +130,62 @@ export class TimerManager {
     }, TURN_TIMEOUT_MS);
 
     this.turnTimers.set(roomCode, timer);
+  }
+
+  // ─── Auto-Pass (no valid play) ──────────────────────────────────────
+
+  /**
+   * Check if the current human player has no valid plays and must pass.
+   * If so, auto-pass after a short delay and notify the room.
+   */
+  scheduleAutoPass(roomCode: string): void {
+    const existing = this.autoPassTimers.get(roomCode);
+    if (existing) { clearTimeout(existing); this.autoPassTimers.delete(roomCode); }
+
+    const room = this.rooms.getRoom(roomCode);
+    if (!room || !room.engine) return;
+
+    const engine = room.engine;
+    if (engine.state.phase !== GamePhase.PLAYING) return;
+    if (engine.state.wishPending !== null) return;
+    if (engine.state.dogPending || engine.state.trickWonPending) return;
+
+    const currentPlayer = engine.state.currentPlayer;
+    if (room.botPositions.has(currentPlayer)) return;
+
+    // Only auto-pass when there's a trick on the table (when leading you always have plays)
+    const hasTrickOnTable = engine.state.currentTrick.plays.length > 0;
+    if (!hasTrickOnTable) return;
+
+    const player = engine.state.players[currentPlayer];
+    const currentTop = engine.state.currentTrick.plays[engine.state.currentTrick.plays.length - 1].combination;
+    const playable = findPlayableFromHand(player.hand, currentTop, engine.state.wish);
+
+    if (playable.length > 0) return; // Player has valid plays
+
+    // No valid plays — schedule auto-pass
+    this.emit(roomCode, 'game:auto_pass', currentPlayer);
+
+    const timer = setTimeout(() => {
+      this.autoPassTimers.delete(roomCode);
+
+      const currentRoom = this.rooms.getRoom(roomCode);
+      if (!currentRoom || !currentRoom.engine) return;
+      if (currentRoom.engine.state.phase !== GamePhase.PLAYING) return;
+      if (currentRoom.engine.state.currentPlayer !== currentPlayer) return;
+
+      try {
+        const events = currentRoom.engine.passTurn(currentPlayer);
+        for (const event of events) {
+          this.emit(roomCode, 'game:event', event);
+        }
+        this.broadcastGameState(roomCode);
+      } catch (err) {
+        console.error(`Auto-pass error in room ${roomCode}:`, err);
+      }
+    }, AUTO_PASS_DELAY_MS);
+
+    this.autoPassTimers.set(roomCode, timer);
   }
 
   // ─── Disconnect → Bot Replacement ──────────────────────────────────

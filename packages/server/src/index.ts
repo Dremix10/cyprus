@@ -81,6 +81,8 @@ const io = new Server<ClientToServerEvents, ServerToClientEvents>(httpServer, {
   cors: isProduction
     ? undefined
     : { origin: process.env.CLIENT_URL ?? 'http://localhost:5173', credentials: true },
+  pingTimeout: 30000,   // wait 30s for pong before considering disconnected (default 20s)
+  pingInterval: 25000,  // send ping every 25s (default 25s)
 });
 
 // ─── Socket.IO Auth Middleware ──────────────────────────────────────

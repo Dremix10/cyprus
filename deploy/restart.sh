@@ -9,8 +9,9 @@ echo "=== Deploy started at $(date) ==="
 
 cd "$APP_DIR"
 
-echo "Resetting runtime data files before pull..."
+echo "Resetting local changes before pull..."
 git checkout -- packages/server/data/ 2>/dev/null || true
+git stash --include-untracked 2>/dev/null || true
 
 echo "Pulling latest from main..."
 git pull origin main
@@ -22,28 +23,24 @@ echo "Building..."
 npm run build
 
 echo "Stopping old process..."
-OLD_PID=$(pgrep -f "node ${ENTRY}" || true)
-if [ -n "$OLD_PID" ]; then
-  echo "Killing old process (PID: $OLD_PID)..."
-  kill "$OLD_PID" 2>/dev/null || true
-  # Wait up to 5 seconds for graceful shutdown
-  for i in $(seq 1 5); do
-    if ! kill -0 "$OLD_PID" 2>/dev/null; then break; fi
-    sleep 1
-  done
-  # Force kill if still running
-  if kill -0 "$OLD_PID" 2>/dev/null; then
-    echo "Force killing old process..."
-    kill -9 "$OLD_PID" 2>/dev/null || true
+# Kill any node process running the server (broad match like killstart.sh)
+pkill -f "node.*packages/server" 2>/dev/null || true
+sleep 2
+# Force kill if still alive
+pkill -9 -f "node.*packages/server" 2>/dev/null || true
+# Wait for port to be released
+echo "Waiting for port to be freed..."
+for i in $(seq 1 15); do
+  if ! ss -tlnp 2>/dev/null | grep -q ":3001 "; then
+    echo "Port is free."
+    break
   fi
-  # Wait for port to be released
-  echo "Waiting for port to be freed..."
-  for i in $(seq 1 10); do
-    if ! ss -tlnp 2>/dev/null | grep -q ":3001 "; then break; fi
-    sleep 1
-  done
-else
-  echo "No old process found."
+  sleep 1
+done
+if ss -tlnp 2>/dev/null | grep -q ":3001 "; then
+  echo "WARNING: Port 3001 still in use, killing by port..."
+  fuser -k 3001/tcp 2>/dev/null || true
+  sleep 2
 fi
 
 echo "Starting new process..."

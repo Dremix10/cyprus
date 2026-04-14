@@ -1808,6 +1808,8 @@ body {
   position: relative;
   cursor: pointer;
   user-select: none;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
   transition: transform 0.18s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.18s ease, border-color 0.15s;
   font-weight: 700;
 }
@@ -2724,6 +2726,19 @@ body {
   font-weight: 600;
   font-size: 0.85rem;
   margin-left: 0.5rem;
+}
+
+.auto-pass-label {
+  color: var(--text-muted, #aaa);
+  font-weight: 600;
+  font-size: 0.9rem;
+  font-style: italic;
+  animation: auto-pass-pulse 1s ease-in-out infinite;
+}
+
+@keyframes auto-pass-pulse {
+  0%, 100% { opacity: 0.6; }
+  50% { opacity: 1; }
 }
 
 /* ─── Scoring Layout ───────────────────── */
