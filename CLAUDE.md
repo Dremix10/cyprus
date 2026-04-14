@@ -44,25 +44,42 @@ npm run clean        # Remove all dist/ folders
 ## Architecture
 
 ### Server (`packages/server/src/`)
-- `index.ts` — Express app, Socket.IO setup, helmet security headers, HTTP request logging, admin routes, graceful shutdown (SIGTERM/SIGINT), uncaught error handlers
-- `SocketHandler.ts` — All socket event handlers, rate limiting (per-socket + per-IP), DB event logging, bot action scheduling, turn timers (60s), disconnect→bot replacement (2min), session reconnect, room persistence (debounced to disk every 5s)
-- `RoomManager.ts` — Room CRUD, player join/reconnect, session-based auth (UUID v4), nickname validation, seat management, room serialization/restore for crash recovery
-- `GameEngine.ts` — Tichu game logic, all phases (Grand Tichu → Passing → Playing → Scoring), card combinations, wish enforcement, serialize/restore for persistence
+- `index.ts` — Express app, Socket.IO setup, helmet security headers, HTTP request logging, auth/admin routes, graceful shutdown
+- `SocketHandler.ts` — Socket event orchestrator: room/game/matchmaking events, reconnect, broadcasting (555 lines after extraction)
+- `TimerManager.ts` — Turn timers (60s), disconnect→bot replacement (2min), dog/trick delays, room timer cleanup
+- `GamePersistence.ts` — Game state snapshots to disk, room persistence for crash recovery (debounced 5s)
+- `BotController.ts` — Bot action scheduling, AI decision routing, Monte Carlo integration for hard bots
+- `RoomManager.ts` — Room CRUD, player join/reconnect, session-based auth (UUID v4), seat management, room serialization/restore
+- `GameEngine.ts` — Tichu game logic, all phases (Grand Tichu → Passing → Playing → Scoring), card combinations, wish enforcement
 - `BotAI.ts` — Bot AI (easy/medium/hard), Greek-themed bot profiles with avatars
-- `Database.ts` — SQLite tracker (better-sqlite3): connections, players, games, events, HTTP requests
-- `AdminDashboard.ts` — `/admin` routes with password auth (SHA-256, timing-safe compare)
+- `MonteCarloSim.ts` — Monte Carlo simulation for hard bot decisions: determinization, rollout, candidate evaluation
+- `Database.ts` — SQLite tracker (better-sqlite3): connections, players, games, events, HTTP requests, users, sessions, friends, leaderboard
+- `AuthService.ts` — Scrypt password hashing, login/register, Google OAuth, forgot/reset password, session management
+- `AuthRoutes.ts` — REST auth endpoints with HttpOnly cookie sessions, rate limiting
+- `FriendRoutes.ts` — Friend request send/accept/reject API
+- `EmailService.ts` — Nodemailer for password reset emails (requires SMTP config)
+- `AdminDashboard.ts` — `/admin` routes with password auth, SQL query interface, loads HTML from `src/admin/`
 
 ### Client (`packages/client/src/`)
-- `stores/roomStore.ts` — Zustand store for room/connection state, session-based auto-reconnect (localStorage)
+- `stores/roomStore.ts` — Zustand store for room/connection state, session reconnect (localStorage with 4hr TTL)
 - `stores/gameStore.ts` — Zustand store for game state
-- `components/GameBoard.tsx` — Main game UI, trick display, player areas
-- `components/PlayerHand.tsx` — Card hand display with received-card indicators
+- `stores/authStore.ts` — Zustand store for auth (login/register/Google/forgot password)
+- `stores/friendStore.ts` — Zustand store for friend requests
+- `components/GameBoard.tsx` — Main game UI, playing layout, trick display (494 lines after extraction)
+- `components/PhaseViews.tsx` — Extracted phase components: GrandTichuView, PassingView, ScoringView, GameOverView
+- `components/AuthForms.tsx` — Login/register/forgot/reset password forms, Google Sign-In button
+- `components/Leaderboard.tsx` — Player rankings and stats
+- `components/Friends.tsx` — Friend list and requests
 - `hooks/useSocketEvents.ts` — Socket.IO event listeners
 
-### Shared (`packages/shared/src/types/`)
-- `events.ts` — Socket event type definitions (ClientToServerEvents, ServerToClientEvents)
-- `game.ts` — Game state types, card types, combination types
-- `player.ts` — Player position, player state types
+### Shared (`packages/shared/src/`)
+- `types/events.ts` — Socket event type definitions (ClientToServerEvents, ServerToClientEvents)
+- `types/game.ts` — Game state types, card types, combination types
+- `types/player.ts` — Player position, player state types
+- `types/auth.ts` — AuthUser, RegisterRequest, LoginRequest types
+- `types/leaderboard.ts` — Leaderboard stat types
+- `types/friends.ts` — Friend request types
+- `combinations.ts` — Card combination detection, canBeat logic (Phoenix handled natively), findPlayableFromHand
 
 ## Session & Reconnect Flow
 
@@ -88,14 +105,17 @@ Players get a `sessionId` (UUID v4) on create/join, stored in localStorage. On p
 ## Security
 
 - **Helmet** security headers (CSP, etc.) on all HTTP responses
-- **Rate limiting**: per-socket (20 actions/5s), per-IP connections (20/min), room create/join (5/30s), session reconnect (5/30s), auth (5/min per IP)
-- **Nickname validation**: 1-20 chars, alphanumeric + spaces/dashes/accented chars only
-- **Password hashing**: scrypt with 32-byte random salt, timing-safe comparison
+- **Rate limiting**: per-socket (20 actions/5s), per-IP connections (20/min), room create/join (5/30s), session reconnect (5/30s), auth (5/min per IP), password reset (3/15min per IP)
+- **Input validation**: dragon give position (0-3), wish rank (2-14), target score (250-10000), nickname (1-20 chars)
+- **Password hashing**: scrypt (N=16384, r=8, p=1) with 32-byte random salt, timing-safe comparison
+- **Session tokens**: SHA-256 hashed before DB storage, bound to userId for authenticated users
 - **Account lockout**: 5 failed logins → 15 min cooldown
 - **Session security**: HttpOnly + SameSite cookies, 7-day expiry, max 10 per user, cleanup on interval
+- **SQL query protection**: admin query endpoint blocks INSERT/UPDATE/DELETE/DROP/ALTER/PRAGMA and pragma_ functions
 - **Admin auth**: SHA-256 password hash with timing-safe comparison
 - **Trust proxy**: enabled for nginx X-Forwarded-For headers
 - **Graceful shutdown**: cleans up timers, persists rooms, closes DB
+- **Room persistence**: active games survive server restarts (serialized to disk with userId, sessionId, bot state)
 
 ## Data Access (Production Database)
 
@@ -133,6 +153,10 @@ curl -s http://165.245.175.45/admin/api/tables \
 
 - **Dremix10** (GitHub) — co-developer, pushes game features (bot AI, UI, tutorials)
 
-## Known Issues
+## Known Issues / Backlog
 
-- Bot phase race condition: bots occasionally try Grand Tichu decision after phase moved to PASSING (non-blocking error in logs)
+- **Forgot password email not active** — SMTP not configured (needs SMTP_HOST/USER/PASS env vars)
+- **Google Sign-In not active** — needs GOOGLE_CLIENT_ID env var (Google Cloud Console setup)
+- **Waiting rooms lost on deploy** — only rooms with active games are persisted; waiting rooms are lost on server restart
+- Solo game fast-forward: speed up bot actions when human player is out
+- Admin password retrieval / reset tool needed
