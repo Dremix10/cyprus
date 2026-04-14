@@ -99,15 +99,25 @@ export const useGameStore = create<GameStore>((set, get) => ({
     }
   },
 
-  toggleCard: (cardId) => {
-    const selected = new Set(get().selectedCards);
-    if (selected.has(cardId)) {
-      selected.delete(cardId);
-    } else {
-      selected.add(cardId);
-    }
-    set({ selectedCards: selected });
-  },
+  toggleCard: (() => {
+    let lastToggleTime = 0;
+    let lastToggleId = '';
+    return (cardId: string) => {
+      const now = Date.now();
+      // Debounce: ignore if same card toggled within 100ms (prevents touch double-fire)
+      if (cardId === lastToggleId && now - lastToggleTime < 100) return;
+      lastToggleTime = now;
+      lastToggleId = cardId;
+
+      const selected = new Set(get().selectedCards);
+      if (selected.has(cardId)) {
+        selected.delete(cardId);
+      } else {
+        selected.add(cardId);
+      }
+      set({ selectedCards: selected });
+    };
+  })(),
 
   setSelectedCards: (cards) => set({ selectedCards: cards }),
   clearSelection: () => set({ selectedCards: new Set() }),

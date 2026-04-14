@@ -9,8 +9,9 @@ echo "=== Deploy started at $(date) ==="
 
 cd "$APP_DIR"
 
-echo "Resetting runtime data files before pull..."
+echo "Resetting local changes before pull..."
 git checkout -- packages/server/data/ 2>/dev/null || true
+git stash --include-untracked 2>/dev/null || true
 
 echo "Pulling latest from main..."
 git pull origin main
