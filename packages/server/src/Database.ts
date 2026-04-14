@@ -801,6 +801,14 @@ export class TrackerDB {
       }
     }
 
+    // Limit pending outbound requests to prevent spam (max 50)
+    const pendingCount = this.db.prepare(
+      `SELECT COUNT(*) as c FROM friendships WHERE user_id = ? AND status = 'pending'`
+    ).get(userId) as { c: number };
+    if (pendingCount.c >= 50) {
+      return { success: false, error: 'Too many pending requests' };
+    }
+
     this.db.prepare(
       `INSERT INTO friendships (user_id, friend_id, status) VALUES (?, ?, 'pending')`
     ).run(userId, friendId);
@@ -850,10 +858,12 @@ export class TrackerDB {
   }
 
   searchUsers(query: string, excludeUserId: number, limit: number = 10): Array<{ id: number; username: string; displayName: string }> {
-    const pattern = `%${query}%`;
+    // Escape LIKE wildcard characters to prevent wildcard injection
+    const escaped = query.replace(/[%_\\]/g, '\\$&');
+    const pattern = `%${escaped}%`;
     return this.db.prepare(`
       SELECT id, username, display_name as displayName FROM users
-      WHERE id != ? AND (username LIKE ? OR display_name LIKE ?)
+      WHERE id != ? AND (username LIKE ? ESCAPE '\\' OR display_name LIKE ? ESCAPE '\\')
       LIMIT ?
     `).all(excludeUserId, pattern, pattern, limit) as Array<{ id: number; username: string; displayName: string }>;
   }

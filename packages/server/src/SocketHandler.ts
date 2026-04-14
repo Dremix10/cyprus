@@ -10,6 +10,7 @@ import { RoomManager } from './RoomManager.js';
 import type { GameEngine } from './GameEngine.js';
 import type { BotDifficulty } from './BotAI.js';
 import type { TrackerDB } from './Database.js';
+import type { GameMonitor } from './GameMonitor.js';
 import { MatchmakingManager } from './MatchmakingManager.js';
 import { TimerManager } from './TimerManager.js';
 import { GamePersistence } from './GamePersistence.js';
@@ -64,7 +65,8 @@ export class SocketHandler {
   constructor(
     private io: TypedServer,
     private rooms: RoomManager,
-    private db?: TrackerDB
+    private db?: TrackerDB,
+    private monitor?: GameMonitor,
   ) {
     this.rateLimitCleanup = setInterval(() => this.rateLimiter.cleanup(), 60_000);
 
@@ -74,9 +76,9 @@ export class SocketHandler {
     };
     const broadcastGameState = (roomCode: string) => this.broadcastGameState(roomCode);
 
-    this.timers = new TimerManager(rooms, emitToRoom, broadcastGameState);
+    this.timers = new TimerManager(rooms, emitToRoom, broadcastGameState, monitor);
     this.persistence = new GamePersistence(rooms);
-    this.bots = new BotController(rooms, emitToRoom, broadcastGameState, db, (rc) => roomGameIds.get(rc) ?? null);
+    this.bots = new BotController(rooms, emitToRoom, broadcastGameState, db, (rc) => roomGameIds.get(rc) ?? null, monitor);
 
     // Clean up timers when rooms are deleted
     rooms.onRoomDeleted = (code) => this.timers.clearAllTimersForRoom(code);
@@ -152,6 +154,8 @@ export class SocketHandler {
       callback({ roomCode: result.roomCode, sessionId: result.sessionId });
       this.db?.updateConnectionNickname(socket.id, nickname, result.roomCode);
       this.db?.getOrCreatePlayer(nickname, ip);
+      this.monitor?.gameCreated(result.roomCode, targetScore, false, diff, userId);
+      this.monitor?.playerJoined(result.roomCode, nickname, userId);
       this.broadcastRoomState(result.roomCode);
     });
 
@@ -167,12 +171,15 @@ export class SocketHandler {
       callback({ roomCode: result.roomCode, sessionId: result.sessionId });
       this.db?.updateConnectionNickname(socket.id, nickname, result.roomCode);
       const playerId = this.db?.getOrCreatePlayer(nickname, ip);
+      this.monitor?.gameCreated(result.roomCode, targetScore, true, diff, userId);
+      this.monitor?.playerJoined(result.roomCode, nickname, userId);
 
       const startResult = this.rooms.startGame(socket.id);
       if (startResult.error) { socket.emit('game:error', startResult.error); return; }
 
       this.logGameStart(result.roomCode, targetScore, true, diff, ip);
       if (playerId) this.db?.incrementPlayerGames(playerId);
+      this.monitor?.gameStarted(result.roomCode, 1, 3);
       this.broadcastGameState(result.roomCode);
     });
 
@@ -186,6 +193,7 @@ export class SocketHandler {
       callback({ success: true, sessionId: result.sessionId });
       this.db?.updateConnectionNickname(socket.id, nickname, roomCode.toUpperCase());
       this.db?.getOrCreatePlayer(nickname, ip);
+      this.monitor?.playerJoined(roomCode.toUpperCase(), nickname, userId);
 
       const info = this.rooms.getRoomForSocket(socket.id);
       if (info && info.room.engine) {
@@ -219,6 +227,8 @@ export class SocketHandler {
             if (pid) this.db?.incrementPlayerGames(pid);
           }
         }
+        const playerCount = [...info.room.players.keys()].filter(p => !info.room.botPositions.has(p)).length;
+        this.monitor?.gameStarted(info.room.code, playerCount, info.room.botPositions.size);
         this.broadcastGameState(info.room.code);
       }
     });
@@ -287,12 +297,14 @@ export class SocketHandler {
       }
       if (typeof sessionId !== 'string' || sessionId.length !== 36) {
         console.log(`[reconnect] INVALID SESSION FORMAT socket=${socket.id}`);
+        this.monitor?.reconnectFailed('Invalid session format', sessionId?.slice(0, 8) ?? '');
         callback({ error: 'Invalid session' });
         return;
       }
       const result = this.rooms.reconnectBySession(socket.id, sessionId, socket.data.userId as number | undefined);
       if ('error' in result) {
         console.log(`[reconnect] FAILED socket=${socket.id} reason="${result.error}" sessionId=${sessionId.slice(0, 8)}...`);
+        this.monitor?.reconnectFailed(result.error, sessionId.slice(0, 8));
         callback({ error: result.error });
         return;
       }
@@ -305,6 +317,7 @@ export class SocketHandler {
 
       this.timers.cancelDisconnectTimer(result.roomCode, result.position);
       socket.to(result.roomCode).emit('room:player_reconnected', result.nickname);
+      this.monitor?.playerReconnected(result.roomCode, result.nickname, socket.data.userId as number | undefined);
 
       if (hasGame) {
         this.broadcastGameState(result.roomCode);
@@ -334,6 +347,7 @@ export class SocketHandler {
       const result = this.rooms.handleDisconnect(socket.id);
       if (result) {
         this.io.to(result.roomCode).emit('room:player_disconnected', result.nickname);
+        this.monitor?.playerDisconnected(result.roomCode, result.nickname, disconnectedUserId);
         this.broadcastRoomState(result.roomCode);
 
         const room = this.rooms.getRoom(result.roomCode);
@@ -383,6 +397,8 @@ export class SocketHandler {
         if (pid) this.db?.incrementPlayerGames(pid);
       }
     }
+    const playerCount = [...room.players.keys()].filter(p => !room.botPositions.has(p)).length;
+    this.monitor?.gameStarted(roomCode, playerCount, room.botPositions.size);
     this.broadcastGameState(roomCode);
   }
 
@@ -439,6 +455,7 @@ export class SocketHandler {
     const s = engine.state.scores;
     const winner = s[0] > s[1] ? 'Team 0-2' : s[1] > s[0] ? 'Team 1-3' : 'Tie';
     const roundHistory = engine.getRoundHistory();
+    this.monitor?.gameEnded(roomCode, winner, [s[0], s[1]], roundHistory.length);
 
     this.db?.transaction(() => {
       this.db?.logGameEnd(gameId, s[0], s[1], winner, roundHistory.length);

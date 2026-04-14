@@ -11,6 +11,7 @@ import { BotAI } from './BotAI.js';
 import type { BotDifficulty, GameContext } from './BotAI.js';
 import { monteCarloEvaluate } from './MonteCarloSim.js';
 import type { TrackerDB } from './Database.js';
+import type { GameMonitor } from './GameMonitor.js';
 
 type EmitFn = (roomCode: string, event: string, ...args: unknown[]) => void;
 type BroadcastFn = (roomCode: string) => void;
@@ -22,6 +23,7 @@ export class BotController {
     private broadcastGameState: BroadcastFn,
     private db: TrackerDB | undefined,
     private getGameId: (roomCode: string) => number | null,
+    private monitor?: GameMonitor,
   ) {}
 
   scheduleBotAction(roomCode: string): void {
@@ -60,6 +62,7 @@ export class BotController {
         this.broadcastGameState(roomCode);
       } catch (err) {
         console.error(`Bot action error in room ${roomCode}:`, err);
+        this.monitor?.botActionError(roomCode, (err as Error).message);
       }
     }, delay);
   }
@@ -162,7 +165,7 @@ export class BotController {
 
       // Build MC evaluator for hard mode bots
       const mcEval = botAI.config.useMonteCarlo
-        ? (candidates: (Card[] | null)[]) => monteCarloEvaluate(engine, currentPlayer, candidates)
+        ? (candidates: (Card[] | null)[]) => monteCarloEvaluate(engine, currentPlayer, candidates, 200, 150, this.monitor, room.code)
         : undefined;
 
       let cardIds = botAI.choosePlay(

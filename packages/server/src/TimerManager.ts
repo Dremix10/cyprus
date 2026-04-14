@@ -1,6 +1,7 @@
 import type { PlayerPosition } from '@cyprus/shared';
 import { GamePhase, findPlayableFromHand } from '@cyprus/shared';
 import type { RoomManager, Room } from './RoomManager.js';
+import type { GameMonitor } from './GameMonitor.js';
 
 const TURN_TIMEOUT_MS = 60_000;
 const DISCONNECT_REPLACE_MS = 120_000;
@@ -22,6 +23,7 @@ export class TimerManager {
     private rooms: RoomManager,
     private emit: EmitFn,
     private broadcastGameState: BroadcastFn,
+    private monitor?: GameMonitor,
   ) {}
 
   getTurnDeadline(roomCode: string): number | null {
@@ -166,6 +168,7 @@ export class TimerManager {
       const botPlayer = room.players.get(position);
       const botName = botPlayer?.nickname ?? 'Bot';
 
+      this.monitor?.playerReplacedByBot(roomCode, nickname, botName, playerBeforeReplace?.userId);
       this.emit(roomCode, 'room:player_disconnected', `${nickname} was replaced by ${botName}`);
       this.broadcastGameState(roomCode);
     }, DISCONNECT_REPLACE_MS);

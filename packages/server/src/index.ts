@@ -113,7 +113,7 @@ io.use((socket, next) => {
 });
 
 const roomManager = new RoomManager();
-const socketHandler = new SocketHandler(io, roomManager, db);
+const socketHandler = new SocketHandler(io, roomManager, db, monitor);
 
 // Restore any persisted rooms from a previous server session
 const restored = socketHandler.loadPersistedRooms();
@@ -218,7 +218,7 @@ app.get('/api/leaderboard/history', (req, res) => {
 });
 
 // Auth routes
-app.use('/auth', createAuthRouter(authService, isProduction));
+app.use('/auth', createAuthRouter(authService, isProduction, monitor));
 app.use('/api/friends', createFriendRouter(db, authService));
 
 // Admin dashboard
