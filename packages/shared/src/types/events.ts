@@ -27,6 +27,7 @@ export interface ClientToServerEvents {
   'room:create': (
     nickname: string,
     targetScore: number,
+    difficulty: string,
     callback: (response: { roomCode: string; sessionId: string } | { error: string }) => void
   ) => void;
   'room:create_solo': (

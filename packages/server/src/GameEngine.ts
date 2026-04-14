@@ -832,11 +832,74 @@ export class GameEngine {
   clone(): GameEngine {
     const nicknames = this.state.players.map(p => p.nickname) as [string, string, string, string];
     const copy = new GameEngine(nicknames, this.targetScore);
-    // JSON round-trip is faster than structuredClone for plain data objects
-    copy.state = JSON.parse(JSON.stringify(this.state));
-    copy.roundTrickCards = JSON.parse(JSON.stringify(this.roundTrickCards));
-    copy.roundBreakdown = this.roundBreakdown ? JSON.parse(JSON.stringify(this.roundBreakdown)) : null;
-    copy.grandTichuRemaining = JSON.parse(JSON.stringify(this.grandTichuRemaining));
+
+    // Manual structured copy — avoids JSON serialization overhead.
+    // Cards are immutable value objects so we shallow-copy arrays of card references.
+    const s = this.state;
+
+    const clonePlays = (plays: typeof s.currentTrick.plays) =>
+      plays.map(p => ({
+        playerPosition: p.playerPosition,
+        combination: {
+          type: p.combination.type,
+          cards: [...p.combination.cards],
+          rank: p.combination.rank,
+          length: p.combination.length,
+          bombPower: p.combination.bombPower,
+        },
+      }));
+
+    const cloneTrick = (t: typeof s.currentTrick) => ({
+      plays: clonePlays(t.plays),
+      currentWinner: t.currentWinner,
+      passCount: t.passCount,
+      passedPlayers: [...t.passedPlayers],
+    });
+
+    copy.state = {
+      phase: s.phase,
+      players: s.players.map(p => ({
+        position: p.position,
+        nickname: p.nickname,
+        hand: [...p.hand],
+        tichuCall: p.tichuCall,
+        isOut: p.isOut,
+        finishOrder: p.finishOrder,
+        hasPlayedCards: p.hasPlayedCards,
+        grandTichuDecided: p.grandTichuDecided,
+        passedCards: p.passedCards ? { ...p.passedCards } : null,
+        wonTricks: p.wonTricks.map(t => [...t]),
+      })) as [PlayerState, PlayerState, PlayerState, PlayerState],
+      currentPlayer: s.currentPlayer,
+      currentTrick: cloneTrick(s.currentTrick),
+      lastTrick: s.lastTrick ? cloneTrick(s.lastTrick) : null,
+      wish: { ...s.wish },
+      wishPending: s.wishPending,
+      dogPending: s.dogPending,
+      trickWonPending: s.trickWonPending,
+      finishOrder: [...s.finishOrder],
+      scores: [...s.scores] as [number, number],
+      roundScores: [...s.roundScores] as [number, number],
+      dragonWinner: s.dragonWinner,
+      receivedCards: {
+        0: s.receivedCards[0].map(rc => ({ ...rc })),
+        1: s.receivedCards[1].map(rc => ({ ...rc })),
+        2: s.receivedCards[2].map(rc => ({ ...rc })),
+        3: s.receivedCards[3].map(rc => ({ ...rc })),
+      },
+    };
+
+    // roundTrickCards / roundBreakdown / grandTichuRemaining — not needed for MC rollouts
+    // but copy cheaply in case other callers rely on clone()
+    copy.roundTrickCards = [
+      [...this.roundTrickCards[0]],
+      [...this.roundTrickCards[1]],
+    ];
+    copy.roundBreakdown = this.roundBreakdown ? { ...this.roundBreakdown } : null;
+    copy.grandTichuRemaining = this.grandTichuRemaining.map(
+      arr => arr ? [...arr] : null
+    );
+
     // Skip events and roundHistory — not needed for simulation
     return copy;
   }

@@ -51,6 +51,7 @@ interface RoomStore {
   view: RoomView;
   nickname: string;
   targetScore: number;
+  botDifficulty: string;
   roomCode: string | null;
   roomState: RoomState | null;
   error: string | null;
@@ -60,6 +61,7 @@ interface RoomStore {
 
   setNickname: (name: string) => void;
   setTargetScore: (score: number) => void;
+  setBotDifficulty: (difficulty: string) => void;
   createRoom: () => Promise<void>;
   createSoloRoom: (difficulty: string) => Promise<void>;
   joinRoom: (code: string) => Promise<void>;
@@ -81,6 +83,7 @@ export const useRoomStore = create<RoomStore>((set, get) => ({
   view: 'lobby',
   nickname: '',
   targetScore: 1000,
+  botDifficulty: 'medium',
   roomCode: null,
   roomState: null,
   error: null,
@@ -90,6 +93,7 @@ export const useRoomStore = create<RoomStore>((set, get) => ({
 
   setNickname: (name) => set({ nickname: name }),
   setTargetScore: (score) => set({ targetScore: score }),
+  setBotDifficulty: (difficulty) => set({ botDifficulty: difficulty }),
 
   createRoom: () => {
     return new Promise<void>(async (resolve) => {
@@ -106,7 +110,7 @@ export const useRoomStore = create<RoomStore>((set, get) => ({
         return;
       }
 
-      socket.emit('room:create', nickname.trim(), targetScore, (response) => {
+      socket.emit('room:create', nickname.trim(), targetScore, get().botDifficulty, (response) => {
         if ('error' in response) {
           set({ error: response.error });
         } else {

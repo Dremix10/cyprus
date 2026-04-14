@@ -116,7 +116,7 @@ export class MatchmakingManager {
 
     // First player creates the room
     const creator = players[0];
-    const createResult = this.rooms.createRoom(creator.socketId, creator.nickname, targetScore, creator.userId);
+    const createResult = this.rooms.createRoom(creator.socketId, creator.nickname, targetScore, creator.userId, 'hard');
     if ('error' in createResult) {
       // Put players back in queue
       this.queue.unshift(...players);

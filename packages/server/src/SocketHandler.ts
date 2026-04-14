@@ -140,10 +140,12 @@ export class SocketHandler {
   }
 
   private registerRoomEvents(socket: TypedSocket, ip: string | null): void {
-    socket.on('room:create', (nickname, targetScore, callback) => {
+    socket.on('room:create', (nickname, targetScore, difficulty, callback) => {
       if (!this.checkRate(socket, 'create', 5, 30_000)) return;
       const userId = socket.data.userId as number | undefined;
-      const result = this.rooms.createRoom(socket.id, nickname, targetScore, userId);
+      const validDiffs: BotDifficulty[] = ['easy', 'medium', 'hard'];
+      const diff: BotDifficulty = validDiffs.includes(difficulty as BotDifficulty) ? (difficulty as BotDifficulty) : 'medium';
+      const result = this.rooms.createRoom(socket.id, nickname, targetScore, userId, diff);
       if ('error' in result) { callback({ error: result.error }); return; }
       socket.join(result.roomCode);
       this.socketToSession.set(socket.id, result.sessionId);

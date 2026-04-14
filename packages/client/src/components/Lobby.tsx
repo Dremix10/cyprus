@@ -61,6 +61,8 @@ export function Lobby({ onTutorial, onLeaderboard }: { onTutorial: () => void; o
   const [scoreInput, setScoreInput] = useState(String(targetScore));
   const setTargetScore = useRoomStore((s) => s.setTargetScore);
   const createRoom = useRoomStore((s) => s.createRoom);
+  const setBotDifficulty = useRoomStore((s) => s.setBotDifficulty);
+  const botDifficulty = useRoomStore((s) => s.botDifficulty);
   const createSoloRoom = useRoomStore((s) => s.createSoloRoom);
   const joinRoom = useRoomStore((s) => s.joinRoom);
   const joinMatchmaking = useRoomStore((s) => s.joinMatchmaking);
@@ -184,6 +186,19 @@ export function Lobby({ onTutorial, onLeaderboard }: { onTutorial: () => void; o
                         className="input input-score input-greek"
                       />
                       <span>pts</span>
+                    </div>
+                    <div className="target-score-row">
+                      <label htmlFor="botDiff">Bot Level</label>
+                      <select
+                        id="botDiff"
+                        value={botDifficulty}
+                        onChange={(e) => setBotDifficulty(e.target.value)}
+                        className="input input-select input-greek"
+                      >
+                        <option value="easy">Easy</option>
+                        <option value="medium">Medium</option>
+                        <option value="hard">Hard</option>
+                      </select>
                     </div>
                     <button className="btn btn-olympus btn-create" onClick={createRoom}>
                       Start

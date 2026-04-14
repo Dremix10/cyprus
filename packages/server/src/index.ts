@@ -13,6 +13,7 @@ import { createAdminRouter } from './AdminDashboard.js';
 import { AuthService } from './AuthService.js';
 import { createAuthRouter, SESSION_COOKIE } from './AuthRoutes.js';
 import { createFriendRouter } from './FriendRoutes.js';
+import { GameMonitor } from './GameMonitor.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
@@ -24,6 +25,7 @@ const PORT = Number(process.env.PORT) || 3001;
 // ─── Database & Auth ────────────────────────────────────────────────
 const db = new TrackerDB();
 const authService = new AuthService(db);
+const monitor = new GameMonitor(db);
 
 // Clean expired sessions every hour
 const sessionCleanupInterval = setInterval(() => {
@@ -133,6 +135,8 @@ try {
   commitDate = execSync('git log -1 --pretty=%ci', { cwd: __dirname }).toString().trim();
 } catch { /* not in a git repo */ }
 const startedAt = new Date().toISOString();
+monitor.serverStarted(commitHash);
+if (restored > 0) monitor.roomRestored(restored);
 
 // ─── Routes ─────────────────────────────────────────────────────────
 
@@ -256,23 +260,24 @@ httpServer.listen(PORT, '0.0.0.0', () => {
 // ─── Graceful Shutdown ──────────────────────────────────────────────
 function shutdown(signal: string): void {
   console.log(`${signal} received, shutting down gracefully...`);
+  monitor.serverShutdown();
   socketHandler.destroy();
   roomManager.destroy();
+  monitor.destroy();
   httpServer.close(() => {
     db.close();
     console.log('Server closed');
     process.exit(0);
   });
-  // Force exit after 10 seconds
   setTimeout(() => process.exit(1), 10_000);
 }
 
 process.on('SIGTERM', () => shutdown('SIGTERM'));
 process.on('SIGINT', () => shutdown('SIGINT'));
 
-// Prevent crashes from unhandled errors — log and keep running
 process.on('uncaughtException', (err) => {
   console.error('Uncaught exception (server staying alive):', err);
+  monitor.uncaughtError(err.message, err.stack);
 });
 process.on('unhandledRejection', (reason) => {
   console.error('Unhandled rejection (server staying alive):', reason);

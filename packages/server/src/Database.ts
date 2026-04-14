@@ -75,6 +75,17 @@ export class TrackerDB {
         created_at TEXT DEFAULT (datetime('now'))
       );
 
+      CREATE TABLE IF NOT EXISTS server_logs (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        level TEXT NOT NULL,
+        category TEXT NOT NULL,
+        message TEXT NOT NULL,
+        room_code TEXT,
+        user_id INTEGER,
+        data TEXT,
+        created_at TEXT DEFAULT (datetime('now'))
+      );
+
       CREATE TABLE IF NOT EXISTS http_requests (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         method TEXT,
@@ -148,6 +159,9 @@ export class TrackerDB {
       CREATE INDEX IF NOT EXISTS idx_games_at ON games(started_at);
       CREATE INDEX IF NOT EXISTS idx_game_events_gid ON game_events(game_id);
       CREATE INDEX IF NOT EXISTS idx_http_at ON http_requests(created_at);
+      CREATE INDEX IF NOT EXISTS idx_server_logs_at ON server_logs(created_at);
+      CREATE INDEX IF NOT EXISTS idx_server_logs_cat ON server_logs(category);
+      CREATE INDEX IF NOT EXISTS idx_server_logs_level ON server_logs(level);
       CREATE INDEX IF NOT EXISTS idx_users_username ON users(username);
       CREATE INDEX IF NOT EXISTS idx_user_sessions_user ON user_sessions(user_id);
       CREATE INDEX IF NOT EXISTS idx_user_sessions_expires ON user_sessions(expires_at);
@@ -310,6 +324,32 @@ export class TrackerDB {
     this.db.prepare(
       `INSERT INTO http_requests (method, path, ip, user_agent, status_code, response_time_ms) VALUES (?, ?, ?, ?, ?, ?)`
     ).run(method, path, ip, userAgent, statusCode, responseTimeMs);
+  }
+
+  // ─── Server Logs ────────────────────────────────────────────────────
+
+  writeLog(level: string, category: string, message: string, roomCode?: string, userId?: number, data?: Record<string, unknown>): void {
+    this.db.prepare(
+      `INSERT INTO server_logs (level, category, message, room_code, user_id, data) VALUES (?, ?, ?, ?, ?, ?)`
+    ).run(level, category, message, roomCode ?? null, userId ?? null, data ? JSON.stringify(data) : null);
+  }
+
+  getServerLogs(options: { level?: string; category?: string; limit?: number; roomCode?: string } = {}): unknown[] {
+    const conditions: string[] = [];
+    const params: unknown[] = [];
+    if (options.level) { conditions.push('level = ?'); params.push(options.level); }
+    if (options.category) { conditions.push('category = ?'); params.push(options.category); }
+    if (options.roomCode) { conditions.push('room_code = ?'); params.push(options.roomCode); }
+    const where = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
+    const limit = Math.min(options.limit || 200, 1000);
+    params.push(limit);
+    return this.db.prepare(
+      `SELECT id, level, category, message, room_code, user_id, data, created_at FROM server_logs ${where} ORDER BY created_at DESC LIMIT ?`
+    ).all(...params);
+  }
+
+  cleanOldLogs(daysToKeep: number = 7): void {
+    this.db.prepare(`DELETE FROM server_logs WHERE created_at < datetime('now', '-' || ? || ' days')`).run(daysToKeep);
   }
 
   // ─── Admin Sessions ─────────────────────────────────────────────────

@@ -57,7 +57,7 @@ export class RoomManager {
     clearInterval(this.cleanupInterval);
   }
 
-  createRoom(socketId: string, nickname: string, targetScore: number = 1000, userId?: number): { roomCode: string; sessionId: string } | { error: string } {
+  createRoom(socketId: string, nickname: string, targetScore: number = 1000, userId?: number, difficulty: BotDifficulty = 'medium'): { roomCode: string; sessionId: string } | { error: string } {
     const nickErr = this.validateNickname(nickname);
     if (nickErr) return { error: nickErr };
     if (targetScore < 250) targetScore = 250;
@@ -69,7 +69,7 @@ export class RoomManager {
       engine: null,
       targetScore,
       botPositions: new Set(),
-      botDifficulty: 'medium',
+      botDifficulty: difficulty,
       createdAt: Date.now(),
       lastActivity: Date.now(),
     };
