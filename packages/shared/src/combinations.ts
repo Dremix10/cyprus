@@ -492,6 +492,16 @@ export function canBeat(
   if (played.type !== current.type) return false;
   if (played.length !== current.length) return false;
 
+  // Phoenix single can beat any single except Dragon
+  if (
+    played.type === CombinationType.SINGLE &&
+    played.cards.length === 1 &&
+    played.cards[0].type === 'special' &&
+    (played.cards[0] as any).specialType === SpecialCardType.PHOENIX
+  ) {
+    return current.rank < 15; // Can't beat Dragon (rank 15)
+  }
+
   return played.rank > current.rank;
 }
 
@@ -524,17 +534,7 @@ export function findPlayableFromHand(
     // Must beat the current trick
     playable = allCombos.filter((cards) => {
       const combo = detectCombination(cards);
-      if (!combo) return false;
-      // Adjust Phoenix single rank to beat the current trick (same logic as GameEngine.playCards)
-      if (
-        combo.type === CombinationType.SINGLE &&
-        cards.length === 1 &&
-        cards[0].type === 'special' &&
-        (cards[0] as any).specialType === SpecialCardType.PHOENIX
-      ) {
-        combo.rank = getPhoenixSingleRank(currentTrickTop.rank);
-      }
-      return canBeat(currentTrickTop, combo);
+      return combo !== null && canBeat(currentTrickTop, combo);
     });
   }
 
