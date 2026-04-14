@@ -215,14 +215,38 @@ function rollout(engine: GameEngine, deadline: number): void {
 
 function evaluateOutcome(engine: GameEngine, botPosition: PlayerPosition): number {
   const myTeam = botPosition % 2;
+  const partnerPos = (botPosition + 2) % 4;
 
   let score = engine.state.roundScores[myTeam] - engine.state.roundScores[1 - myTeam];
 
   const finishOrder = engine.state.finishOrder;
+
+  // Reward going out first (tichu bonus potential)
   if (finishOrder.length > 0) {
     const firstOut = finishOrder[0];
-    if (firstOut % 2 === myTeam) score += 30;
+    if (firstOut === botPosition) score += 40;
+    else if (firstOut === partnerPos) score += 30;
     else score -= 30;
+  }
+
+  // Reward double victory (1-2 finish by same team)
+  if (finishOrder.length >= 2) {
+    const first = finishOrder[0] % 2;
+    const second = finishOrder[1] % 2;
+    if (first === myTeam && second === myTeam) score += 100;
+    else if (first !== myTeam && second !== myTeam) score -= 100;
+  }
+
+  // Penalize cards remaining (fewer = better)
+  const myCardsLeft = engine.state.players[botPosition].hand.length;
+  score -= myCardsLeft * 3;
+
+  // Reward tichu success / penalize failure
+  const myCall = engine.state.players[botPosition].tichuCall;
+  if (myCall !== 'none' && finishOrder.length > 0) {
+    const succeeded = finishOrder[0] === botPosition;
+    const bonus = myCall === 'grand_tichu' ? 200 : 100;
+    score += succeeded ? bonus : -bonus;
   }
 
   return score;
@@ -244,8 +268,8 @@ export function monteCarloEvaluate(
   engine: GameEngine,
   botPosition: PlayerPosition,
   candidates: (Card[] | null)[],
-  maxSimulations: number = 50,
-  timeBudgetMs: number = 40,
+  maxSimulations: number = 200,
+  timeBudgetMs: number = 150,
 ): string[] | null {
   if (candidates.length <= 1) {
     const only = candidates[0];

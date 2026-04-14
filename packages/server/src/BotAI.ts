@@ -644,9 +644,12 @@ export class BotAI {
       return this.chooseFollowMedium(hand, playable, currentTrick, botPosition, context);
     }
 
-    // Hard mode — try Monte Carlo for leading decisions only
-    if (this.config.useMonteCarlo && !this.inRollout && mcEvaluate && isLeading && hand.length >= 5 && playable.length >= 3) {
-      const result = mcEvaluate(playable);
+    // Hard mode — try Monte Carlo for both leading and following
+    if (this.config.useMonteCarlo && !this.inRollout && mcEvaluate && hand.length >= 2 && playable.length >= 2) {
+      // For follow decisions, include "pass" as a candidate
+      const candidates: (Card[] | null)[] = [...playable];
+      if (!isLeading) candidates.push(null);
+      const result = mcEvaluate(candidates);
       if (result !== undefined) return result;
     }
 
