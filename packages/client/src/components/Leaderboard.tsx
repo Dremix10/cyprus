@@ -139,7 +139,7 @@ export function Leaderboard({ onBack }: { onBack: () => void }) {
                     <td className="rank-cell">
                       {i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : i + 1}
                     </td>
-                    <td className="name-cell">{e.display_name}</td>
+                    <td className="name-cell">{e.username}</td>
                     <td className="rating-cell">{Math.round(e.rating)}</td>
                     <td>{e.games_won}/{e.games_played}</td>
                     <td>{winRate(e)}%</td>
