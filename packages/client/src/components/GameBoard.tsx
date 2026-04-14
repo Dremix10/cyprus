@@ -329,24 +329,8 @@ function PlayingLayout({
   const passedSet = new Set(gameState.currentTrick.passedPlayers ?? []);
 
 
-  // Whether the current player has no valid plays (highlight pass button)
-  // Never highlight when player has bombs — bombs can always be played
-  const mustPass = (() => {
-    if (!isMyTurn || !hasTrickOnTable) return false;
-    if (wishBlocking) return false;
-    const currentTop = gameState.currentTrick.plays[gameState.currentTrick.plays.length - 1]?.combination;
-    if (!currentTop) return false;
-    const playable = findPlayableFromHand(gameState.myHand, currentTop, gameState.wish);
-    if (playable.length > 0) return false;
-    // Double-check: even if findPlayableFromHand says 0, check for bombs in hand
-    // (bombs beat anything — defensive guard against stale state)
-    const hasBomb = gameState.myHand.length >= 4 && findPlayableFromHand(gameState.myHand, null, { active: false, wishedRank: null })
-      .some(cards => {
-        const combo = detectCombination(cards);
-        return combo?.type === CombinationType.FOUR_OF_A_KIND_BOMB || combo?.type === CombinationType.STRAIGHT_FLUSH_BOMB;
-      });
-    return !hasBomb;
-  })();
+  // Playability is validated server-side — the client always shows both Play and Pass buttons.
+  // The server rejects invalid plays and the pass button is always available when there's a trick.
 
   // Whether the wish forces the player to play (blocks pass button)
   const wishForcesPlay = (() => {
@@ -503,17 +487,15 @@ function PlayingLayout({
         )}
         {!isDragonGive && isMyTurn && !wishBlocking && (
           <div className="play-pass-group">
-            {!mustPass && (
-              <button
-                className="btn btn-play"
-                onClick={playCards}
-                disabled={selectedCards.size === 0}
-              >
-                Play
-              </button>
-            )}
+            <button
+              className="btn btn-play"
+              onClick={playCards}
+              disabled={selectedCards.size === 0}
+            >
+              Play
+            </button>
             {hasTrickOnTable && !wishForcesPlay && (
-              <button className={`btn btn-pass ${mustPass ? 'btn-pass-highlight' : ''}`} onClick={passTurn}>
+              <button className="btn btn-pass" onClick={passTurn}>
                 Pass
               </button>
             )}
