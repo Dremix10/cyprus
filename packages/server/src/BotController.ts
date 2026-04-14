@@ -107,7 +107,8 @@ export class BotController {
     if (
       phase === GamePhase.ROUND_SCORING ||
       phase === GamePhase.GAME_OVER ||
-      phase === GamePhase.WAITING
+      phase === GamePhase.WAITING ||
+      engine.state.roundEndPending
     ) {
       return null;
     }

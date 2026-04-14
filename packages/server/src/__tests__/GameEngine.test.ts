@@ -82,6 +82,7 @@ function setupControlledPlaying(engine: GameEngine, hands: [Card[], Card[], Card
   engine.state.wishPending = null;
   engine.state.dogPending = false;
   engine.state.trickWonPending = false;
+  engine.state.roundEndPending = false;
   engine.state.dragonWinner = null;
 }
 
@@ -1092,7 +1093,9 @@ describe('GameEngine', () => {
       engine.playCards(2, [`${Suit.JADE}_${NormalRank.FOUR}`]);
       expect(engine.state.players[2].isOut).toBe(true);
 
-      // 3 of 4 players are out -> round should end
+      // 3 of 4 players are out -> round end pending, then scoring
+      expect(engine.state.roundEndPending).toBe(true);
+      engine.completeRoundEnd();
       expect(engine.state.phase).toBe(GamePhase.ROUND_SCORING);
     });
 
@@ -1119,6 +1122,8 @@ describe('GameEngine', () => {
       // Player 2 goes out (finishOrder[1] = 2, team 0) -> 1-2 double victory!
       expect(engine.state.players[2].isOut).toBe(true);
 
+      expect(engine.state.roundEndPending).toBe(true);
+      engine.completeRoundEnd();
       expect(engine.state.phase).toBe(GamePhase.ROUND_SCORING);
       expect(engine.state.roundScores[0]).toBe(200);
       expect(engine.state.roundScores[1]).toBe(0);
@@ -1139,6 +1144,7 @@ describe('GameEngine', () => {
       engine.playCards(2, [`${Suit.JADE}_${NormalRank.FOUR}`]);
 
       // Double victory (200) + tichu success (100) = 300
+      engine.completeRoundEnd();
       expect(engine.state.phase).toBe(GamePhase.ROUND_SCORING);
       expect(engine.state.roundScores[0]).toBe(300);
     });
@@ -1167,6 +1173,7 @@ describe('GameEngine', () => {
       engine.playCards(3, [`${Suit.JADE}_${NormalRank.KING}`]);
       expect(engine.state.players[3].isOut).toBe(true);
 
+      engine.completeRoundEnd();
       expect(engine.state.phase).toBe(GamePhase.ROUND_SCORING);
       // Team 1 gets 200 (double victory), team 0 gets -100 (tichu failure)
       expect(engine.state.roundScores[1]).toBe(200);
@@ -1188,6 +1195,7 @@ describe('GameEngine', () => {
       engine.playCards(2, [`${Suit.JADE}_${NormalRank.FOUR}`]);
 
       // Double victory (200) + grand tichu success (200) = 400
+      engine.completeRoundEnd();
       expect(engine.state.phase).toBe(GamePhase.ROUND_SCORING);
       expect(engine.state.roundScores[0]).toBe(400);
     });
@@ -1208,6 +1216,7 @@ describe('GameEngine', () => {
       engine.playCards(3, [`${Suit.JADE}_${NormalRank.KING}`]);
 
       // Team 1 double victory (200), team 0 grand tichu penalty (-200)
+      engine.completeRoundEnd();
       expect(engine.state.phase).toBe(GamePhase.ROUND_SCORING);
       expect(engine.state.roundScores[0]).toBe(-200);
       expect(engine.state.roundScores[1]).toBe(200);
@@ -1497,6 +1506,7 @@ describe('GameEngine', () => {
       engine.playCards(1, [`${Suit.JADE}_${NormalRank.THREE}`]);
       engine.playCards(2, [`${Suit.JADE}_${NormalRank.FOUR}`]);
 
+      engine.completeRoundEnd();
       const history = engine.getRoundHistory();
       expect(history.length).toBe(1);
       expect(history[0].round).toBe(1);
@@ -1569,8 +1579,9 @@ describe('GameEngine', () => {
       engine.playCards(0, [`${Suit.JADE}_${NormalRank.TWO}`]);
       engine.playCards(1, [`${Suit.JADE}_${NormalRank.THREE}`]);
       engine.playCards(2, [`${Suit.JADE}_${NormalRank.FOUR}`]);
-      // After player 2, three players are out -> round ends via checkRoundEnd
-      // But we have 3 of 4 out, so scoreRound triggers
+      // After player 2, three players are out -> round end pending
+      expect(engine.state.roundEndPending).toBe(true);
+      engine.completeRoundEnd();
       expect(engine.state.phase).toBe(GamePhase.ROUND_SCORING);
     });
   });

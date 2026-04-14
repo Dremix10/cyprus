@@ -693,7 +693,7 @@ export class GameEngine {
     this.state.lastTrick = { ...this.state.currentTrick };
     this.state.currentTrick = { plays: [], currentWinner: null, passCount: 0, passedPlayers: [] };
 
-    this.checkRoundEnd();
+    this.scoreRound();
     return this.events;
   }
 
@@ -714,24 +714,18 @@ export class GameEngine {
     }
   }
 
-  private checkRoundEnd(): void {
+  private checkRoundEnd(immediate = false): void {
     if (this.state.phase === GamePhase.ROUND_SCORING) return;
+    if (this.state.roundEndPending) return;
 
-    const outCount = this.state.players.filter((p) => p.isOut).length;
+    if (!this.willRoundEnd()) return;
 
-    // 1-2 double victory: same team finishes 1st and 2nd
-    if (
-      outCount >= 2 &&
-      this.state.finishOrder.length >= 2 &&
-      sameTeam(this.state.finishOrder[0], this.state.finishOrder[1])
-    ) {
+    if (immediate) {
       this.scoreRound();
-      return;
+    } else {
+      // Defer scoring so the last trick stays visible on the board
+      this.state.roundEndPending = true;
     }
-
-    // Normal: round ends when 3 of 4 players are out
-    if (outCount < 3) return;
-    this.scoreRound();
   }
 
   private scoreRound(): void {
