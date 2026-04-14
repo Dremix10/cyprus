@@ -330,13 +330,22 @@ function PlayingLayout({
 
 
   // Whether the current player has no valid plays (highlight pass button)
+  // Never highlight when player has bombs — bombs can always be played
   const mustPass = (() => {
     if (!isMyTurn || !hasTrickOnTable) return false;
     if (wishBlocking) return false;
     const currentTop = gameState.currentTrick.plays[gameState.currentTrick.plays.length - 1]?.combination;
     if (!currentTop) return false;
     const playable = findPlayableFromHand(gameState.myHand, currentTop, gameState.wish);
-    return playable.length === 0;
+    if (playable.length > 0) return false;
+    // Double-check: even if findPlayableFromHand says 0, check for bombs in hand
+    // (bombs beat anything — defensive guard against stale state)
+    const hasBomb = gameState.myHand.length >= 4 && findPlayableFromHand(gameState.myHand, null, { active: false, wishedRank: null })
+      .some(cards => {
+        const combo = detectCombination(cards);
+        return combo?.type === CombinationType.FOUR_OF_A_KIND_BOMB || combo?.type === CombinationType.STRAIGHT_FLUSH_BOMB;
+      });
+    return !hasBomb;
   })();
 
   // Whether the wish forces the player to play (blocks pass button)
