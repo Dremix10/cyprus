@@ -78,8 +78,6 @@ export interface ServerToClientEvents {
   'room:player_disconnected': (nickname: string) => void;
   'room:player_reconnected': (nickname: string) => void;
 
-  'game:auto_pass': (position: PlayerPosition) => void;
-
   'matchmaking:update': (data: { playersInQueue: number; elapsed: number }) => void;
   'matchmaking:found': (data: { roomCode: string; sessionId: string }) => void;
   'matchmaking:cancelled': () => void;

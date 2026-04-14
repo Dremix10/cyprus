@@ -45,14 +45,6 @@ export function useSocketEvents() {
       setTimeout(() => setRoomError(null), 3000);
     };
 
-    const onAutoPass = (position: number) => {
-      const gameState = useGameStore.getState().gameState;
-      if (!gameState) return;
-      const name = gameState.myPosition === position ? 'You have' : `${gameState.players[position]?.nickname ?? 'Player'} has`;
-      setRoomError(`${name} no valid play — auto-passing...`);
-      setTimeout(() => setRoomError(null), 2000);
-    };
-
     const onMatchmakingUpdate = (data: { playersInQueue: number; elapsed: number }) => {
       setQueueInfo(data);
     };
@@ -77,7 +69,6 @@ export function useSocketEvents() {
     socket.on('game:error', onGameError);
     socket.on('room:player_disconnected', onPlayerDisconnected);
     socket.on('room:player_reconnected', onPlayerReconnected);
-    socket.on('game:auto_pass', onAutoPass);
     socket.on('matchmaking:update', onMatchmakingUpdate);
     socket.on('matchmaking:found', onMatchmakingFound);
     socket.on('matchmaking:cancelled', onMatchmakingCancelled);
@@ -90,7 +81,6 @@ export function useSocketEvents() {
       socket.off('game:error', onGameError);
       socket.off('room:player_disconnected', onPlayerDisconnected);
       socket.off('room:player_reconnected', onPlayerReconnected);
-      socket.off('game:auto_pass', onAutoPass);
       socket.off('matchmaking:update', onMatchmakingUpdate);
       socket.off('matchmaking:found', onMatchmakingFound);
       socket.off('matchmaking:cancelled', onMatchmakingCancelled);
