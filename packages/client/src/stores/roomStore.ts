@@ -194,7 +194,7 @@ export const useRoomStore = create<RoomStore>((set, get) => ({
   },
 
   trySessionReconnect: () => {
-    return new Promise<boolean>((resolve) => {
+    return new Promise<boolean>(async (resolve) => {
       const session = loadSession();
       if (!session) {
         resolve(false);
@@ -259,11 +259,7 @@ export const useRoomStore = create<RoomStore>((set, get) => ({
           });
         };
 
-        if (socket.connected) {
-          emitReconnect();
-        } else {
-          socket.once('connect', emitReconnect);
-        }
+        emitReconnect();
       };
 
       doReconnect(0);
