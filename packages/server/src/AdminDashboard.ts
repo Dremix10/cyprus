@@ -1,5 +1,5 @@
 import express, { type Request, type Response, type NextFunction } from 'express';
-import { createHash, timingSafeEqual, randomBytes } from 'node:crypto';
+import { createHash, timingSafeEqual, randomBytes, scrypt } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -149,6 +149,14 @@ export function createAdminRouter(db: TrackerDB): express.Router {
     res.json(db.getTopIPs(limit));
   });
 
+  router.get('/api/logs', requireAuth, (req, res) => {
+    const level = req.query.level as string | undefined;
+    const category = req.query.category as string | undefined;
+    const roomCode = req.query.room as string | undefined;
+    const limit = Math.min(Number(req.query.limit) || 200, 1000);
+    res.json(db.getServerLogs({ level, category, roomCode, limit }));
+  });
+
   router.get('/api/tables', requireAuth, (_req, res) => {
     res.json(db.getTableInfo());
   });
@@ -168,6 +176,54 @@ export function createAdminRouter(db: TrackerDB): express.Router {
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Query failed';
       res.status(400).json({ error: message });
+    }
+  });
+
+  // ─── Admin Password Reset ────────────────────────────────────────
+
+  router.post('/api/reset-user-password', requireAuth, async (req, res) => {
+    const identifier = (req.body?.identifier as string)?.trim();
+    const newPassword = req.body?.newPassword as string;
+
+    if (!identifier) {
+      res.status(400).json({ error: 'Username or email is required' });
+      return;
+    }
+    if (!newPassword || newPassword.length < 8) {
+      res.status(400).json({ error: 'Password must be at least 8 characters' });
+      return;
+    }
+    if (newPassword.length > 128) {
+      res.status(400).json({ error: 'Password must be at most 128 characters' });
+      return;
+    }
+
+    // Look up user by username first, then email
+    let user = db.getUserByUsername(identifier);
+    if (!user && identifier.includes('@')) {
+      user = db.getUserByEmail(identifier.toLowerCase());
+    }
+
+    if (!user) {
+      res.status(404).json({ error: 'User not found' });
+      return;
+    }
+
+    try {
+      // Hash password using scrypt (same format as AuthService)
+      const salt = randomBytes(32);
+      const hash = await new Promise<Buffer>((resolve, reject) => {
+        scrypt(newPassword, salt, 64, { N: 16384, r: 8, p: 1 }, (err, derivedKey) => {
+          if (err) reject(err); else resolve(derivedKey);
+        });
+      });
+      const passwordHash = `scrypt$16384$8$1$${salt.toString('hex')}$${hash.toString('hex')}`;
+
+      db.updateUserPassword(user.id, passwordHash);
+      res.json({ success: true, username: user.username });
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Failed to hash password';
+      res.status(500).json({ error: message });
     }
   });
 

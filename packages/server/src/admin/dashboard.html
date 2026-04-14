@@ -47,6 +47,16 @@
   .chip { padding: 0.25rem 0.6rem; background: #16213e; border: 1px solid #2a2a4a; border-radius: 4px; font-size: 0.75rem; color: #888; cursor: pointer; }
   .chip:hover { border-color: #c9a84c; color: #c9a84c; }
   .chip .count { color: #555; margin-left: 0.3rem; }
+  .user-form { padding: 1.5rem; max-width: 480px; }
+  .user-form label { display: block; font-size: 0.8rem; color: #888; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 0.3rem; }
+  .user-form input { width: 100%; background: #12121f; color: #e0e0e0; border: 1px solid #333; border-radius: 6px; padding: 0.6rem 0.8rem; font-size: 0.9rem; margin-bottom: 1rem; }
+  .user-form input:focus { outline: none; border-color: #c9a84c; }
+  .user-form button { padding: 0.6rem 1.4rem; font-size: 0.9rem; background: #c9a84c; color: #0f0f1a; border: none; border-radius: 6px; cursor: pointer; font-weight: 600; }
+  .user-form button:hover { background: #d4b65c; }
+  .user-form button:disabled { opacity: 0.5; cursor: not-allowed; }
+  .form-msg { margin-top: 0.5rem; padding: 0.6rem 0.8rem; border-radius: 6px; font-size: 0.85rem; }
+  .form-msg.success { background: #1a3a2a; color: #4caf50; }
+  .form-msg.error { background: #2a1515; color: #e74c3c; }
 </style>
 </head><body>
 <div class="topbar">
@@ -66,6 +76,7 @@
     <button class="tab" onclick="showTab('events')">Events</button>
     <button class="tab" onclick="showTab('requests')">HTTP Requests</button>
     <button class="tab" onclick="showTab('ips')">Top IPs</button>
+    <button class="tab" onclick="showTab('users')">Users</button>
     <button class="tab" onclick="showTab('query')">Query</button>
   </div>
   <div class="table-wrap">
@@ -75,6 +86,7 @@
     <div id="panel-events" class="panel"></div>
     <div id="panel-requests" class="panel"></div>
     <div id="panel-ips" class="panel"></div>
+    <div id="panel-users" class="panel"></div>
     <div id="panel-query" class="panel"></div>
   </div>
 </div>
@@ -152,6 +164,17 @@ async function loadTab(name) {
       panel.innerHTML = '<table><tr><th>IP Address</th><th>Connections</th><th>Nicknames Used</th><th>Last Seen</th></tr>' +
         data.map(r => '<tr><td><strong>' + esc(r.ip) + '</strong></td><td>' + r.connection_count + '</td><td>' + esc(r.nicknames) + '</td><td title="'+esc(r.last_seen)+'">' + ago(r.last_seen) + '</td></tr>').join('') + '</table>';
     }
+    else if (name === 'users') {
+      if (panel.querySelector('.user-form')) return;
+      panel.innerHTML = '<div class="user-form">' +
+        '<h3 style="color:#c9a84c;margin-bottom:1rem;font-size:1rem;">Reset User Password</h3>' +
+        '<label for="reset-identifier">Username or Email</label>' +
+        '<input type="text" id="reset-identifier" placeholder="username or user@example.com" autocomplete="off">' +
+        '<label for="reset-password">New Password</label>' +
+        '<input type="password" id="reset-password" placeholder="minimum 8 characters" autocomplete="new-password">' +
+        '<button onclick="resetUserPassword()" id="reset-btn">Reset Password</button>' +
+        '<div id="reset-msg"></div></div>';
+    }
     else if (name === 'query') {
       if (panel.querySelector('textarea')) return;
       const tables = await api('tables');
@@ -199,6 +222,33 @@ function exportCSV() {
   const lines = [lastQueryResult.columns.join(','), ...lastQueryResult.rows.map(r => r.map(csvEsc).join(','))];
   const blob = new Blob([lines.join('\n')], {type: 'text/csv'});
   const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'query-results.csv'; a.click();
+}
+
+async function resetUserPassword() {
+  const identifier = document.getElementById('reset-identifier')?.value?.trim();
+  const newPassword = document.getElementById('reset-password')?.value;
+  const msg = document.getElementById('reset-msg');
+  const btn = document.getElementById('reset-btn');
+  if (!identifier || !newPassword) { msg.innerHTML = '<div class="form-msg error">Both fields are required</div>'; return; }
+  if (newPassword.length < 8) { msg.innerHTML = '<div class="form-msg error">Password must be at least 8 characters</div>'; return; }
+  btn.disabled = true;
+  msg.innerHTML = '';
+  try {
+    const res = await fetch('/admin/api/reset-user-password', {
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ identifier, newPassword })
+    });
+    const data = await res.json();
+    if (data.error) {
+      msg.innerHTML = '<div class="form-msg error">' + esc(data.error) + '</div>';
+    } else {
+      msg.innerHTML = '<div class="form-msg success">Password reset for <strong>' + esc(data.username) + '</strong></div>';
+      document.getElementById('reset-password').value = '';
+    }
+  } catch(e) {
+    msg.innerHTML = '<div class="form-msg error">Request failed</div>';
+  }
+  btn.disabled = false;
 }
 
 async function refresh() {

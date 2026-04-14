@@ -52,6 +52,11 @@ function buildCtx(engine: GameEngine): GameContext {
   };
 }
 
+/** Build context once for use throughout a rollout (avoids O(n) trick iteration per move). */
+function buildRolloutCtx(engine: GameEngine): GameContext {
+  return buildCtx(engine);
+}
+
 function shuffle<T>(arr: T[]): T[] {
   for (let i = arr.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1));
@@ -125,23 +130,31 @@ function preFilterCandidates(candidates: (Card[] | null)[], hand: Card[], maxCan
 
 // ─── Determinization ──────────────────────────────────────────────────
 
-function determinize(engine: GameEngine, botPosition: PlayerPosition): GameEngine {
-  const clone = engine.clone();
-
+/** Compute card IDs known to the bot (own hand + all visible cards). Stable across simulations. */
+function computeKnownIds(engine: GameEngine, botPosition: PlayerPosition): Set<string> {
   const knownIds = new Set<string>();
-  const botHand = clone.state.players[botPosition].hand;
-  for (const c of botHand) knownIds.add(c.id);
-
-  for (const p of clone.state.players) {
+  for (const c of engine.state.players[botPosition].hand) knownIds.add(c.id);
+  for (const p of engine.state.players) {
     for (const trick of p.wonTricks) {
       for (const c of trick) knownIds.add(c.id);
     }
   }
-  for (const play of clone.state.currentTrick.plays) {
+  for (const play of engine.state.currentTrick.plays) {
     for (const c of play.combination.cards) knownIds.add(c.id);
   }
+  return knownIds;
+}
 
-  const unknown = FULL_DECK.filter((c) => !knownIds.has(c.id));
+/** Pre-compute the pool of unknown cards (cards not visible to the bot). */
+function computeUnknownPool(knownIds: Set<string>): Card[] {
+  return FULL_DECK.filter((c) => !knownIds.has(c.id));
+}
+
+function determinize(engine: GameEngine, botPosition: PlayerPosition, unknownPool: Card[]): GameEngine {
+  const clone = engine.clone();
+
+  // Shuffle a copy of the pre-computed unknown pool
+  const unknown = [...unknownPool];
   shuffle(unknown);
 
   let idx = 0;
@@ -161,6 +174,10 @@ function determinize(engine: GameEngine, botPosition: PlayerPosition): GameEngin
 function rollout(engine: GameEngine, deadline: number): void {
   let safety = 0;
 
+  // Build context once before the rollout — the bot AI uses it for heuristics,
+  // not exact state, so a snapshot at rollout start is sufficient.
+  const ctx = buildRolloutCtx(engine);
+
   while (
     (engine.state.phase === GamePhase.PLAYING || engine.state.phase === GamePhase.DRAGON_GIVE) &&
     safety < 500
@@ -174,7 +191,7 @@ function rollout(engine: GameEngine, deadline: number): void {
 
     if (engine.state.wishPending !== null) {
       const wp = engine.state.wishPending;
-      engine.setWish(wp, rolloutBots[wp].chooseWish(engine.state.players[wp].hand, buildCtx(engine)));
+      engine.setWish(wp, rolloutBots[wp].chooseWish(engine.state.players[wp].hand, ctx));
       continue;
     }
 
@@ -184,7 +201,7 @@ function rollout(engine: GameEngine, deadline: number): void {
         .filter((p) => p.position % 2 !== w % 2)
         .map((p) => p.position as PlayerPosition);
       const cc = new Map(opps.map((p) => [p, engine.state.players[p].hand.length] as [PlayerPosition, number]));
-      engine.dragonGive(w, rolloutBots[w].chooseDragonGiveTarget(opps, cc, buildCtx(engine)));
+      engine.dragonGive(w, rolloutBots[w].chooseDragonGiveTarget(opps, cc, ctx));
       continue;
     }
 
@@ -192,7 +209,7 @@ function rollout(engine: GameEngine, deadline: number): void {
     const pl = engine.state.players[cp];
 
     let ids = rolloutBots[cp].choosePlay(
-      pl.hand, engine.state.currentTrick, engine.state.wish, cp, buildCtx(engine)
+      pl.hand, engine.state.currentTrick, engine.state.wish, cp, ctx
     );
 
     // Wish enforcement
@@ -293,6 +310,11 @@ export function monteCarloEvaluate(
     simCount: 0,
   }));
 
+  // Pre-compute the unknown card pool once — stable across all simulations
+  // since the base engine state doesn't change during evaluation.
+  const knownIds = computeKnownIds(engine, botPosition);
+  const unknownPool = computeUnknownPool(knownIds);
+
   let totalSims = 0;
 
   while (totalSims < maxSimulations && (performance.now() - start) < timeBudgetMs) {
@@ -300,7 +322,7 @@ export function monteCarloEvaluate(
     const candidate = mc[candidateIdx];
 
     try {
-      const sim = determinize(engine, botPosition);
+      const sim = determinize(engine, botPosition, unknownPool);
 
       if (candidate.cardIds) {
         sim.playCards(botPosition as PlayerPosition, candidate.cardIds);
@@ -313,7 +335,7 @@ export function monteCarloEvaluate(
       if (sim.state.trickWonPending) sim.completeTrickWon();
       if (sim.state.wishPending === botPosition) {
         sim.setWish(botPosition, rolloutBots[botPosition].chooseWish(
-          sim.state.players[botPosition].hand, buildCtx(sim)
+          sim.state.players[botPosition].hand, buildRolloutCtx(sim)
         ));
       }
 
