@@ -74,4 +74,9 @@ export type ClientGameState = {
   turnDeadline?: number | null;
   roundHistory?: RoundHistoryEntry[];
   receivedCards?: ReceivedCard[];
+  // Server-computed action flags — single source of truth, no client-side game logic needed
+  canAct?: boolean;          // false while wish/dog/trick pending
+  canPass?: boolean;         // false when leading (no trick on table)
+  canCallTichu?: boolean;    // false after playing cards or already called
+  mustPlayWish?: boolean;    // true when wish is active and player has playable wish combos
 };

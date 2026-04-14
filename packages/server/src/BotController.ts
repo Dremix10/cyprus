@@ -139,15 +139,18 @@ export class BotController {
     }
 
     if (phase === GamePhase.PLAYING) {
-      if (engine.state.wishPending !== null && room.botPositions.has(engine.state.wishPending)) {
+      if (engine.state.wishPending !== null) {
         const wishPos = engine.state.wishPending;
-        const hand = engine.state.players[wishPos].hand;
-        const gameContext = this.buildGameContext(engine);
-        const rank = botAI.chooseWish(hand, gameContext);
-        return () => engine.setWish(wishPos, rank);
+        const wishPlayer = room.players.get(wishPos);
+        // Auto-resolve wish if player is a bot OR disconnected (prevents game freeze)
+        if (room.botPositions.has(wishPos) || !wishPlayer?.connected) {
+          const hand = engine.state.players[wishPos].hand;
+          const gameContext = this.buildGameContext(engine);
+          const rank = botAI.chooseWish(hand, gameContext);
+          return () => engine.setWish(wishPos, rank);
+        }
+        return null; // Connected human — wait for their wish
       }
-
-      if (engine.state.wishPending !== null) return null;
 
       const currentPlayer = engine.state.currentPlayer;
       if (!room.botPositions.has(currentPlayer)) return null;
