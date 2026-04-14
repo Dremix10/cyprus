@@ -69,7 +69,7 @@ export class RoomManager {
       engine: null,
       targetScore,
       botPositions: new Set(),
-      botDifficulty: 'medium',
+      botDifficulty: 'hard',
       createdAt: Date.now(),
       lastActivity: Date.now(),
     };
