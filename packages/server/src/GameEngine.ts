@@ -58,6 +58,7 @@ export type GameEngineState = {
   wishPending: PlayerPosition | null; // position of player who must choose a wish before play continues
   dogPending: boolean; // Dog was played, waiting for visual delay before resolving
   trickWonPending: boolean; // Trick was won, waiting for visual delay before clearing
+  roundEndPending: boolean; // Round is about to end, waiting for visual delay so players can see the last trick
   finishOrder: PlayerPosition[];
   scores: [number, number];
   roundScores: [number, number];
@@ -103,6 +104,7 @@ export class GameEngine {
       wishPending: null,
       dogPending: false,
       trickWonPending: false,
+      roundEndPending: false,
       finishOrder: [],
       scores: [0, 0],
       roundScores: [0, 0],
@@ -136,6 +138,7 @@ export class GameEngine {
     this.state.lastTrick = null;
     this.state.dogPending = false;
     this.state.trickWonPending = false;
+    this.state.roundEndPending = false;
     this.state.wish = { active: false, wishedRank: null, wishedBy: null };
     this.state.wishPending = null;
     this.state.finishOrder = [];
@@ -640,6 +643,12 @@ export class GameEngine {
     // Winner collects trick cards
     this.state.players[winner].wonTricks.push(trickCards);
 
+    // Check if round will end — if so, keep the trick visible for a delay
+    if (this.willRoundEnd()) {
+      this.state.roundEndPending = true;
+      return this.events;
+    }
+
     // Save last trick for display before clearing
     this.state.lastTrick = { ...this.state.currentTrick };
 
@@ -652,6 +661,37 @@ export class GameEngine {
     } else {
       this.state.currentPlayer = winner;
     }
+
+    return this.events;
+  }
+
+  /** Check if round would end without actually ending it. */
+  private willRoundEnd(): boolean {
+    if (this.state.phase === GamePhase.ROUND_SCORING) return false;
+    const outCount = this.state.players.filter((p) => p.isOut).length;
+
+    // 1-2 double victory
+    if (
+      outCount >= 2 &&
+      this.state.finishOrder.length >= 2 &&
+      sameTeam(this.state.finishOrder[0], this.state.finishOrder[1])
+    ) {
+      return true;
+    }
+
+    // Normal: 3 of 4 out
+    return outCount >= 3;
+  }
+
+  /** Phase 3: after the visual delay for the last trick, actually score the round. */
+  completeRoundEnd(): GameEvent[] {
+    this.events = [];
+    if (!this.state.roundEndPending) return this.events;
+    this.state.roundEndPending = false;
+
+    // Save last trick for display, then clear
+    this.state.lastTrick = { ...this.state.currentTrick };
+    this.state.currentTrick = { plays: [], currentWinner: null, passCount: 0, passedPlayers: [] };
 
     this.checkRoundEnd();
     return this.events;
@@ -877,6 +917,7 @@ export class GameEngine {
       wishPending: s.wishPending,
       dogPending: s.dogPending,
       trickWonPending: s.trickWonPending,
+      roundEndPending: s.roundEndPending,
       finishOrder: [...s.finishOrder],
       scores: [...s.scores] as [number, number],
       roundScores: [...s.roundScores] as [number, number],
@@ -964,7 +1005,7 @@ export class GameEngine {
           }))
         : undefined,
       // Server-computed action flags
-      canAct: this.state.wishPending === null && !this.state.dogPending && !this.state.trickWonPending,
+      canAct: this.state.wishPending === null && !this.state.dogPending && !this.state.trickWonPending && !this.state.roundEndPending,
       canPass: this.state.currentTrick.plays.length > 0,
       canCallTichu: player.tichuCall === 'none' && !player.hasPlayedCards
         && (this.state.phase === GamePhase.PASSING || this.state.phase === GamePhase.PLAYING),

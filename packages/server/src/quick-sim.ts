@@ -85,6 +85,10 @@ for (let g = 0; g < NUM_GAMES; g++) {
           engine.completeTrickWon();
           continue;
         }
+        if (engine.state.roundEndPending) {
+          engine.completeRoundEnd();
+          continue;
+        }
 
         // Handle wish pending
         if (engine.state.wishPending !== null) {

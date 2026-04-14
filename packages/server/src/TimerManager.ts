@@ -16,6 +16,7 @@ export class TimerManager {
   private disconnectTimers = new Map<string, NodeJS.Timeout>();
   private dogTimers = new Map<string, NodeJS.Timeout>();
   private trickWonTimers = new Map<string, NodeJS.Timeout>();
+  private roundEndTimers = new Map<string, NodeJS.Timeout>();
 /** Tracks userId of players replaced by bots, so game-end can still credit them */
   readonly disconnectedPlayers = new Map<string, Map<number, number>>();
 
@@ -35,7 +36,7 @@ export class TimerManager {
     for (const timer of this.disconnectTimers.values()) clearTimeout(timer);
     for (const timer of this.dogTimers.values()) clearTimeout(timer);
     for (const timer of this.trickWonTimers.values()) clearTimeout(timer);
-
+    for (const timer of this.roundEndTimers.values()) clearTimeout(timer);
   }
 
   /** Clear all timers associated with a room (called when room is deleted). */
@@ -53,6 +54,8 @@ export class TimerManager {
     if (dogTimer) { clearTimeout(dogTimer); this.dogTimers.delete(roomCode); }
     const trickTimer = this.trickWonTimers.get(roomCode);
     if (trickTimer) { clearTimeout(trickTimer); this.trickWonTimers.delete(roomCode); }
+    const roundEndTimer = this.roundEndTimers.get(roomCode);
+    if (roundEndTimer) { clearTimeout(roundEndTimer); this.roundEndTimers.delete(roomCode); }
     this.disconnectedPlayers.delete(roomCode);
   }
 
@@ -222,5 +225,28 @@ export class TimerManager {
     }, 1200);
 
     this.trickWonTimers.set(roomCode, timer);
+  }
+
+  scheduleRoundEndResolve(roomCode: string): void {
+    const existing = this.roundEndTimers.get(roomCode);
+    if (existing) clearTimeout(existing);
+
+    const timer = setTimeout(() => {
+      this.roundEndTimers.delete(roomCode);
+      const room = this.rooms.getRoom(roomCode);
+      if (!room || !room.engine || !room.engine.state.roundEndPending) return;
+
+      try {
+        const events = room.engine.completeRoundEnd();
+        for (const event of events) {
+          this.emit(roomCode, 'game:event', event);
+        }
+        this.broadcastGameState(roomCode);
+      } catch (err) {
+        console.error(`Round end resolve error in room ${roomCode}:`, err);
+      }
+    }, 3000);
+
+    this.roundEndTimers.set(roomCode, timer);
   }
 }

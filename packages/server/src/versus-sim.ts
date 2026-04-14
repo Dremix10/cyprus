@@ -145,6 +145,7 @@ function runGame(configA: Partial<BotConfig>, configB: Partial<BotConfig>, swapp
 
       if (engine.state.dogPending) { engine.resolveDog(); continue; }
       if (engine.state.trickWonPending) { engine.completeTrickWon(); continue; }
+      if (engine.state.roundEndPending) { engine.completeRoundEnd(); continue; }
 
       if (engine.state.wishPending !== null) {
         const wp = engine.state.wishPending;
