@@ -20,4 +20,6 @@ jobs:
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           script: |
             set -e
+            cd /home/dev/cyprus
+            git stash --include-untracked 2>/dev/null || true
             bash /home/dev/cyprus/deploy/restart.sh

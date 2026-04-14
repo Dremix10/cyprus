@@ -115,7 +115,9 @@ export class SocketHandler {
       const ip = this.getClientIP(socket);
       const ua = socket.handshake.headers['user-agent'] || null;
 
-      if (ip && !this.rateLimiter.isAllowed(`conn:${ip}`, 20, 60_000)) {
+      if (ip && !this.rateLimiter.isAllowed(`conn:${ip}`, 40, 60_000)) {
+        console.log(`[connection] RATE LIMITED ip=${ip}`);
+        socket.emit('game:error', 'Too many connections, please wait a moment');
         socket.disconnect(true);
         return;
       }
@@ -275,7 +277,8 @@ export class SocketHandler {
 
   private registerSessionEvents(socket: TypedSocket, ip: string | null): void {
     socket.on('session:reconnect', (sessionId, callback) => {
-      if (!this.rateLimiter.isAllowed(`${socket.id}:reconnect`, 5, 30_000)) {
+      const reconnectKey = ip ? `reconnect:${ip}` : `reconnect:${socket.id}`;
+      if (!this.rateLimiter.isAllowed(reconnectKey, 10, 30_000)) {
         console.log(`[reconnect] RATE LIMITED socket=${socket.id} ip=${ip}`);
         callback({ error: 'Too many reconnect attempts, try again shortly' });
         return;
@@ -579,6 +582,7 @@ export class SocketHandler {
     }
 
     this.bots.scheduleBotAction(roomCode);
+    this.timers.scheduleAutoPass(roomCode);
   }
 
   // ─── Room Persistence (public API for index.ts) ────────────────────
