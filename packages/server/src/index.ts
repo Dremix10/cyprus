@@ -211,7 +211,7 @@ app.get('/api/leaderboard/history', (req, res) => {
 
 // Auth routes
 app.use('/auth', createAuthRouter(authService, isProduction));
-app.use('/api/friends', createFriendRouter(db));
+app.use('/api/friends', createFriendRouter(db, authService));
 
 // Admin dashboard
 app.use('/admin', createAdminRouter(db));

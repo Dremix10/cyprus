@@ -1,14 +1,14 @@
 import express, { type Request, type Response, type NextFunction } from 'express';
 import type { TrackerDB } from './Database.js';
+import type { AuthService } from './AuthService.js';
+import { SESSION_COOKIE } from './AuthRoutes.js';
 import { isUserOnline } from './SocketHandler.js';
-
-const SESSION_COOKIE = 'cyprus_auth';
 
 interface AuthRequest extends Request {
   userId?: number;
 }
 
-function requireAuth(db: TrackerDB) {
+function requireAuth(authService: AuthService) {
   return (req: AuthRequest, res: Response, next: NextFunction) => {
     let token: string | undefined;
     const cookieHeader = req.headers.cookie;
@@ -19,17 +19,17 @@ function requireAuth(db: TrackerDB) {
       }
     }
     if (!token) { res.status(401).json({ error: 'Not authenticated' }); return; }
-    const session = db.validateUserSession(token);
+    const session = authService.validateSession(token);
     if (!session) { res.status(401).json({ error: 'Invalid session' }); return; }
-    req.userId = session.user_id;
+    req.userId = session.userId;
     next();
   };
 }
 
-export function createFriendRouter(db: TrackerDB): express.Router {
+export function createFriendRouter(db: TrackerDB, authService: AuthService): express.Router {
   const router = express.Router();
   router.use(express.json({ limit: '16kb' }));
-  router.use(requireAuth(db) as express.RequestHandler);
+  router.use(requireAuth(authService) as express.RequestHandler);
 
   // GET /friends — list friends with online status
   router.get('/', (req: AuthRequest, res: Response) => {
