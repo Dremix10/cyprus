@@ -1096,98 +1096,89 @@ describe('GameEngine', () => {
       expect(engine.state.phase).toBe(GamePhase.ROUND_SCORING);
     });
 
-    it.todo('1-2 double victory awards 200 points', () => {
+    it('1-2 double victory awards 200 points to winning team', () => {
+      // Player 0 (team 0) plays last card -> goes out 1st
+      // Player 2 (team 0) plays last card -> goes out 2nd -> triggers double victory
       setupControlledPlaying(engine, [
-        [nc(Suit.JADE, NormalRank.TWO)],  // team 0
-        [nc(Suit.JADE, NormalRank.THREE)],  // team 1
-        [nc(Suit.JADE, NormalRank.FOUR)],  // team 0
-        [nc(Suit.JADE, NormalRank.FIVE), nc(Suit.STAR, NormalRank.SIX)],  // team 1
+        [nc(Suit.JADE, NormalRank.TWO)],   // team 0, plays 1st
+        [nc(Suit.JADE, NormalRank.THREE), nc(Suit.STAR, NormalRank.NINE)],  // team 1
+        [nc(Suit.JADE, NormalRank.FOUR)],   // team 0, plays 3rd
+        [nc(Suit.JADE, NormalRank.FIVE), nc(Suit.STAR, NormalRank.EIGHT)],  // team 1
       ]);
       engine.state.currentPlayer = 0;
 
-      // Player 0 (team 0) goes out first
+      // Single trick: 2 < 3 < 4 -- all on same trick
+      // Player 0 leads 2 (goes out), player 1 plays 3, player 2 plays 4 (goes out)
       engine.playCards(0, [`${Suit.JADE}_${NormalRank.TWO}`]);
+      // Player 0 goes out (finishOrder[0] = 0, team 0)
+      expect(engine.state.players[0].isOut).toBe(true);
 
-      // Player 1 (team 1) beats
       engine.playCards(1, [`${Suit.JADE}_${NormalRank.THREE}`]);
 
-      // Player 2 (team 0) beats -> team 0 finishes 1st and 2nd = double victory!
       engine.playCards(2, [`${Suit.JADE}_${NormalRank.FOUR}`]);
+      // Player 2 goes out (finishOrder[1] = 2, team 0) -> 1-2 double victory!
+      expect(engine.state.players[2].isOut).toBe(true);
 
       expect(engine.state.phase).toBe(GamePhase.ROUND_SCORING);
-      // Team 0 (positions 0, 2) gets 200 points
       expect(engine.state.roundScores[0]).toBe(200);
       expect(engine.state.roundScores[1]).toBe(0);
     });
 
-    it.todo('tichu bonus is applied (+100 on success)', () => {
+    it('tichu bonus is applied (+100 on success for first place)', () => {
       setupControlledPlaying(engine, [
         [nc(Suit.JADE, NormalRank.TWO)],
-        [nc(Suit.JADE, NormalRank.THREE)],
+        [nc(Suit.JADE, NormalRank.THREE), nc(Suit.STAR, NormalRank.NINE)],
         [nc(Suit.JADE, NormalRank.FOUR)],
-        [nc(Suit.JADE, NormalRank.FIVE), nc(Suit.STAR, NormalRank.SIX)],
+        [nc(Suit.JADE, NormalRank.FIVE), nc(Suit.STAR, NormalRank.EIGHT)],
       ]);
-      // Player 0 calls tichu
       engine.state.players[0].tichuCall = 'tichu';
       engine.state.currentPlayer = 0;
 
-      // Player 0 goes out first
       engine.playCards(0, [`${Suit.JADE}_${NormalRank.TWO}`]);
       engine.playCards(1, [`${Suit.JADE}_${NormalRank.THREE}`]);
       engine.playCards(2, [`${Suit.JADE}_${NormalRank.FOUR}`]);
 
-      // Team 0 has double victory (200) + tichu success (100) = 300
+      // Double victory (200) + tichu success (100) = 300
+      expect(engine.state.phase).toBe(GamePhase.ROUND_SCORING);
       expect(engine.state.roundScores[0]).toBe(300);
     });
 
-    it.todo('tichu penalty is applied (-100 on failure)', () => {
+    it('tichu penalty applied when another team gets double victory', () => {
+      // Simpler approach: positions 1, 3 (team 1) each have 1 card
+      // positions 0, 2 (team 0) have 2 cards. Player 0 has tichu.
+      // On the trick: p0 leads low, p1 beats (goes out), p2 plays higher, p3 beats (goes out)
+      // -> team 1 double victory, player 0 tichu fails
       setupControlledPlaying(engine, [
-        [nc(Suit.JADE, NormalRank.TWO)],  // team 0 - has tichu but won't go out first
-        [nc(Suit.JADE, NormalRank.ACE)],  // team 1 - will go out first
-        [nc(Suit.JADE, NormalRank.FOUR)],  // team 0
-        [nc(Suit.JADE, NormalRank.FIVE), nc(Suit.STAR, NormalRank.SIX)],  // team 1
+        [nc(Suit.JADE, NormalRank.TWO), nc(Suit.STAR, NormalRank.NINE)],  // team 0
+        [nc(Suit.JADE, NormalRank.THREE)],   // team 1
+        [nc(Suit.JADE, NormalRank.SIX), nc(Suit.STAR, NormalRank.EIGHT)],   // team 0
+        [nc(Suit.JADE, NormalRank.KING)],   // team 1
       ]);
-      // Player 0 calls tichu but won't go out first
       engine.state.players[0].tichuCall = 'tichu';
       engine.state.currentPlayer = 0;
 
-      // Player 0 plays (but can't beat ace later)
       engine.playCards(0, [`${Suit.JADE}_${NormalRank.TWO}`]);
-      // Player 1 beats with ace and goes out
-      engine.playCards(1, [`${Suit.JADE}_${NormalRank.ACE}`]);
-      // Player 1 is out
+      // Player 1 plays 3, goes out
+      engine.playCards(1, [`${Suit.JADE}_${NormalRank.THREE}`]);
       expect(engine.state.players[1].isOut).toBe(true);
 
-      // Players 2, 3 pass so player 1 wins trick
-      engine.passTurn(2);
-      engine.passTurn(engine.state.currentPlayer);
-
-      // Resolve trick
-      expect(engine.state.trickWonPending).toBe(true);
-      engine.completeTrickWon();
-
-      // Now player 2 leads since player 1 is out and the trick winner (1) is out
-      // Actually winner=1 who is out, so next active player from 1 -> 2
-      // Player 2 plays out
-      engine.playCards(engine.state.currentPlayer, [`${Suit.JADE}_${NormalRank.FOUR}`]);
-
-      // Player 3 plays
-      // Only player 3 is left, if player 0 is also out then 3 are out
-      // Player 0 has 0 cards so is out, player 2 has 0 so is out
-      // finishOrder should be: [1, 0, 2, 3] or similar
-      // Once 3 are out -> round scoring
+      engine.playCards(2, [`${Suit.JADE}_${NormalRank.SIX}`]);
+      // Player 3 plays King, goes out -> team 1 double victory
+      engine.playCards(3, [`${Suit.JADE}_${NormalRank.KING}`]);
+      expect(engine.state.players[3].isOut).toBe(true);
 
       expect(engine.state.phase).toBe(GamePhase.ROUND_SCORING);
-      // Player 0 called tichu but was NOT first out -> -100
-      expect(engine.state.scores[0]).toBeLessThan(engine.state.scores[1] + 100);
+      // Team 1 gets 200 (double victory), team 0 gets -100 (tichu failure)
+      expect(engine.state.roundScores[1]).toBe(200);
+      expect(engine.state.roundScores[0]).toBe(-100);
     });
 
-    it.todo('grand tichu bonus is +200 on success', () => {
+    it('grand tichu bonus is +200 on success', () => {
       setupControlledPlaying(engine, [
         [nc(Suit.JADE, NormalRank.TWO)],
-        [nc(Suit.JADE, NormalRank.THREE)],
+        [nc(Suit.JADE, NormalRank.THREE), nc(Suit.STAR, NormalRank.NINE)],
         [nc(Suit.JADE, NormalRank.FOUR)],
-        [nc(Suit.JADE, NormalRank.FIVE), nc(Suit.STAR, NormalRank.SIX)],
+        [nc(Suit.JADE, NormalRank.FIVE), nc(Suit.STAR, NormalRank.EIGHT)],
       ]);
       engine.state.players[0].tichuCall = 'grand_tichu';
       engine.state.currentPlayer = 0;
@@ -1196,8 +1187,30 @@ describe('GameEngine', () => {
       engine.playCards(1, [`${Suit.JADE}_${NormalRank.THREE}`]);
       engine.playCards(2, [`${Suit.JADE}_${NormalRank.FOUR}`]);
 
-      // Double victory (200) + grand tichu (200) = 400
+      // Double victory (200) + grand tichu success (200) = 400
+      expect(engine.state.phase).toBe(GamePhase.ROUND_SCORING);
       expect(engine.state.roundScores[0]).toBe(400);
+    });
+
+    it('grand tichu penalty is -200 on failure', () => {
+      setupControlledPlaying(engine, [
+        [nc(Suit.JADE, NormalRank.TWO), nc(Suit.STAR, NormalRank.NINE)],  // team 0
+        [nc(Suit.JADE, NormalRank.THREE)],   // team 1
+        [nc(Suit.JADE, NormalRank.SIX), nc(Suit.STAR, NormalRank.EIGHT)],   // team 0
+        [nc(Suit.JADE, NormalRank.KING)],   // team 1
+      ]);
+      engine.state.players[0].tichuCall = 'grand_tichu';
+      engine.state.currentPlayer = 0;
+
+      engine.playCards(0, [`${Suit.JADE}_${NormalRank.TWO}`]);
+      engine.playCards(1, [`${Suit.JADE}_${NormalRank.THREE}`]);
+      engine.playCards(2, [`${Suit.JADE}_${NormalRank.SIX}`]);
+      engine.playCards(3, [`${Suit.JADE}_${NormalRank.KING}`]);
+
+      // Team 1 double victory (200), team 0 grand tichu penalty (-200)
+      expect(engine.state.phase).toBe(GamePhase.ROUND_SCORING);
+      expect(engine.state.roundScores[0]).toBe(-200);
+      expect(engine.state.roundScores[1]).toBe(200);
     });
 
     it('scores accumulate across rounds', () => {
@@ -1511,7 +1524,7 @@ describe('GameEngine', () => {
   // ─── 27. Full game flow (integration) ──────────────────────────────
 
   describe('full game integration', () => {
-    it.todo('can complete a full round from start to scoring', () => {
+    it('can play a trick, win it, then lead again', () => {
       setupControlledPlaying(engine, [
         [nc(Suit.JADE, NormalRank.ACE), nc(Suit.STAR, NormalRank.KING)],
         [nc(Suit.JADE, NormalRank.TWO), nc(Suit.STAR, NormalRank.THREE)],
@@ -1531,67 +1544,34 @@ describe('GameEngine', () => {
       expect(engine.state.trickWonPending).toBe(true);
       engine.completeTrickWon();
 
-      // Player 0 leads King
+      // Player 0 should lead again (won the trick)
+      expect(engine.state.currentPlayer).toBe(0);
+      expect(engine.state.currentTrick.plays.length).toBe(0);
+      expect(engine.state.players[0].wonTricks.length).toBe(1);
+
+      // Player 0 leads King and goes out
       engine.playCards(0, [`${Suit.STAR}_${NormalRank.KING}`]);
-      // Player 0 goes out (had 2 cards, played both)
       expect(engine.state.players[0].isOut).toBe(true);
+      expect(engine.state.players[0].finishOrder).toBe(1);
+    });
 
-      // Others pass
-      engine.passTurn(1);
-      engine.passTurn(2);
-      engine.passTurn(3);
+    it('completes a full controlled round to ROUND_SCORING', () => {
+      // Each player has exactly 1 card; they play in ascending order on a single trick
+      setupControlledPlaying(engine, [
+        [nc(Suit.JADE, NormalRank.TWO)],
+        [nc(Suit.JADE, NormalRank.THREE)],
+        [nc(Suit.JADE, NormalRank.FOUR)],
+        [nc(Suit.JADE, NormalRank.FIVE)],
+      ]);
+      engine.state.currentPlayer = 0;
 
-      // Need to check if trick won pending again
-      if (engine.state.trickWonPending) {
-        engine.completeTrickWon();
-      }
-
-      // Now player 1 leads (next active after winner=0 who is out)
-      // Player 1 plays their cards
-      if (engine.state.phase === GamePhase.PLAYING) {
-        engine.playCards(engine.state.currentPlayer, [
-          engine.state.players[engine.state.currentPlayer].hand[0].id,
-        ]);
-
-        // Continue playing until round ends
-        let safety = 20;
-        while (engine.state.phase === GamePhase.PLAYING && safety-- > 0) {
-          const cp = engine.state.currentPlayer;
-          const playerHand = engine.state.players[cp].hand;
-
-          if (engine.state.trickWonPending) {
-            engine.completeTrickWon();
-            continue;
-          }
-          if (engine.state.dogPending) {
-            engine.resolveDog();
-            continue;
-          }
-
-          if (engine.state.currentTrick.plays.length === 0) {
-            // Must lead
-            if (playerHand.length > 0) {
-              engine.playCards(cp, [playerHand[0].id]);
-            }
-          } else {
-            // Try to pass
-            try {
-              engine.passTurn(cp);
-            } catch {
-              // If can't pass (shouldn't happen after a lead), play
-              if (playerHand.length > 0) {
-                engine.playCards(cp, [playerHand[0].id]);
-              }
-            }
-          }
-        }
-      }
-
-      expect(
-        engine.state.phase === GamePhase.ROUND_SCORING ||
-        engine.state.phase === GamePhase.GAME_OVER ||
-        engine.state.phase === GamePhase.DRAGON_GIVE
-      ).toBe(true);
+      // All play their single card on the same trick
+      engine.playCards(0, [`${Suit.JADE}_${NormalRank.TWO}`]);
+      engine.playCards(1, [`${Suit.JADE}_${NormalRank.THREE}`]);
+      engine.playCards(2, [`${Suit.JADE}_${NormalRank.FOUR}`]);
+      // After player 2, three players are out -> round ends via checkRoundEnd
+      // But we have 3 of 4 out, so scoreRound triggers
+      expect(engine.state.phase).toBe(GamePhase.ROUND_SCORING);
     });
   });
 });
