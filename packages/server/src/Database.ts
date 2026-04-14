@@ -577,10 +577,10 @@ export class TrackerDB {
     data: {
       won: boolean;
       firstOut: boolean;
-      tichuCall: boolean;
-      tichuSuccess: boolean;
-      grandTichuCall: boolean;
-      grandTichuSuccess: boolean;
+      tichuCalls: number;
+      tichuSuccesses: number;
+      grandTichuCalls: number;
+      grandTichuSuccesses: number;
       doubleVictory: boolean;
       roundsPlayed: number;
       pointsScored: number;
@@ -608,10 +608,10 @@ export class TrackerDB {
       data.won ? 1 : 0,
       data.won ? 0 : 1,
       data.firstOut ? 1 : 0,
-      data.tichuCall ? 1 : 0,
-      data.tichuSuccess ? 1 : 0,
-      data.grandTichuCall ? 1 : 0,
-      data.grandTichuSuccess ? 1 : 0,
+      data.tichuCalls,
+      data.tichuSuccesses,
+      data.grandTichuCalls,
+      data.grandTichuSuccesses,
       data.doubleVictory ? 1 : 0,
       data.roundsPlayed,
       data.pointsScored,
