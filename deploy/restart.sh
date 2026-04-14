@@ -23,25 +23,29 @@ echo "Building..."
 npm run build
 
 echo "Stopping old process..."
-# Kill any node process running the server (broad match like killstart.sh)
+# Ask the server to shut itself down gracefully (works even if process is owned by root)
+set -a; [ -f .env ] && source .env; set +a
+if [ -n "${DATA_API_KEY:-}" ]; then
+  echo "Requesting graceful shutdown via API..."
+  curl -s -X POST http://localhost:3001/admin/api/shutdown \
+    -H "Authorization: Bearer $DATA_API_KEY" \
+    -H "Content-Type: application/json" \
+    --max-time 5 2>/dev/null || true
+  sleep 3
+fi
+# Fallback: try pkill in case API shutdown didn't work
 pkill -f "node.*packages/server" 2>/dev/null || true
-sleep 2
-# Force kill if still alive
+sleep 1
 pkill -9 -f "node.*packages/server" 2>/dev/null || true
 # Wait for port to be released
 echo "Waiting for port to be freed..."
-for i in $(seq 1 15); do
+for i in $(seq 1 10); do
   if ! ss -tlnp 2>/dev/null | grep -q ":3001 "; then
     echo "Port is free."
     break
   fi
   sleep 1
 done
-if ss -tlnp 2>/dev/null | grep -q ":3001 "; then
-  echo "WARNING: Port 3001 still in use, killing by port..."
-  fuser -k 3001/tcp 2>/dev/null || true
-  sleep 2
-fi
 
 echo "Starting new process..."
 set -a; [ -f .env ] && source .env; set +a
