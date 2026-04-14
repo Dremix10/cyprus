@@ -19,7 +19,17 @@ function clearSession(): void {
 function ensureConnected(): Promise<void> {
   if (socket.connected) return Promise.resolve();
   socket.connect();
-  return new Promise((resolve) => socket.once('connect', resolve));
+  return new Promise((resolve, reject) => {
+    const timeout = setTimeout(() => {
+      socket.off('connect', onConnect);
+      reject(new Error('Connection timed out'));
+    }, 5000);
+    const onConnect = () => {
+      clearTimeout(timeout);
+      resolve();
+    };
+    socket.once('connect', onConnect);
+  });
 }
 
 function loadSession(): { sessionId: string; roomCode: string; nickname: string } | null {
@@ -90,7 +100,11 @@ export const useRoomStore = create<RoomStore>((set, get) => ({
         return;
       }
 
-      await ensureConnected();
+      try { await ensureConnected(); } catch {
+        set({ error: 'Could not connect to server. Try again.' });
+        resolve();
+        return;
+      }
 
       socket.emit('room:create', nickname.trim(), targetScore, (response) => {
         if ('error' in response) {
@@ -117,7 +131,11 @@ export const useRoomStore = create<RoomStore>((set, get) => ({
         return;
       }
 
-      await ensureConnected();
+      try { await ensureConnected(); } catch {
+        set({ error: 'Could not connect to server. Try again.' });
+        resolve();
+        return;
+      }
 
       socket.emit('room:create_solo', nickname.trim(), targetScore, difficulty, (response) => {
         if ('error' in response) {
@@ -148,7 +166,11 @@ export const useRoomStore = create<RoomStore>((set, get) => ({
         return;
       }
 
-      await ensureConnected();
+      try { await ensureConnected(); } catch {
+        set({ error: 'Could not connect to server. Try again.' });
+        resolve();
+        return;
+      }
 
       socket.emit('room:join', code.trim().toUpperCase(), nickname.trim(), (response) => {
         if ('error' in response) {
@@ -175,7 +197,11 @@ export const useRoomStore = create<RoomStore>((set, get) => ({
         return;
       }
 
-      await ensureConnected();
+      try { await ensureConnected(); } catch {
+        set({ error: 'Could not connect to server. Try again.' });
+        resolve();
+        return;
+      }
 
       socket.emit('matchmaking:join', nickname.trim(), targetScore, (response) => {
         if ('error' in response) {
@@ -203,7 +229,11 @@ export const useRoomStore = create<RoomStore>((set, get) => ({
 
       set({ reconnecting: true });
 
-      await ensureConnected();
+      try { await ensureConnected(); } catch {
+        set({ reconnecting: false, error: 'Could not connect to server. Try again.' });
+        resolve(false);
+        return;
+      }
 
       const maxAttempts = 5;
       const timeoutMs = 12_000;
