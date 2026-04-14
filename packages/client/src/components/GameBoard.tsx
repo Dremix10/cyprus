@@ -296,8 +296,8 @@ function PlayingLayout({
   const passedSet = new Set(gameState.currentTrick.passedPlayers ?? []);
 
 
-  // Whether the current player has no valid plays and must pass
-  const mustAutoPass = (() => {
+  // Whether the current player has no valid plays (highlight pass button)
+  const mustPass = (() => {
     if (!isMyTurn || !hasTrickOnTable) return false;
     if (wishBlocking) return false;
     const currentTop = gameState.currentTrick.plays[gameState.currentTrick.plays.length - 1]?.combination;
@@ -459,22 +459,19 @@ function PlayingLayout({
             {gameState.players[gameState.currentTrick.currentWinner!]?.nickname} is choosing who to give the Dragon trick to...
           </span>
         )}
-        {!isDragonGive && isMyTurn && !wishBlocking && mustAutoPass && (
+        {!isDragonGive && isMyTurn && !wishBlocking && (
           <div className="play-pass-group">
-            <span className="auto-pass-label">No valid play — auto-passing...</span>
-          </div>
-        )}
-        {!isDragonGive && isMyTurn && !wishBlocking && !mustAutoPass && (
-          <div className="play-pass-group">
-            <button
-              className="btn btn-play"
-              onClick={playCards}
-              disabled={selectedCards.size === 0}
-            >
-              Play
-            </button>
+            {!mustPass && (
+              <button
+                className="btn btn-play"
+                onClick={playCards}
+                disabled={selectedCards.size === 0}
+              >
+                Play
+              </button>
+            )}
             {hasTrickOnTable && !wishForcesPlay && (
-              <button className="btn btn-pass" onClick={passTurn}>
+              <button className={`btn btn-pass ${mustPass ? 'btn-pass-highlight' : ''}`} onClick={passTurn}>
                 Pass
               </button>
             )}

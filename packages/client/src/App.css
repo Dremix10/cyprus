@@ -2728,17 +2728,15 @@ body {
   margin-left: 0.5rem;
 }
 
-.auto-pass-label {
-  color: var(--text-muted, #aaa);
-  font-weight: 600;
-  font-size: 0.9rem;
-  font-style: italic;
-  animation: auto-pass-pulse 1s ease-in-out infinite;
+.btn-pass-highlight {
+  animation: pass-highlight-pulse 1s ease-in-out infinite;
+  box-shadow: 0 0 8px rgba(255, 170, 50, 0.6);
+  border-color: #ffaa32 !important;
 }
 
-@keyframes auto-pass-pulse {
-  0%, 100% { opacity: 0.6; }
-  50% { opacity: 1; }
+@keyframes pass-highlight-pulse {
+  0%, 100% { box-shadow: 0 0 8px rgba(255, 170, 50, 0.4); }
+  50% { box-shadow: 0 0 16px rgba(255, 170, 50, 0.8); }
 }
 
 /* ─── Scoring Layout ───────────────────── */

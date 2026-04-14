@@ -582,7 +582,6 @@ export class SocketHandler {
     }
 
     this.bots.scheduleBotAction(roomCode);
-    this.timers.scheduleAutoPass(roomCode);
   }
 
   // ─── Room Persistence (public API for index.ts) ────────────────────
