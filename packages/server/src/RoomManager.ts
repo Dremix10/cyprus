@@ -501,6 +501,7 @@ export class RoomManager {
       nickname: string;
       avatar?: string;
       sessionId?: string;
+      userId?: number;
       isBot: boolean;
       replacedPlayer?: { nickname: string; sessionId?: string; userId?: number };
     }>;
@@ -530,6 +531,7 @@ export class RoomManager {
         nickname: p.nickname,
         avatar: p.avatar,
         sessionId: p.sessionId,
+        userId: p.userId,
         isBot: room.botPositions.has(p.position),
         replacedPlayer: p.replacedPlayer,
       }));
@@ -574,6 +576,7 @@ export class RoomManager {
           connected: p.isBot, // Bots are always connected; humans need to reconnect
           avatar: p.avatar,
           sessionId: p.sessionId,
+          userId: p.userId,
           replacedPlayer: p.replacedPlayer,
         };
         if (!p.isBot) {
