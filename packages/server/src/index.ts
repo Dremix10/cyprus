@@ -196,13 +196,14 @@ app.get('/api/leaderboard/history', (req, res) => {
 
   const history = db.getUserGameHistory(session.userId, 5);
   const results = history.map((g) => {
-    const myTeam = g.player_position % 2 === 0 ? '02' : '13';
+    const myTeam = g.player_position % 2 === 0 ? 'Team 0-2' : 'Team 1-3';
+    const isTeam02 = g.player_position % 2 === 0;
     return {
       game_id: g.game_id,
       ended_at: g.ended_at,
       won: g.winner_team === myTeam,
-      myScore: myTeam === '02' ? g.final_score_02 : g.final_score_13,
-      opponentScore: myTeam === '02' ? g.final_score_13 : g.final_score_02,
+      myScore: isTeam02 ? g.final_score_02 : g.final_score_13,
+      opponentScore: isTeam02 ? g.final_score_13 : g.final_score_02,
       botDifficulty: g.bot_difficulty,
     };
   });
