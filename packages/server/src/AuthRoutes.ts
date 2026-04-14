@@ -31,7 +31,7 @@ setInterval(() => {
   }
 }, 5 * 60_000).unref();
 
-// ─── Forgot-password rate limiter (stricter: 3 per 15 min per IP) ──
+// ─── Forgot-password rate limiter (10 per 15 min per IP) ────────────
 
 const resetAttempts = new Map<string, { count: number; resetAt: number }>();
 
@@ -43,7 +43,7 @@ function isResetRateLimited(ip: string): boolean {
     return false;
   }
   entry.count++;
-  return entry.count > 3;
+  return entry.count > 10;
 }
 
 // ─── Cookie helpers ─────────────────────────────────────────────────
