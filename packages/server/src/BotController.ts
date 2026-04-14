@@ -28,21 +28,26 @@ export class BotController {
     const room = this.rooms.getRoom(roomCode);
     if (!room || !room.engine || room.botPositions.size === 0) return;
 
-    const engine = room.engine;
     const botAI = new BotAI(room.botDifficulty, room.botDifficulty === 'hard' ? { useMonteCarlo: true } : {});
 
-    const action = this.findBotAction(room, engine, botAI);
-    if (!action) return;
+    // Pre-check: is there a bot action available right now?
+    const preCheck = this.findBotAction(room, room.engine, botAI);
+    if (!preCheck) return;
 
     const humanPositions = ([0, 1, 2, 3] as PlayerPosition[]).filter(
       (p) => !room.botPositions.has(p)
     );
-    const humanIsOut = humanPositions.every((p) => engine.state.players[p].isOut);
+    const humanIsOut = humanPositions.every((p) => room.engine!.state.players[p].isOut);
     const delay = botAI.getDelay(humanIsOut);
 
     setTimeout(() => {
+      // Re-fetch room and re-compute action — phase may have changed during the delay
       const currentRoom = this.rooms.getRoom(roomCode);
       if (!currentRoom || !currentRoom.engine) return;
+
+      const currentBotAI = new BotAI(currentRoom.botDifficulty, currentRoom.botDifficulty === 'hard' ? { useMonteCarlo: true } : {});
+      const action = this.findBotAction(currentRoom, currentRoom.engine, currentBotAI);
+      if (!action) return;
 
       try {
         const events = action();

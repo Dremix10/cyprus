@@ -20,8 +20,17 @@ npm run test         # Vitest (if tests present)
 npm run clean        # Remove all dist/ folders
 ```
 
+## Git Workflow
+
+- **`main`** — production branch. Pushes auto-deploy to the live server. Only merge here when ready to ship.
+- **`dev`** — development branch. Push freely, no deploy triggered. All feature work and bug fixes go here first.
+- **Workflow**: branch from `dev` or commit to `dev` → test → merge `dev` into `main` when ready to deploy.
+- **Claude Code**: Always work on `dev` branch unless explicitly told to deploy to production. Check current branch with `git branch` before making changes. If on `main`, switch to `dev` first.
+- **NEVER push directly to `main`** during active game sessions — deploys restart the server and disconnect all players.
+
 ## Deployment
 
+- **Auto-deploy**: pushes to `main` trigger GitHub Actions → SSH → pull + build + restart
 - **Server**: Digital Ocean droplet at `165.245.175.45`
 - **User**: `dev` (no sudo — need root for process management)
 - **Nginx** proxies port 80 -> localhost:3001
