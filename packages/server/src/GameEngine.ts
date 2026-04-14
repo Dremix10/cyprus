@@ -963,6 +963,19 @@ export class GameEngine {
             fromTeammate: sameTeam(position, rc.fromPosition),
           }))
         : undefined,
+      // Server-computed action flags
+      canAct: this.state.wishPending === null && !this.state.dogPending && !this.state.trickWonPending,
+      canPass: this.state.currentTrick.plays.length > 0,
+      canCallTichu: player.tichuCall === 'none' && !player.hasPlayedCards
+        && (this.state.phase === GamePhase.PASSING || this.state.phase === GamePhase.PLAYING),
+      mustPlayWish: (() => {
+        if (!this.state.wish.active || !this.state.wish.wishedRank) return false;
+        if (this.state.currentTrick.plays.length === 0) return false;
+        if (!player.hand.some(c => c.type === 'normal' && c.rank === this.state.wish.wishedRank)) return false;
+        const currentTop = this.state.currentTrick.plays[this.state.currentTrick.plays.length - 1].combination;
+        const playable = findPlayableFromHand(player.hand, currentTop, this.state.wish);
+        return playable.some(cards => cards.some(c => c.type === 'normal' && c.rank === this.state.wish.wishedRank));
+      })(),
     };
   }
 }
