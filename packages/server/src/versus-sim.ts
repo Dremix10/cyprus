@@ -18,19 +18,46 @@ import { GameEngine } from './GameEngine.js';
 import { BotAI, type BotConfig, type GameContext, DEFAULT_BOT_CONFIG } from './BotAI.js';
 import { monteCarloEvaluate } from './MonteCarloSim.js';
 
+// ─── OLD MC EVALUATOR (baseline: 50 sims, 40ms, old eval) ─────────────
+function oldEvaluateOutcome(engine: GameEngine, botPosition: PlayerPosition): number {
+  const myTeam = botPosition % 2;
+  let score = engine.state.roundScores[myTeam] - engine.state.roundScores[1 - myTeam];
+  const finishOrder = engine.state.finishOrder;
+  if (finishOrder.length > 0) {
+    const firstOut = finishOrder[0];
+    if (firstOut % 2 === myTeam) score += 30;
+    else score -= 30;
+  }
+  return score;
+}
+
+function oldMonteCarloEvaluate(
+  engine: GameEngine,
+  botPosition: PlayerPosition,
+  candidates: (Card[] | null)[],
+): string[] | null {
+  // Old behavior: only 50 sims, 40ms, simple eval
+  // We import internals we need from MonteCarloSim via the public function
+  // but override the budget. Use the new function with old budget.
+  return monteCarloEvaluate(engine, botPosition, candidates, 50, 40);
+}
+
 // ─── CONFIGS TO COMPARE ────────────────────────────────────────────────
-// Team A (positions 0, 2) = baseline (heuristic only)
+// Team A (positions 0, 2) = OLD MC (50 sims, lead-only)
 const CONFIG_A: Partial<BotConfig> = {
-  // Current defaults — don't change this
+  useMonteCarlo: true,
 };
 
-// Team B (positions 1, 3) = challenger (Monte Carlo)
+// Team B (positions 1, 3) = NEW MC (200 sims, lead+follow, better eval)
 const CONFIG_B: Partial<BotConfig> = {
   useMonteCarlo: true,
 };
 
+// Team A uses old MC behavior: lead-only, 50 sims, 40ms
+const TEAM_A_LEAD_ONLY = true;
+
 // ─── SIMULATION SETTINGS ───────────────────────────────────────────────
-const NUM_GAMES = parseInt(process.argv[2] || '10000', 10);
+const NUM_GAMES = parseInt(process.argv[2] || '1000', 10);
 const TARGET_SCORE = 1000;
 const MAX_ROUNDS = 50;
 
@@ -68,7 +95,7 @@ interface GameResult {
   firstOutB: number;
 }
 
-function runGame(configA: Partial<BotConfig>, configB: Partial<BotConfig>): GameResult {
+function runGame(configA: Partial<BotConfig>, configB: Partial<BotConfig>, swapped: boolean = false): GameResult {
   const engine = new GameEngine(['A0', 'B1', 'A2', 'B3'], TARGET_SCORE);
   // Positions 0,2 = Team A (configA), Positions 1,3 = Team B (configB)
   const bots = [
@@ -143,10 +170,21 @@ function runGame(configA: Partial<BotConfig>, configB: Partial<BotConfig>): Game
         if (cp % 2 === 0) tichuA.calls++; else tichuB.calls++;
       }
 
-      // Build MC evaluator for MC-enabled bots
-      const mcEval = bots[cp].config.useMonteCarlo && !bots[cp].inRollout
-        ? (candidates: (Card[] | null)[]) => monteCarloEvaluate(engine, cp, candidates)
-        : undefined;
+      // Build MC evaluator — old MC for Team A, new MC for Team B
+      const isTeamA = cp % 2 === 0;
+      let mcEval: ((candidates: (Card[] | null)[]) => string[] | null) | undefined;
+      if (bots[cp].config.useMonteCarlo && !bots[cp].inRollout) {
+        if (isTeamA !== swapped) {
+          // Team A (old): lead-only, 50 sims, 40ms
+          const isLeading = engine.state.currentTrick.plays.length === 0;
+          if (isLeading && pl.hand.length >= 5) {
+            mcEval = (candidates) => oldMonteCarloEvaluate(engine, cp, candidates);
+          }
+        } else {
+          // Team B (new): lead+follow, 200 sims, 150ms (default)
+          mcEval = (candidates) => monteCarloEvaluate(engine, cp, candidates);
+        }
+      }
 
       let ids = bots[cp].choosePlay(pl.hand, engine.state.currentTrick, engine.state.wish, cp, buildCtx(engine), mcEval);
 
@@ -199,8 +237,8 @@ function runGame(configA: Partial<BotConfig>, configB: Partial<BotConfig>): Game
 
 // ─── MAIN ──────────────────────────────────────────────────────────────
 console.log(`=== Versus Simulation: ${NUM_GAMES} games ===`);
-console.log(`Team A (pos 0,2): ${JSON.stringify(CONFIG_A) === '{}' ? 'BASELINE (defaults)' : JSON.stringify(CONFIG_A)}`);
-console.log(`Team B (pos 1,3): ${JSON.stringify(CONFIG_B) === '{}' ? 'BASELINE (defaults)' : JSON.stringify(CONFIG_B)}`);
+console.log(`Team A (pos 0,2): OLD MC (50 sims/40ms, lead-only, hand>=5)`);
+console.log(`Team B (pos 1,3): NEW MC (200 sims/150ms, lead+follow, hand>=2, better eval)`);
 console.log('');
 
 const start = Date.now();
@@ -219,7 +257,7 @@ for (let g = 0; g < NUM_GAMES; g++) {
     const swapped = g >= halfGames;
     const cA = swapped ? CONFIG_B : CONFIG_A;
     const cB = swapped ? CONFIG_A : CONFIG_B;
-    const result = runGame(cA, cB);
+    const result = runGame(cA, cB, swapped);
 
     // Map result back to original configs
     const actualAWon = swapped ? result.winner === 1 : result.winner === 0;
@@ -255,13 +293,13 @@ const ms = Date.now() - start;
 console.log(`\n=== RESULTS (${done} games in ${(ms / 1000).toFixed(1)}s) ===`);
 console.log(`Position swap: first ${halfGames} normal, last ${NUM_GAMES - halfGames} swapped`);
 console.log('');
-console.log('Team A (BASELINE):');
+console.log('Team A (OLD MC):');
 console.log(`  Wins: ${teamAWins}/${done} (${(100 * teamAWins / done).toFixed(1)}%)`);
 console.log(`  Avg score: ${Math.round(totalScoreA / done)}`);
 console.log(`  First outs: ${totalFirstOutA} (${(100 * totalFirstOutA / totalRounds).toFixed(1)}% of rounds)`);
 console.log(`  Tichu: ${totalTichuA.calls} calls, ${totalTichuA.success} success (${totalTichuA.calls ? (100 * totalTichuA.success / totalTichuA.calls).toFixed(1) : 0}%)`);
 console.log('');
-console.log('Team B (CHALLENGER):');
+console.log('Team B (NEW MC):');
 console.log(`  Wins: ${teamBWins}/${done} (${(100 * teamBWins / done).toFixed(1)}%)`);
 console.log(`  Avg score: ${Math.round(totalScoreB / done)}`);
 console.log(`  First outs: ${totalFirstOutB} (${(100 * totalFirstOutB / totalRounds).toFixed(1)}% of rounds)`);
