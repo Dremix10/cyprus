@@ -215,7 +215,8 @@ export function createAuthRouter(auth: AuthService, isProduction: boolean, monit
     }
 
     const ip = req.ip || req.socket.remoteAddress || 'unknown';
-    const redirectUri = `${req.protocol}://${req.get('host')}/auth/google-callback`;
+    const proto = req.get('x-forwarded-proto') || req.protocol;
+    const redirectUri = `${proto}://${req.get('host')}/auth/google-callback`;
 
     try {
       // Exchange authorization code for tokens
