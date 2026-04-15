@@ -150,6 +150,11 @@ export function GameBoard() {
           Opponents: {gameState.scores[1 - myTeam]} / {gameState.targetScore}
         </span>
       </div>
+      {gameState.botDifficulty && (
+        <div className="bot-difficulty-label">
+          Bots: {gameState.botDifficulty.charAt(0).toUpperCase() + gameState.botDifficulty.slice(1)}
+        </div>
+      )}
 
       {showHistory && gameState.roundHistory && (
         <div className="history-modal-overlay" onClick={() => setShowHistory(false)}>

@@ -708,6 +708,7 @@ export class SocketHandler {
       const isSolo = room.botPositions.size === 3;
       const state = room.engine.getClientState(position, roomCode, room.botPositions, avatars, disconnected, isSolo);
       state.turnDeadline = deadline;
+      if (room.botPositions.size > 0) state.botDifficulty = room.botDifficulty;
       // Attach user IDs for friend feature
       for (const p of state.players) {
         const uid = userIds.get(p.position);

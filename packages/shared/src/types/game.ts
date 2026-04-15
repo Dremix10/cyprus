@@ -80,4 +80,5 @@ export type ClientGameState = {
   canCallTichu?: boolean;    // false after playing cards or already called
   mustPlayWish?: boolean;    // true when wish is active and player has playable wish combos
   isSolo?: boolean;          // true when playing solo (3 bots)
+  botDifficulty?: string;    // bot difficulty level when bots are present
 };
