@@ -8,8 +8,8 @@ declare global {
     google?: {
       accounts: {
         id: {
-          initialize: (config: { client_id: string; callback: (response: { credential: string }) => void; ux_mode?: string; login_uri?: string }) => void;
-          renderButton: (parent: HTMLElement, options: { theme: string; size: string; width: number; text: string }) => void;
+          initialize: (config: Record<string, unknown>) => void;
+          renderButton: (parent: HTMLElement, options: Record<string, unknown>) => void;
         };
       };
     };
@@ -28,8 +28,6 @@ function GoogleSignInButton() {
 
   useEffect(() => {
     if (!googleClientId) return;
-
-    // Load the Google Identity Services script
     if (!document.getElementById('google-gsi-script')) {
       const script = document.createElement('script');
       script.id = 'google-gsi-script';
@@ -47,8 +45,6 @@ function GoogleSignInButton() {
     window.google.accounts.id.initialize({
       client_id: googleClientId,
       callback: handleCredential,
-      ux_mode: 'redirect',
-      login_uri: window.location.origin + '/auth/google-redirect',
     });
     window.google.accounts.id.renderButton(buttonRef.current, {
       theme: 'filled_black',
