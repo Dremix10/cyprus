@@ -793,18 +793,19 @@ body {
 
 .user-badge-settings {
   margin-left: auto;
-  background: none;
-  border: none;
+  background: rgba(201, 168, 76, 0.08);
+  border: 1px solid rgba(201, 168, 76, 0.25);
+  border-radius: 8px;
   cursor: pointer;
-  padding: 0.2rem;
+  padding: 0.35rem;
   display: flex;
   align-items: center;
-  opacity: 0.7;
-  transition: opacity 0.2s;
+  transition: background 0.2s, border-color 0.2s;
 }
 
 .user-badge-settings:hover {
-  opacity: 1;
+  background: rgba(201, 168, 76, 0.18);
+  border-color: rgba(201, 168, 76, 0.45);
 }
 
 /* Play Online button */
