@@ -41,6 +41,8 @@ export function Profile({ onBack }: { onBack: () => void }) {
   const [passwordError, setPasswordError] = useState<string | null>(null);
   const [passwordSuccess, setPasswordSuccess] = useState(false);
 
+  const [showSignOutConfirm, setShowSignOutConfirm] = useState(false);
+
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deletePassword, setDeletePassword] = useState('');
   const [deleteError, setDeleteError] = useState<string | null>(null);
@@ -243,9 +245,17 @@ export function Profile({ onBack }: { onBack: () => void }) {
 
         {/* Sign Out */}
         <div className="profile-section">
-          <button className="btn btn-olympus btn-profile-action btn-signout" onClick={logout}>
-            Sign Out
-          </button>
+          {!showSignOutConfirm ? (
+            <button className="btn btn-olympus btn-profile-action" onClick={() => setShowSignOutConfirm(true)}>
+              Sign Out
+            </button>
+          ) : (
+            <div className="profile-form-actions profile-signout-confirm">
+              <span className="profile-confirm-text">Are you sure?</span>
+              <button className="btn btn-olympus btn-profile-save" onClick={logout}>Yes, sign out</button>
+              <button className="btn-link" onClick={() => setShowSignOutConfirm(false)}>Cancel</button>
+            </div>
+          )}
         </div>
 
         {/* Delete Account */}

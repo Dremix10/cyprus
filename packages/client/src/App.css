@@ -1465,10 +1465,14 @@ body {
   gap: 0.75rem;
 }
 
-/* Sign out */
-.btn-signout {
-  background: rgba(201, 168, 76, 0.1);
-  border-color: rgba(201, 168, 76, 0.2);
+/* Sign out confirm */
+.profile-signout-confirm {
+  justify-content: center;
+}
+
+.profile-confirm-text {
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 0.85rem;
 }
 
 /* Delete account (subtle) */
