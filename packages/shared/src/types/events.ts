@@ -70,6 +70,7 @@ export interface ClientToServerEvents {
   'game:wish': (rank: NormalRank) => void;
   'game:next_round': () => void;
   'game:skip_round': () => void;
+  'game:resync': () => void;
 }
 
 export interface ServerToClientEvents {
