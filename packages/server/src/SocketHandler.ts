@@ -5,7 +5,7 @@ import type {
   PlayerPosition,
   GameEvent,
 } from '@cyprus/shared';
-import { GamePhase } from '@cyprus/shared';
+import { GamePhase, findPlayableFromHand } from '@cyprus/shared';
 import { RoomManager } from './RoomManager.js';
 import type { GameEngine } from './GameEngine.js';
 import type { BotDifficulty } from './BotAI.js';
@@ -15,6 +15,8 @@ import { MatchmakingManager } from './MatchmakingManager.js';
 import { TimerManager } from './TimerManager.js';
 import { GamePersistence } from './GamePersistence.js';
 import { BotController } from './BotController.js';
+import { BotAI } from './BotAI.js';
+import type { TichuCall, Card } from '@cyprus/shared';
 
 type TypedServer = Server<ClientToServerEvents, ServerToClientEvents>;
 type TypedSocket = Socket<ClientToServerEvents, ServerToClientEvents>;
@@ -285,6 +287,10 @@ export class SocketHandler {
       if (!this.checkRate(socket, 'action')) return;
       this.handleGameAction(socket, (engine) => engine.nextRound());
     });
+    socket.on('game:skip_round', () => {
+      if (!this.checkRate(socket, 'action')) return;
+      this.handleSkipRound(socket);
+    });
   }
 
   private registerSessionEvents(socket: TypedSocket, ip: string | null): void {
@@ -442,6 +448,128 @@ export class SocketHandler {
     } catch (err) {
       socket.emit('game:error', (err as Error).message);
     }
+  }
+
+  private handleSkipRound(socket: TypedSocket): void {
+    const info = this.rooms.getRoomForSocket(socket.id);
+    if (!info || !info.room.engine) {
+      socket.emit('game:error', 'No active game');
+      return;
+    }
+
+    const room = info.room;
+    const engine = room.engine!;
+
+    // Only allow in solo games
+    if (room.botPositions.size !== 3) {
+      socket.emit('game:error', 'Skip only available in solo games');
+      return;
+    }
+
+    // Human must be out
+    if (!engine.state.players[info.position].isOut) {
+      socket.emit('game:error', 'You must be out to skip');
+      return;
+    }
+
+    // Must be in playing phase
+    if (engine.state.phase !== GamePhase.PLAYING && engine.state.phase !== GamePhase.DRAGON_GIVE) {
+      return;
+    }
+
+    // Cancel any pending timers for this room
+    this.timers.clearTurnTimer(info.room.code);
+
+    // Run the engine to completion instantly
+    const botAI = new BotAI(room.botDifficulty);
+    const allEvents: GameEvent[] = [];
+    let safety = 0;
+
+    while (
+      (engine.state.phase === GamePhase.PLAYING || engine.state.phase === GamePhase.DRAGON_GIVE) &&
+      safety < 500
+    ) {
+      safety++;
+
+      if (engine.state.dogPending) { engine.resolveDog(); continue; }
+      if (engine.state.trickWonPending) { engine.completeTrickWon(); continue; }
+      if (engine.state.roundEndPending) { allEvents.push(...engine.completeRoundEnd()); continue; }
+
+      if (engine.state.wishPending !== null) {
+        const wp = engine.state.wishPending;
+        const ctx = this.buildSimContext(engine);
+        engine.setWish(wp, botAI.chooseWish(engine.state.players[wp].hand, ctx));
+        continue;
+      }
+
+      if (engine.state.phase === GamePhase.DRAGON_GIVE) {
+        const w = engine.state.dragonWinner!;
+        const opps = engine.state.players
+          .filter((p) => p.position % 2 !== w % 2)
+          .map((p) => p.position as PlayerPosition);
+        const cc = new Map(opps.map((p) => [p, engine.state.players[p].hand.length] as [PlayerPosition, number]));
+        const ctx = this.buildSimContext(engine);
+        allEvents.push(...engine.dragonGive(w, botAI.chooseDragonGiveTarget(opps, cc, ctx)));
+        continue;
+      }
+
+      const cp = engine.state.currentPlayer;
+      const player = engine.state.players[cp];
+      const ctx = this.buildSimContext(engine);
+
+      let cardIds = botAI.choosePlay(
+        player.hand, engine.state.currentTrick, engine.state.wish, cp, ctx
+      );
+
+      // Wish enforcement
+      if (!cardIds && engine.state.wish.active && engine.state.wish.wishedRank !== null) {
+        const currentTop = engine.state.currentTrick.plays.length > 0
+          ? engine.state.currentTrick.plays[engine.state.currentTrick.plays.length - 1].combination
+          : null;
+        const playable = findPlayableFromHand(player.hand, currentTop, engine.state.wish);
+        const wishedPlay = playable.find((cards) =>
+          cards.some((c) => c.type === 'normal' && c.rank === engine.state.wish.wishedRank)
+        );
+        if (wishedPlay) cardIds = wishedPlay.map((c) => c.id);
+      }
+
+      if (cardIds) {
+        allEvents.push(...engine.playCards(cp, cardIds));
+      } else {
+        allEvents.push(...engine.passTurn(cp));
+      }
+    }
+
+    // Log events
+    const gameId = roomGameIds.get(info.room.code) || null;
+    for (const event of allEvents) {
+      this.db?.logGameEvent(gameId, info.room.code, event.type, event.playerPosition ?? null, event.data);
+      this.io.to(info.room.code).emit('game:event', event);
+
+      if (event.type === 'GAME_OVER' && gameId) {
+        this.handleGameOver(info.room.code, gameId, info);
+      }
+    }
+
+    this.broadcastGameState(info.room.code);
+  }
+
+  private buildSimContext(engine: GameEngine): { playerCardCounts: Map<PlayerPosition, number>; tichuCalls: Record<PlayerPosition, TichuCall>; finishOrder: PlayerPosition[]; playedCards: Card[]; scores: [number, number] } {
+    const played: Card[] = [];
+    for (const p of engine.state.players) for (const t of p.wonTricks) played.push(...t);
+    for (const play of engine.state.currentTrick.plays) played.push(...play.combination.cards);
+    return {
+      playerCardCounts: new Map(engine.state.players.map((p) => [p.position as PlayerPosition, p.hand.length])),
+      tichuCalls: {
+        0: engine.state.players[0].tichuCall,
+        1: engine.state.players[1].tichuCall,
+        2: engine.state.players[2].tichuCall,
+        3: engine.state.players[3].tichuCall,
+      } as Record<PlayerPosition, TichuCall>,
+      finishOrder: engine.state.finishOrder as PlayerPosition[],
+      playedCards: played,
+      scores: [...engine.state.scores] as [number, number],
+    };
   }
 
   private handleGameOver(

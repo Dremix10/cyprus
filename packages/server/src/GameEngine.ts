@@ -1001,6 +1001,7 @@ export class GameEngine {
       canPass: this.state.currentTrick.plays.length > 0,
       canCallTichu: player.tichuCall === 'none' && !player.hasPlayedCards
         && (this.state.phase === GamePhase.PASSING || this.state.phase === GamePhase.PLAYING),
+      isSolo: isSolo || undefined,
       mustPlayWish: (() => {
         if (!this.state.wish.active || !this.state.wish.wishedRank) return false;
         if (this.state.currentTrick.plays.length === 0) return false;
