@@ -7,12 +7,24 @@ import type { Card, Combination, PlayerPosition } from '@cyprus/shared';
 /** Sort cards for display: Phoenix placed at its effective position in the combo. */
 function sortForDisplay(combo: Combination): Card[] {
   if (combo.type === CombinationType.FULL_HOUSE) {
+    const phoenix = combo.cards.find((c) => c.type === 'special' && c.specialType === SpecialCardType.PHOENIX);
+    const normalCards = combo.cards.filter((c) => c !== phoenix || !phoenix);
     const rankCounts = new Map<number, Card[]>();
-    for (const c of combo.cards) {
+    for (const c of normalCards) {
       const rank = c.type === 'normal' ? c.rank : 0;
       const group = rankCounts.get(rank) ?? [];
       group.push(c);
       rankCounts.set(rank, group);
+    }
+    // Phoenix completes whichever group is smaller (the pair needs one more)
+    if (phoenix) {
+      let smallestGroup: Card[] | null = null;
+      for (const group of rankCounts.values()) {
+        if (!smallestGroup || group.length < smallestGroup.length) {
+          smallestGroup = group;
+        }
+      }
+      if (smallestGroup) smallestGroup.push(phoenix);
     }
     const groups = [...rankCounts.values()].sort((a, b) => b.length - a.length);
     return groups.flat();
