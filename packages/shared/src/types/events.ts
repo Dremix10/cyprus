@@ -69,6 +69,7 @@ export interface ClientToServerEvents {
   'game:dragon_give': (opponentPosition: PlayerPosition) => void;
   'game:wish': (rank: NormalRank) => void;
   'game:next_round': () => void;
+  'game:skip_round': () => void;
 }
 
 export interface ServerToClientEvents {

@@ -439,6 +439,20 @@ body {
   transition: transform 0.08s;
 }
 
+.btn-skip {
+  position: absolute;
+  bottom: 1.5rem;
+  right: 1.5rem;
+  z-index: 20;
+  padding: 0.5rem 1.5rem;
+  font-size: 0.9rem;
+  opacity: 0.85;
+}
+
+.btn-skip:hover {
+  opacity: 1;
+}
+
 .btn-create {
   background: linear-gradient(135deg, #d4b044, #a08020);
   color: #1a1a2e;

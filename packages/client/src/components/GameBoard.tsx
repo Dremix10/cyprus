@@ -86,6 +86,7 @@ function SoundToggle() {
 export function GameBoard() {
   const gameState = useGameStore((s) => s.gameState);
   const error = useGameStore((s) => s.error);
+  const skipRound = useGameStore((s) => s.skipRound);
   const roomNotification = useRoomStore((s) => s.error);
   const roomCode = useRoomStore((s) => s.roomCode);
   const reset = useRoomStore((s) => s.reset);
@@ -99,6 +100,9 @@ export function GameBoard() {
   const rel = getRelativePositions(gameState.myPosition);
   const myTeam = gameState.myPosition % 2 === 0 ? 0 : 1;
   const hasHistory = gameState.roundHistory && gameState.roundHistory.length > 0;
+  const myPlayer = gameState.players[gameState.myPosition];
+  const canSkip = gameState.isSolo && myPlayer.isOut &&
+    (gameState.phase === GamePhase.PLAYING || gameState.phase === GamePhase.DRAGON_GIVE);
 
   return (
     <div className="game-board">
@@ -155,7 +159,14 @@ export function GameBoard() {
       {gameState.phase === GamePhase.PASSING && <PassingView />}
       {(gameState.phase === GamePhase.PLAYING ||
         gameState.phase === GamePhase.DRAGON_GIVE) && (
-        <PlayingLayout rel={rel} />
+        <>
+          <PlayingLayout rel={rel} />
+          {canSkip && (
+            <button className="btn btn-olympus btn-skip" onClick={skipRound}>
+              Skip
+            </button>
+          )}
+        </>
       )}
       {gameState.phase === GamePhase.ROUND_SCORING && <ScoringView />}
       {gameState.phase === GamePhase.GAME_OVER && <GameOverView />}

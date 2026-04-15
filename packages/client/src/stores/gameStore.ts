@@ -40,6 +40,7 @@ interface GameStore {
   dragonGive: (opponent: PlayerPosition) => void;
   wish: (rank: NormalRank) => void;
   nextRound: () => void;
+  skipRound: () => void;
 
   setError: (error: string | null) => void;
   reset: () => void;
@@ -156,6 +157,10 @@ export const useGameStore = create<GameStore>((set, get) => ({
 
   nextRound: () => {
     socket.emit('game:next_round');
+  },
+
+  skipRound: () => {
+    socket.emit('game:skip_round');
   },
 
   setError: (error) => set({ error }),
