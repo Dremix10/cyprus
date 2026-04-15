@@ -606,13 +606,11 @@ export class GameEngine {
 
     this.emit({ type: 'TRICK_WON', playerPosition: winner });
 
-    // Check if the trick contains the Dragon
-    const hasDragonInTrick = trickCards.some((c) =>
-      isSpecial(c, SpecialCardType.DRAGON)
+    // Dragon Give only applies if the Dragon player won the trick (not bombed)
+    const dragonPlay = this.state.currentTrick.plays.find((p) =>
+      p.combination.cards.some((c) => isSpecial(c, SpecialCardType.DRAGON))
     );
-
-    if (hasDragonInTrick) {
-      // Enter Dragon Give phase
+    if (dragonPlay && dragonPlay.playerPosition === winner) {
       this.state.phase = GamePhase.DRAGON_GIVE;
       this.state.dragonWinner = winner;
       return;
