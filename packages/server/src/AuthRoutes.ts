@@ -248,7 +248,7 @@ export function createAuthRouter(auth: AuthService, isProduction: boolean, monit
 
       monitor?.loginSuccess(result.user.id, result.user.username, ip);
       setAuthCookie(res, result.token, isProduction);
-      res.redirect('/');
+      res.redirect('/?authSuccess=1');
     } catch (err) {
       console.error('Google OAuth callback error:', err);
       monitor?.loginFailed('google-oauth', ip, (err as Error).message);
