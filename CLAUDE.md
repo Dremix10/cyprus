@@ -39,7 +39,7 @@ npm run clean        # Remove all dist/ folders
 - **Rebuild only**: `bash deploy/rebuild.sh`
 - **Logs**: `tail -f server.log`
 - **Health**: `curl localhost:3001/health` — returns commit hash, message, date, uptime, and active connections. Use to verify deploys without SSH
-- **Admin dashboard**: http://165.245.175.45/admin (password-protected)
+- **Admin dashboard**: https://aegist.dev/admin (password-protected)
 
 ## Architecture
 
@@ -100,7 +100,7 @@ Players get a `sessionId` (UUID v4) on create/join, stored in localStorage. On p
   - `GOOGLE_CLIENT_ID` — Google OAuth client ID (from Google Cloud Console → APIs & Services → Credentials → OAuth 2.0 Client ID for Web)
   - `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS` — SMTP credentials for password reset emails
   - `SMTP_FROM` — sender email address (defaults to SMTP_USER)
-  - `APP_URL` — base URL for reset links (defaults to `http://165.245.175.45`)
+  - `APP_URL` — base URL for reset links (defaults to `https://aegist.dev`)
 
 ## Security
 
@@ -125,7 +125,7 @@ The server tracks connections, players, games, events, and HTTP requests in SQLi
 
 **Query any data** (read-only SELECT queries only):
 ```bash
-curl -s -X POST http://165.245.175.45/admin/api/query \
+curl -s -X POST https://aegist.dev/admin/api/query \
   -H "Authorization: Bearer b295880c4d8b6118079c13457cc96ac0972396923894262b" \
   -H "Content-Type: application/json" \
   -d '{"sql": "SELECT * FROM players ORDER BY games_won DESC", "limit": 100}'
@@ -133,7 +133,7 @@ curl -s -X POST http://165.245.175.45/admin/api/query \
 
 **List tables and row counts**:
 ```bash
-curl -s http://165.245.175.45/admin/api/tables \
+curl -s https://aegist.dev/admin/api/tables \
   -H "Authorization: Bearer b295880c4d8b6118079c13457cc96ac0972396923894262b"
 ```
 
