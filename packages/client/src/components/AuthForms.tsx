@@ -47,6 +47,7 @@ function GoogleSignInButton() {
     window.google.accounts.id.initialize({
       client_id: googleClientId,
       callback: handleCredential,
+      ux_mode: 'popup',
     });
     window.google.accounts.id.renderButton(buttonRef.current, {
       theme: 'filled_black',
