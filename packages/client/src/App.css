@@ -1763,6 +1763,14 @@ body {
   border: 1px solid rgba(255, 255, 255, 0.04);
 }
 
+.bot-difficulty-label {
+  text-align: center;
+  font-size: 0.75rem;
+  color: rgba(255, 255, 255, 0.4);
+  margin-top: -0.7rem;
+  margin-bottom: 0.5rem;
+}
+
 .sound-toggle {
   background: none;
   border: none;
