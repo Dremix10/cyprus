@@ -241,22 +241,29 @@ export function Profile({ onBack }: { onBack: () => void }) {
           )}
         </div>
 
-        {/* Danger Zone */}
-        <div className="profile-section profile-danger-zone">
+        {/* Sign Out */}
+        <div className="profile-section">
+          <button className="btn btn-olympus btn-profile-action btn-signout" onClick={logout}>
+            Sign Out
+          </button>
+        </div>
+
+        {/* Delete Account */}
+        <div className="profile-delete-zone">
           {!showDeleteConfirm ? (
-            <button className="btn btn-olympus btn-danger" onClick={() => setShowDeleteConfirm(true)}>
+            <button className="btn-link profile-delete-trigger" onClick={() => setShowDeleteConfirm(true)}>
               Delete Account
             </button>
           ) : (
             <div className="profile-delete-confirm">
-              <p className="profile-delete-warning">This action is permanent and cannot be undone. All your data will be deleted.</p>
+              <p className="profile-delete-warning">This action is permanent and cannot be undone.</p>
               {user.hasPassword && (
                 <input type="password" placeholder="Enter your password to confirm" value={deletePassword} onChange={(e) => setDeletePassword(e.target.value)} className="input input-greek" autoComplete="current-password" />
               )}
               {deleteError && <p className="error">{deleteError}</p>}
               <div className="profile-form-actions">
-                <button className="btn btn-olympus btn-danger" onClick={handleDeleteAccount} disabled={submitting}>
-                  {submitting ? '...' : 'Confirm Delete'}
+                <button className="btn-link profile-delete-trigger profile-delete-confirm-btn" onClick={handleDeleteAccount} disabled={submitting}>
+                  {submitting ? '...' : 'Yes, delete my account'}
                 </button>
                 <button className="btn-link" onClick={() => { setShowDeleteConfirm(false); setDeleteError(null); }}>Cancel</button>
               </div>

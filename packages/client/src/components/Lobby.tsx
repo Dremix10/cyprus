@@ -114,7 +114,7 @@ export function Lobby({ onTutorial, onLeaderboard, onProfile }: { onTutorial: ()
               </div>
             </div>
           )}
-          {authUser && <UserBadge />}
+          {authUser && <UserBadge onProfile={onProfile} />}
           {authUser && <FriendsPanel />}
           <div className="lobby-form">
             {authLoading ? (
@@ -280,14 +280,6 @@ export function Lobby({ onTutorial, onLeaderboard, onProfile }: { onTutorial: ()
                   <button className="btn-link lobby-link" onClick={onLeaderboard}>
                     Leaderboard
                   </button>
-                  {authUser && (
-                    <>
-                      <span className="lobby-link-sep">|</span>
-                      <button className="btn-link lobby-link" onClick={onProfile}>
-                        Profile
-                      </button>
-                    </>
-                  )}
                 </div>
 
                 {!authUser && guestMode && (
