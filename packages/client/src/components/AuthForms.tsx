@@ -173,16 +173,22 @@ export function AuthForms({ onGuest }: { onGuest: () => void }) {
   );
 }
 
-export function UserBadge() {
+export function UserBadge({ onProfile }: { onProfile?: () => void }) {
   const user = useAuthStore((s) => s.user);
-  const logout = useAuthStore((s) => s.logout);
   if (!user) return null;
 
   return (
     <div className="user-badge">
       <span className="user-badge-name">{user.displayName}</span>
       <span className="user-badge-stats">{user.gamesWon}W / {user.gamesPlayed}G</span>
-      <button className="btn-link user-badge-logout" onClick={logout}>Sign out</button>
+      {onProfile && (
+        <button className="user-badge-settings" onClick={onProfile} title="Profile & Settings">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="#c9a84c" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <circle cx="12" cy="12" r="3" />
+            <path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42" />
+          </svg>
+        </button>
+      )}
     </div>
   );
 }
