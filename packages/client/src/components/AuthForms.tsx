@@ -8,7 +8,7 @@ declare global {
     google?: {
       accounts: {
         id: {
-          initialize: (config: { client_id: string; callback: (response: { credential: string }) => void }) => void;
+          initialize: (config: { client_id: string; callback: (response: { credential: string }) => void; ux_mode?: string }) => void;
           renderButton: (parent: HTMLElement, options: { theme: string; size: string; width: number; text: string }) => void;
         };
       };
