@@ -18,34 +18,52 @@ function sortForDisplay(combo: Combination): Card[] {
     return groups.flat();
   }
 
-  // For combos with Phoenix, figure out the gap it fills and sort it there
+  // For combos with Phoenix, figure out the rank it fills and sort it there
   const phoenix = combo.cards.find((c) => c.type === 'special' && c.specialType === SpecialCardType.PHOENIX);
   if (phoenix && combo.cards.length > 1) {
     const others = combo.cards.filter((c) => c !== phoenix);
     const sorted = sortCards(others);
-    const ranks = sorted.map((c) => c.type === 'normal' ? c.rank : (c.specialType === SpecialCardType.MAHJONG ? 1 : 0));
 
-    // Find the gap in the sequence (for straights) or the rank Phoenix substitutes
-    if (combo.type === CombinationType.STRAIGHT) {
-      // Find missing rank in the straight sequence
+    const getCardRank = (c: Card) => c.type === 'normal' ? c.rank : (c.type === 'special' && c.specialType === SpecialCardType.MAHJONG ? 1 : 0);
+
+    if (combo.type === CombinationType.STRAIGHT || combo.type === CombinationType.CONSECUTIVE_PAIRS) {
+      const ranks = sorted.map(getCardRank);
       const minRank = Math.min(...ranks);
       const maxRank = Math.max(...ranks);
-      let gapIdx = sorted.length; // default: append at end
-      for (let r = minRank; r <= maxRank; r++) {
-        if (!ranks.includes(r)) {
-          // Phoenix fills this rank — insert at this position
-          gapIdx = sorted.findIndex((c) => (c.type === 'normal' ? c.rank : 1) > r);
-          if (gapIdx === -1) gapIdx = sorted.length;
-          break;
+
+      // Find the gap rank that Phoenix fills
+      let phoenixRank = maxRank + 1; // default: extends at top
+      if (combo.type === CombinationType.STRAIGHT) {
+        for (let r = minRank; r <= maxRank; r++) {
+          if (!ranks.includes(r)) { phoenixRank = r; break; }
+        }
+      } else {
+        // Consecutive pairs: each rank should appear twice; find the one with only 1
+        const rankCounts = new Map<number, number>();
+        for (const r of ranks) rankCounts.set(r, (rankCounts.get(r) ?? 0) + 1);
+        // Check for a rank gap (missing rank entirely)
+        for (let r = minRank; r <= maxRank; r++) {
+          if (!rankCounts.has(r)) { phoenixRank = r; break; }
+        }
+        // Check for a rank with only 1 card (Phoenix completes the pair)
+        if (phoenixRank === maxRank + 1) {
+          for (const [r, count] of rankCounts) {
+            if (count === 1) { phoenixRank = r; break; }
+          }
         }
       }
-      // If no gap found (Phoenix extends the straight), put it at the end
-      sorted.splice(gapIdx, 0, phoenix);
+
+      // Insert Phoenix at the right position
+      const insertIdx = sorted.findIndex((c) => getCardRank(c) > phoenixRank);
+      if (insertIdx === -1) {
+        sorted.push(phoenix);
+      } else {
+        sorted.splice(insertIdx, 0, phoenix);
+      }
       return sorted;
     }
 
     // For pairs/triples: Phoenix matches the rank of the others
-    // Sort it next to its pair/triple partners
     sorted.push(phoenix);
     return sorted;
   }
