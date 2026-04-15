@@ -17,6 +17,8 @@ interface AuthStore {
   logout: () => Promise<void>;
   changePassword: (currentPassword: string, newPassword: string) => Promise<{ success: boolean; error?: string }>;
   deleteAccount: (password: string) => Promise<{ success: boolean; error?: string }>;
+  changeDisplayName: (displayName: string) => Promise<{ success: boolean; error?: string }>;
+  changeAvatar: (avatar: string) => Promise<{ success: boolean; error?: string }>;
   clearError: () => void;
 }
 
@@ -162,6 +164,34 @@ export const useAuthStore = create<AuthStore>((set) => ({
       });
       const data = await res.json();
       if (res.ok) { set({ user: null }); return { success: true }; }
+      return { success: false, error: data.error || 'Failed' };
+    } catch {
+      return { success: false, error: 'Connection failed' };
+    }
+  },
+
+  changeDisplayName: async (displayName) => {
+    try {
+      const res = await authFetch('/change-display-name', {
+        method: 'POST',
+        body: JSON.stringify({ displayName }),
+      });
+      const data = await res.json();
+      if (res.ok) { if (data.user) set({ user: data.user }); return { success: true }; }
+      return { success: false, error: data.error || 'Failed' };
+    } catch {
+      return { success: false, error: 'Connection failed' };
+    }
+  },
+
+  changeAvatar: async (avatar) => {
+    try {
+      const res = await authFetch('/change-avatar', {
+        method: 'POST',
+        body: JSON.stringify({ avatar }),
+      });
+      const data = await res.json();
+      if (res.ok) { if (data.user) set({ user: data.user }); return { success: true }; }
       return { success: false, error: data.error || 'Failed' };
     } catch {
       return { success: false, error: 'Connection failed' };

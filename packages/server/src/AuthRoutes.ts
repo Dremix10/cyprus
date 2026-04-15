@@ -362,5 +362,35 @@ export function createAuthRouter(auth: AuthService, isProduction: boolean, monit
     res.json({ success: true });
   });
 
+  // ── POST /auth/change-display-name ─────────────────────────────
+  router.post('/change-display-name', (req: Request, res: Response) => {
+    const token = getAuthToken(req);
+    if (!token) { res.status(401).json({ error: 'Not authenticated' }); return; }
+    const session = auth.validateSession(token);
+    if (!session) { clearAuthCookie(res); res.status(401).json({ error: 'Session expired' }); return; }
+
+    const { displayName } = req.body || {};
+    const result = auth.changeDisplayName(session.userId, displayName);
+    if ('error' in result) { res.status(400).json(result); return; }
+
+    const user = auth.getUser(token);
+    res.json({ success: true, user });
+  });
+
+  // ── POST /auth/change-avatar ───────────────────────────────────
+  router.post('/change-avatar', (req: Request, res: Response) => {
+    const token = getAuthToken(req);
+    if (!token) { res.status(401).json({ error: 'Not authenticated' }); return; }
+    const session = auth.validateSession(token);
+    if (!session) { clearAuthCookie(res); res.status(401).json({ error: 'Session expired' }); return; }
+
+    const { avatar } = req.body || {};
+    const result = auth.changeAvatar(session.userId, avatar);
+    if ('error' in result) { res.status(400).json(result); return; }
+
+    const user = auth.getUser(token);
+    res.json({ success: true, user });
+  });
+
   return router;
 }
