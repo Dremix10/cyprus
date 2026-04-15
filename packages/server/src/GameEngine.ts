@@ -996,7 +996,7 @@ export class GameEngine {
             fromTeammate: sameTeam(position, rc.fromPosition),
           }))
         : undefined,
-      // Server-computed action flags
+      // Server-computed action flags — single source of truth
       canAct: this.state.wishPending === null && !this.state.dogPending && !this.state.trickWonPending && !this.state.roundEndPending,
       canPass: this.state.currentTrick.plays.length > 0,
       canCallTichu: player.tichuCall === 'none' && !player.hasPlayedCards
