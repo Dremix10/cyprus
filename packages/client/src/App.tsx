@@ -29,6 +29,11 @@ export default function App() {
 
   // Check auth and attempt session reconnect on mount
   useEffect(() => {
+    // Clean up auth/error query params from Google OAuth redirect
+    const params = new URLSearchParams(window.location.search);
+    if (params.has('authSuccess') || params.has('error')) {
+      window.history.replaceState({}, '', '/');
+    }
     checkAuth();
     trySessionReconnect();
   }, []);
