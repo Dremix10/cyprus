@@ -200,6 +200,50 @@ export function createAuthRouter(auth: AuthService, isProduction: boolean, monit
     }
   });
 
+  // ── POST /auth/google-redirect (redirect mode from GSI) ──────────
+  router.post('/google-redirect', express.urlencoded({ extended: false }), async (req: Request, res: Response) => {
+    if (!googleClient || !GOOGLE_CLIENT_ID) {
+      res.redirect('/?error=google-not-configured');
+      return;
+    }
+
+    const credential = req.body?.credential;
+    if (!credential || typeof credential !== 'string') {
+      res.redirect('/?error=google-failed');
+      return;
+    }
+
+    const ip = req.ip || req.socket.remoteAddress || 'unknown';
+
+    try {
+      const ticket = await googleClient.verifyIdToken({
+        idToken: credential,
+        audience: GOOGLE_CLIENT_ID,
+      });
+      const payload = ticket.getPayload();
+      if (!payload?.sub || !payload.email) {
+        res.redirect('/?error=google-failed');
+        return;
+      }
+
+      const result = await auth.loginWithGoogle(
+        payload.sub,
+        payload.email,
+        payload.name || payload.email.split('@')[0],
+        ip,
+        req.headers['user-agent'] || null
+      );
+
+      monitor?.loginSuccess(result.user.id, result.user.username, ip);
+      setAuthCookie(res, result.token, isProduction);
+      res.redirect('/');
+    } catch (err) {
+      console.error('Google redirect auth error:', err);
+      monitor?.loginFailed('google-redirect', ip, (err as Error).message);
+      res.redirect('/?error=google-failed');
+    }
+  });
+
   // ── POST /auth/forgot-password ───────────────────────────────────
   router.post('/forgot-password', async (req: Request, res: Response) => {
     const ip = req.ip || req.socket.remoteAddress || 'unknown';

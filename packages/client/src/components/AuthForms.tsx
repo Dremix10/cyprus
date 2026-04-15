@@ -8,7 +8,7 @@ declare global {
     google?: {
       accounts: {
         id: {
-          initialize: (config: { client_id: string; callback: (response: { credential: string }) => void; ux_mode?: string }) => void;
+          initialize: (config: { client_id: string; callback: (response: { credential: string }) => void; ux_mode?: string; login_uri?: string }) => void;
           renderButton: (parent: HTMLElement, options: { theme: string; size: string; width: number; text: string }) => void;
         };
       };
@@ -47,7 +47,8 @@ function GoogleSignInButton() {
     window.google.accounts.id.initialize({
       client_id: googleClientId,
       callback: handleCredential,
-      ux_mode: 'popup',
+      ux_mode: 'redirect',
+      login_uri: window.location.origin + '/auth/google-redirect',
     });
     window.google.accounts.id.renderButton(buttonRef.current, {
       theme: 'filled_black',
