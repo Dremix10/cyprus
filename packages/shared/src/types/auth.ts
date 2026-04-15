@@ -8,6 +8,9 @@ export interface AuthUser {
   createdAt: string;
   gamesPlayed: number;
   gamesWon: number;
+  avatar: string | null;
+  displayNameChangedAt: string | null;
+  friendCount: number;
 }
 
 export interface RegisterRequest {

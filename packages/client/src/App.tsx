@@ -8,6 +8,7 @@ import { GameBoard } from './components/GameBoard.js';
 import { MatchmakingQueue } from './components/MatchmakingQueue.js';
 import { Tutorial } from './components/Tutorial.js';
 import { Leaderboard } from './components/Leaderboard.js';
+import { Profile } from './components/Profile.js';
 import { ConnectionStatus } from './components/ConnectionStatus.js';
 import { ResetPasswordForm } from './components/AuthForms.js';
 import './App.css';
@@ -25,6 +26,7 @@ export default function App() {
   const checkAuth = useAuthStore((s) => s.checkAuth);
   const [showTutorial, setShowTutorial] = useState(false);
   const [showLeaderboard, setShowLeaderboard] = useState(false);
+  const [showProfile, setShowProfile] = useState(false);
   const [resetToken, setResetToken] = useState<string | null>(getResetToken);
 
   // Check auth and attempt session reconnect on mount
@@ -86,10 +88,18 @@ export default function App() {
     );
   }
 
+  if (showProfile) {
+    return (
+      <div className="app">
+        <Profile onBack={() => setShowProfile(false)} />
+      </div>
+    );
+  }
+
   return (
     <div className="app">
       <ConnectionStatus />
-      {view === 'lobby' && <Lobby onTutorial={() => setShowTutorial(true)} onLeaderboard={() => setShowLeaderboard(true)} />}
+      {view === 'lobby' && <Lobby onTutorial={() => setShowTutorial(true)} onLeaderboard={() => setShowLeaderboard(true)} onProfile={() => setShowProfile(true)} />}
       {view === 'queue' && <MatchmakingQueue />}
       {view === 'waiting' && <WaitingRoom />}
       {view === 'game' && <GameBoard />}

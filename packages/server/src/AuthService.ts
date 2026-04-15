@@ -104,7 +104,11 @@ function validateEmail(email: string): string | null {
 
 type UserRow = NonNullable<ReturnType<TrackerDB['getUserByUsername']>>;
 
-function buildAuthUser(user: { id: number; username: string; display_name: string; created_at: string; email?: string | null; password_hash?: string | null; google_id?: string | null }, stats: { games_played: number; games_won: number }): AuthUser {
+function buildAuthUser(
+  user: { id: number; username: string; display_name: string; created_at: string; email?: string | null; password_hash?: string | null; google_id?: string | null; avatar?: string | null; display_name_changed_at?: string | null },
+  stats: { games_played: number; games_won: number },
+  friendCount: number = 0
+): AuthUser {
   return {
     id: user.id,
     username: user.username,
@@ -115,6 +119,9 @@ function buildAuthUser(user: { id: number; username: string; display_name: strin
     createdAt: user.created_at,
     gamesPlayed: stats.games_played,
     gamesWon: stats.games_won,
+    avatar: user.avatar ?? null,
+    displayNameChangedAt: user.display_name_changed_at ?? null,
+    friendCount,
   };
 }
 
@@ -331,7 +338,8 @@ export class AuthService {
 
     const fullUser = this.db.getUserByUsername(user.username);
     const stats = this.db.getUserGameStats(user.id);
-    return buildAuthUser({ ...user, password_hash: fullUser?.password_hash, google_id: fullUser?.google_id }, stats);
+    const friendCount = this.db.getFriendCount(user.id);
+    return buildAuthUser({ ...user, password_hash: fullUser?.password_hash, google_id: fullUser?.google_id }, stats, friendCount);
   }
 
   // ─── Account Management ─────────────────────────────────────────
@@ -368,6 +376,37 @@ export class AuthService {
 
     this.db.deleteAllUserSessions(userId);
     this.db.deleteUser(userId);
+    return { success: true };
+  }
+
+  changeDisplayName(userId: number, newDisplayName: string): { success: true } | { error: string } {
+    const nameErr = validateDisplayName(newDisplayName);
+    if (nameErr) return { error: nameErr };
+
+    const user = this.db.getUserById(userId);
+    if (!user) return { error: 'User not found' };
+
+    // Check once-per-month limit
+    if (user.display_name_changed_at) {
+      const changedAt = new Date(user.display_name_changed_at + 'Z').getTime();
+      const thirtyDays = 30 * 24 * 60 * 60 * 1000;
+      if (Date.now() - changedAt < thirtyDays) {
+        const daysLeft = Math.ceil((thirtyDays - (Date.now() - changedAt)) / (24 * 60 * 60 * 1000));
+        return { error: `You can change your display name again in ${daysLeft} day${daysLeft === 1 ? '' : 's'}` };
+      }
+    }
+
+    this.db.updateDisplayName(userId, newDisplayName.trim());
+    return { success: true };
+  }
+
+  changeAvatar(userId: number, avatar: string): { success: true } | { error: string } {
+    const VALID_AVATARS = [
+      'zeus', 'athena', 'poseidon', 'apollo', 'artemis', 'hermes',
+      'ares', 'hera', 'aphrodite', 'hephaestus', 'demeter', 'dionysus',
+    ];
+    if (!VALID_AVATARS.includes(avatar)) return { error: 'Invalid avatar' };
+    this.db.updateAvatar(userId, avatar);
     return { success: true };
   }
 

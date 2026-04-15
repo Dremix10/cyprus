@@ -114,7 +114,9 @@ export class TrackerDB {
         updated_at TEXT DEFAULT (datetime('now')),
         locked_until TEXT,
         failed_login_attempts INTEGER DEFAULT 0,
-        last_login_at TEXT
+        last_login_at TEXT,
+        avatar TEXT,
+        display_name_changed_at TEXT
       );
 
       CREATE TABLE IF NOT EXISTS user_sessions (
@@ -174,6 +176,8 @@ export class TrackerDB {
       `ALTER TABLE users ADD COLUMN email TEXT COLLATE NOCASE`,
       `ALTER TABLE users ADD COLUMN google_id TEXT`,
       `ALTER TABLE game_players ADD COLUMN user_id INTEGER`,
+      `ALTER TABLE users ADD COLUMN avatar TEXT`,
+      `ALTER TABLE users ADD COLUMN display_name_changed_at TEXT`,
     ];
     for (const sql of addColumnMigrations) {
       try { this.db.exec(sql); } catch { /* column already exists */ }
@@ -491,9 +495,10 @@ export class TrackerDB {
   getUserById(id: number): {
     id: number; username: string; display_name: string; created_at: string;
     last_login_at: string | null; email: string | null;
+    avatar: string | null; display_name_changed_at: string | null;
   } | undefined {
     return this.db.prepare(
-      `SELECT id, username, display_name, created_at, last_login_at, email FROM users WHERE id = ?`
+      `SELECT id, username, display_name, created_at, last_login_at, email, avatar, display_name_changed_at FROM users WHERE id = ?`
     ).get(id) as ReturnType<TrackerDB['getUserById']>;
   }
 
@@ -877,6 +882,28 @@ export class TrackerDB {
     if (!row) return 'none';
     if (row.status === 'accepted') return 'friends';
     return row.user_id === userId ? 'pending_sent' : 'pending_received';
+  }
+
+  // ─── Profile ─────────────────────────────────────────────────────
+
+  getFriendCount(userId: number): number {
+    const row = this.db.prepare(`
+      SELECT COUNT(*) as c FROM friendships
+      WHERE (user_id = ? OR friend_id = ?) AND status = 'accepted'
+    `).get(userId, userId) as { c: number };
+    return row.c;
+  }
+
+  updateDisplayName(userId: number, displayName: string): void {
+    this.db.prepare(
+      `UPDATE users SET display_name = ?, display_name_changed_at = datetime('now'), updated_at = datetime('now') WHERE id = ?`
+    ).run(displayName, userId);
+  }
+
+  updateAvatar(userId: number, avatar: string): void {
+    this.db.prepare(
+      `UPDATE users SET avatar = ?, updated_at = datetime('now') WHERE id = ?`
+    ).run(avatar, userId);
   }
 
   // ─── Read-Only Query ─────────────────────────────────────────────
