@@ -34,6 +34,10 @@ export function useSocketEvents() {
         return;
       }
       setGameError(message);
+      // Game error likely means client state is out of sync — request fresh state
+      if (socket.connected && useGameStore.getState().gameState) {
+        socket.emit('game:resync');
+      }
     };
 
     const onPlayerDisconnected = (nickname: string) => {
@@ -74,6 +78,13 @@ export function useSocketEvents() {
     socket.on('matchmaking:cancelled', onMatchmakingCancelled);
     socket.io.on('reconnect', onReconnect);
 
+    // Periodic resync: request fresh game state every 15s to recover from missed updates
+    const resyncInterval = setInterval(() => {
+      if (socket.connected && useGameStore.getState().gameState) {
+        socket.emit('game:resync');
+      }
+    }, 15_000);
+
     return () => {
       socket.off('room:state', onRoomState);
       socket.off('game:state', onGameState);
@@ -85,6 +96,7 @@ export function useSocketEvents() {
       socket.off('matchmaking:found', onMatchmakingFound);
       socket.off('matchmaking:cancelled', onMatchmakingCancelled);
       socket.io.off('reconnect', onReconnect);
+      clearInterval(resyncInterval);
     };
   }, [setRoomState, setView, setGameState, handleEvent, setGameError, setRoomError, setQueueInfo]);
 }

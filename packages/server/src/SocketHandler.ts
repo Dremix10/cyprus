@@ -291,6 +291,10 @@ export class SocketHandler {
       if (!this.checkRate(socket, 'action')) return;
       this.handleSkipRound(socket);
     });
+    socket.on('game:resync', () => {
+      if (!this.checkRate(socket, 'action')) return;
+      this.handleResync(socket);
+    });
   }
 
   private registerSessionEvents(socket: TypedSocket, ip: string | null): void {
@@ -552,6 +556,37 @@ export class SocketHandler {
     }
 
     this.broadcastGameState(info.room.code);
+  }
+
+  private handleResync(socket: TypedSocket): void {
+    const info = this.rooms.getRoomForSocket(socket.id);
+    if (!info || !info.room.engine) return;
+
+    const room = info.room;
+    const engine = room.engine!;
+    const avatars = new Map<PlayerPosition, string>();
+    const disconnected = new Set<PlayerPosition>();
+    for (const [pos, player] of room.players) {
+      if (player.avatar) avatars.set(pos, player.avatar);
+      if (!player.connected) disconnected.add(pos);
+    }
+
+    const userIds = new Map<number, number>();
+    for (const [pos, player] of room.players) {
+      if (player.userId && !room.botPositions.has(pos)) {
+        userIds.set(pos, player.userId);
+      }
+    }
+
+    const isSolo = room.botPositions.size === 3;
+    const state = engine.getClientState(info.position, room.code, room.botPositions, avatars, disconnected, isSolo);
+    state.turnDeadline = this.timers.getTurnDeadline(room.code);
+    if (room.botPositions.size > 0) state.botDifficulty = room.botDifficulty;
+    for (const p of state.players) {
+      const uid = userIds.get(p.position);
+      if (uid) p.userId = uid;
+    }
+    socket.emit('game:state', state);
   }
 
   private buildSimContext(engine: GameEngine): { playerCardCounts: Map<PlayerPosition, number>; tichuCalls: Record<PlayerPosition, TichuCall>; finishOrder: PlayerPosition[]; playedCards: Card[]; scores: [number, number] } {
