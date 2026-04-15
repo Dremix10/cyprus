@@ -77,9 +77,10 @@ function getAuthToken(req: Request): string | null {
 
 let googleClient: OAuth2Client | null = null;
 const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID;
+const GOOGLE_CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET;
 
 if (GOOGLE_CLIENT_ID) {
-  googleClient = new OAuth2Client(GOOGLE_CLIENT_ID);
+  googleClient = new OAuth2Client(GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET);
   console.log('Google Sign-In configured');
 } else {
   console.log('Google Sign-In not configured — set GOOGLE_CLIENT_ID to enable');
@@ -200,24 +201,34 @@ export function createAuthRouter(auth: AuthService, isProduction: boolean, monit
     }
   });
 
-  // ── POST /auth/google-redirect (redirect mode from GSI) ──────────
-  router.post('/google-redirect', express.urlencoded({ extended: false }), async (req: Request, res: Response) => {
-    if (!googleClient || !GOOGLE_CLIENT_ID) {
+  // ── GET /auth/google-callback (OAuth2 Authorization Code flow) ────
+  router.get('/google-callback', async (req: Request, res: Response) => {
+    if (!googleClient || !GOOGLE_CLIENT_ID || !GOOGLE_CLIENT_SECRET) {
       res.redirect('/?error=google-not-configured');
       return;
     }
 
-    const credential = req.body?.credential;
-    if (!credential || typeof credential !== 'string') {
+    const code = req.query.code as string;
+    if (!code) {
       res.redirect('/?error=google-failed');
       return;
     }
 
     const ip = req.ip || req.socket.remoteAddress || 'unknown';
+    const redirectUri = `${req.protocol}://${req.get('host')}/auth/google-callback`;
 
     try {
+      // Exchange authorization code for tokens
+      const { tokens } = await googleClient.getToken({ code, redirect_uri: redirectUri });
+      const idToken = tokens.id_token;
+      if (!idToken) {
+        res.redirect('/?error=google-failed');
+        return;
+      }
+
+      // Verify the ID token
       const ticket = await googleClient.verifyIdToken({
-        idToken: credential,
+        idToken,
         audience: GOOGLE_CLIENT_ID,
       });
       const payload = ticket.getPayload();
@@ -238,8 +249,8 @@ export function createAuthRouter(auth: AuthService, isProduction: boolean, monit
       setAuthCookie(res, result.token, isProduction);
       res.redirect('/');
     } catch (err) {
-      console.error('Google redirect auth error:', err);
-      monitor?.loginFailed('google-redirect', ip, (err as Error).message);
+      console.error('Google OAuth callback error:', err);
+      monitor?.loginFailed('google-oauth', ip, (err as Error).message);
       res.redirect('/?error=google-failed');
     }
   });

@@ -1,62 +1,29 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState } from 'react';
 import { useAuthStore } from '../stores/authStore.js';
 
-// ─── Google Sign-In ─────────────────────────────────────────────────
-
-declare global {
-  interface Window {
-    google?: {
-      accounts: {
-        id: {
-          initialize: (config: Record<string, unknown>) => void;
-          renderButton: (parent: HTMLElement, options: Record<string, unknown>) => void;
-        };
-      };
-    };
-  }
-}
+// ─── Google Sign-In (standard OAuth2 redirect) ─────────────────────
 
 function GoogleSignInButton() {
   const googleClientId = useAuthStore((s) => s.googleClientId);
-  const loginWithGoogle = useAuthStore((s) => s.loginWithGoogle);
-  const buttonRef = useRef<HTMLDivElement>(null);
-  const [loaded, setLoaded] = useState(false);
-
-  const handleCredential = useCallback((response: { credential: string }) => {
-    loginWithGoogle(response.credential);
-  }, [loginWithGoogle]);
-
-  useEffect(() => {
-    if (!googleClientId) return;
-    if (!document.getElementById('google-gsi-script')) {
-      const script = document.createElement('script');
-      script.id = 'google-gsi-script';
-      script.src = 'https://accounts.google.com/gsi/client';
-      script.async = true;
-      script.onload = () => setLoaded(true);
-      document.head.appendChild(script);
-    } else if (window.google) {
-      setLoaded(true);
-    }
-  }, [googleClientId]);
-
-  useEffect(() => {
-    if (!loaded || !googleClientId || !buttonRef.current || !window.google) return;
-    window.google.accounts.id.initialize({
-      client_id: googleClientId,
-      callback: handleCredential,
-    });
-    window.google.accounts.id.renderButton(buttonRef.current, {
-      theme: 'filled_black',
-      size: 'large',
-      width: 300,
-      text: 'signin_with',
-    });
-  }, [loaded, googleClientId, handleCredential]);
-
   if (!googleClientId) return null;
 
-  return <div ref={buttonRef} className="google-signin-btn" />;
+  const handleClick = () => {
+    const params = new URLSearchParams({
+      client_id: googleClientId,
+      redirect_uri: window.location.origin + '/auth/google-callback',
+      response_type: 'code',
+      scope: 'openid email profile',
+      access_type: 'online',
+      prompt: 'select_account',
+    });
+    window.location.href = `https://accounts.google.com/o/oauth2/v2/auth?${params}`;
+  };
+
+  return (
+    <button className="btn btn-olympus btn-google" onClick={handleClick}>
+      Sign in with Google
+    </button>
+  );
 }
 
 // ─── Reset Password Form (shown when URL has ?resetToken=) ──────────
