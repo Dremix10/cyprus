@@ -57,6 +57,7 @@ export function isUserOnline(userId: number): boolean {
 
 export class SocketHandler {
   private socketToSession = new Map<string, string>();
+  private spectators = new Map<string, string>(); // socketId -> roomCode
   private rateLimiter = new RateLimiter();
   private rateLimitCleanup: ReturnType<typeof setInterval>;
   private matchmaking: MatchmakingManager;
@@ -141,6 +142,7 @@ export class SocketHandler {
       this.registerMatchmakingEvents(socket, ip);
       this.registerGameEvents(socket);
       this.registerSessionEvents(socket, ip);
+      this.registerSpectate(socket);
       this.registerDisconnect(socket, ip);
     });
   }
@@ -345,10 +347,37 @@ export class SocketHandler {
     });
   }
 
+  private registerSpectate(socket: TypedSocket): void {
+    socket.on('room:spectate', (roomCode, callback) => {
+      if (!this.checkRate(socket, 'spectate', 5, 30_000)) return;
+      const code = roomCode?.trim()?.toUpperCase();
+      if (!code) { callback({ error: 'Enter a room code' }); return; }
+
+      const room = this.rooms.getRoom(code);
+      if (!room || !room.engine) { callback({ error: 'Game not found' }); return; }
+
+      socket.join(code);
+      this.spectators.set(socket.id, code);
+      callback({ success: true, roomCode: code });
+
+      // Send spectator state immediately
+      const avatars = new Map<PlayerPosition, string>();
+      const disconnected = new Set<PlayerPosition>();
+      for (const [pos, player] of room.players) {
+        if (player.avatar) avatars.set(pos, player.avatar);
+        if (!player.connected) disconnected.add(pos);
+      }
+      const state = room.engine.getSpectatorState(code, avatars, disconnected);
+      state.turnDeadline = this.timers.getTurnDeadline(code);
+      socket.emit('game:state', state);
+    });
+  }
+
   private registerDisconnect(socket: TypedSocket, _ip: string | null): void {
     socket.on('disconnect', () => {
       this.db?.logDisconnection(socket.id);
       this.socketToSession.delete(socket.id);
+      this.spectators.delete(socket.id);
       this.matchmaking.handleDisconnect(socket.id);
 
       // Clean up online presence
@@ -761,6 +790,16 @@ export class SocketHandler {
         if (uid) p.userId = uid;
       }
       this.io.to(socketId).emit('game:state', state);
+    }
+
+    // Send spectator state to all spectators in this room
+    const spectatorState = room.engine.getSpectatorState(roomCode, avatars, disconnected);
+    spectatorState.turnDeadline = deadline;
+    if (room.botPositions.size > 0) spectatorState.botDifficulty = room.botDifficulty;
+    for (const [socketId, specRoom] of this.spectators) {
+      if (specRoom === roomCode) {
+        this.io.to(socketId).emit('game:state', spectatorState);
+      }
     }
 
     this.persistence.saveGameState(roomCode, room);
