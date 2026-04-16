@@ -87,6 +87,7 @@ import { PlayerHand } from './PlayerHand.js';
 import { OpponentHand } from './OpponentHand.js';
 import { WishSelector } from './WishSelector.js';
 import { ScoreHistory } from './ScoreHistory.js';
+import { QuickGuideButton } from './QuickGuide.js';
 import { GrandTichuView, PassingView, ScoringView, GameOverView, TichuCallBadges, PointCards, ScoreBreakdown } from './PhaseViews.js';
 import { isMuted, setMuted } from '../sounds.js';
 
@@ -149,6 +150,7 @@ export function GameBoard() {
           {roomCode && <span className="room-code-badge">{roomCode}</span>}
           {formatPhase(gameState.phase)}
           <SoundToggle />
+          <QuickGuideButton />
           {hasHistory && (
             <button className="history-btn" onClick={() => setShowHistory(true)} title="Score History">
               {'\uD83D\uDCCA'}
