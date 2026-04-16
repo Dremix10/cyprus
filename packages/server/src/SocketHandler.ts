@@ -149,11 +149,13 @@ export class SocketHandler {
       const userId = socket.data.userId as number | undefined;
       const validDiffs: BotDifficulty[] = ['easy', 'medium', 'hard'];
       const diff: BotDifficulty = validDiffs.includes(difficulty as BotDifficulty) ? (difficulty as BotDifficulty) : 'medium';
+      const nickWarning = this.rooms.checkNicknameWarning(nickname);
       const result = this.rooms.createRoom(socket.id, nickname, targetScore, userId, diff);
       if ('error' in result) { callback({ error: result.error }); return; }
       socket.join(result.roomCode);
       this.socketToSession.set(socket.id, result.sessionId);
       callback({ roomCode: result.roomCode, sessionId: result.sessionId });
+      if (nickWarning) socket.emit('game:error', nickWarning);
       this.db?.updateConnectionNickname(socket.id, nickname, result.roomCode);
       this.db?.getOrCreatePlayer(nickname, ip);
       this.monitor?.gameCreated(result.roomCode, targetScore, false, diff, userId);
@@ -166,11 +168,13 @@ export class SocketHandler {
       const validDifficulties: BotDifficulty[] = ['easy', 'medium', 'hard'];
       const diff: BotDifficulty = validDifficulties.includes(difficulty as BotDifficulty) ? (difficulty as BotDifficulty) : 'medium';
       const userId = socket.data.userId as number | undefined;
+      const nickWarning = this.rooms.checkNicknameWarning(nickname);
       const result = this.rooms.createSoloRoom(socket.id, nickname, targetScore, diff, userId);
       if ('error' in result) { callback({ error: result.error }); return; }
       socket.join(result.roomCode);
       this.socketToSession.set(socket.id, result.sessionId);
       callback({ roomCode: result.roomCode, sessionId: result.sessionId });
+      if (nickWarning) socket.emit('game:error', nickWarning);
       this.db?.updateConnectionNickname(socket.id, nickname, result.roomCode);
       const playerId = this.db?.getOrCreatePlayer(nickname, ip);
       this.monitor?.gameCreated(result.roomCode, targetScore, true, diff, userId);
@@ -188,11 +192,13 @@ export class SocketHandler {
     socket.on('room:join', (roomCode, nickname, callback) => {
       if (!this.checkRate(socket, 'join', 10, 30_000)) return;
       const userId = socket.data.userId as number | undefined;
+      const nickWarning = this.rooms.checkNicknameWarning(nickname);
       const result = this.rooms.joinRoom(socket.id, roomCode, nickname, userId);
       if ('error' in result) { callback({ error: result.error }); return; }
       socket.join(roomCode.toUpperCase());
       this.socketToSession.set(socket.id, result.sessionId);
       callback({ success: true, sessionId: result.sessionId });
+      if (nickWarning) socket.emit('game:error', nickWarning);
       this.db?.updateConnectionNickname(socket.id, nickname, roomCode.toUpperCase());
       this.db?.getOrCreatePlayer(nickname, ip);
       this.monitor?.playerJoined(roomCode.toUpperCase(), nickname, userId);
