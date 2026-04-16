@@ -4,6 +4,39 @@ import { useRoomStore } from '../stores/roomStore.js';
 import { GamePhase, SpecialCardType, CombinationType, getRankLabel, sortCards } from '@cyprus/shared';
 import type { Card, Combination, PlayerPosition } from '@cyprus/shared';
 
+/** Get the effective rank label for Phoenix in a combo. Returns null if not applicable. */
+function getPhoenixLabel(combo: Combination): string | null {
+  const phoenix = combo.cards.find((c) => c.type === 'special' && c.specialType === SpecialCardType.PHOENIX);
+  if (!phoenix || combo.cards.length <= 1) return null;
+
+  const getCardRank = (c: Card) => c.type === 'normal' ? c.rank : (c.type === 'special' && c.specialType === SpecialCardType.MAHJONG ? 1 : 0);
+  const others = combo.cards.filter((c) => c !== phoenix);
+  const ranks = others.map(getCardRank);
+
+  if (combo.type === CombinationType.STRAIGHT || combo.type === CombinationType.CONSECUTIVE_PAIRS) {
+    const minRank = Math.min(...ranks);
+    const maxRank = Math.max(...ranks);
+    let phoenixRank = maxRank + 1;
+    for (let r = minRank; r <= maxRank + 1; r++) {
+      if (!ranks.includes(r)) { phoenixRank = r; break; }
+    }
+    return getRankLabel(phoenixRank);
+  }
+  if (combo.type === CombinationType.PAIR || combo.type === CombinationType.TRIPLE || combo.type === CombinationType.FULL_HOUSE) {
+    // Phoenix matches the rank of the other cards in its group
+    const rankCounts = new Map<number, number>();
+    for (const r of ranks) rankCounts.set(r, (rankCounts.get(r) ?? 0) + 1);
+    // Find the rank with fewer cards (Phoenix completes it)
+    let minCount = Infinity;
+    let phoenixRank = ranks[0];
+    for (const [r, count] of rankCounts) {
+      if (count < minCount) { minCount = count; phoenixRank = r; }
+    }
+    return getRankLabel(phoenixRank);
+  }
+  return null;
+}
+
 /** Sort cards for display: Phoenix placed at its effective position in the combo. */
 function sortForDisplay(combo: Combination): Card[] {
   if (combo.type === CombinationType.FULL_HOUSE) {
@@ -361,9 +394,17 @@ function PlayingLayout({
                       {isWinning && <span className="trick-winner-icon" title="Winning">★</span>}
                     </span>
                     <div className={`trick-combo ${play.combination.cards.length >= 6 ? 'trick-combo-long' : ''}`}>
-                      {sortForDisplay(play.combination).map((c) => (
-                        <CardComponent key={c.id} card={c} size="small" />
-                      ))}
+                      {(() => {
+                        const phoenixLabel = getPhoenixLabel(play.combination);
+                        return sortForDisplay(play.combination).map((c) => (
+                          <div key={c.id} className="trick-card-wrap">
+                            <CardComponent card={c} size="small" />
+                            {phoenixLabel && c.type === 'special' && c.specialType === SpecialCardType.PHOENIX && (
+                              <span className="phoenix-rank-badge">{phoenixLabel}</span>
+                            )}
+                          </div>
+                        ));
+                      })()}
                     </div>
                   </div>
                 );
