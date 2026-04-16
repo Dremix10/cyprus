@@ -149,6 +149,78 @@ export function createAdminRouter(db: TrackerDB): express.Router {
     res.json(db.getTopIPs(limit));
   });
 
+  router.get('/api/audit', requireAuth, (_req, res) => {
+    const now = new Date().toISOString();
+    const stats = db.getStats();
+
+    // Stuck games (running > 2 hours)
+    const stuckGames = db.runReadOnlyQuery(
+      `SELECT id, room_code, started_at FROM games WHERE ended_at IS NULL AND started_at < datetime('now', '-2 hours')`,
+      50
+    );
+
+    // Errors in last 2 hours
+    const recentErrors = db.getServerLogs({ level: 'error', limit: 50 });
+    const errorsLast2h = recentErrors.filter((l: any) => {
+      const logTime = new Date(l.created_at + 'Z').getTime();
+      return Date.now() - logTime < 2 * 60 * 60_000;
+    });
+
+    // Bot errors
+    const botErrors = db.getServerLogs({ category: 'bot', limit: 20 });
+    const botErrorsLast2h = botErrors.filter((l: any) => {
+      const logTime = new Date(l.created_at + 'Z').getTime();
+      return Date.now() - logTime < 2 * 60 * 60_000;
+    });
+
+    // Disconnects in last 2 hours
+    const disconnects = db.getServerLogs({ category: 'connection', level: 'warn', limit: 50 });
+    const disconnectsLast2h = disconnects.filter((l: any) => {
+      const logTime = new Date(l.created_at + 'Z').getTime();
+      return Date.now() - logTime < 2 * 60 * 60_000;
+    });
+
+    // Determine status
+    let status = 'OK';
+    const issues: string[] = [];
+
+    if (stuckGames.rowCount > 0) {
+      status = 'WARNING';
+      issues.push(`${stuckGames.rowCount} stuck game(s) running >2 hours`);
+    }
+    if (errorsLast2h.length > 5) {
+      status = 'WARNING';
+      issues.push(`${errorsLast2h.length} errors in last 2 hours`);
+    }
+    if (errorsLast2h.length > 20) {
+      status = 'CRITICAL';
+    }
+    if (botErrorsLast2h.length > 3) {
+      status = 'WARNING';
+      issues.push(`${botErrorsLast2h.length} bot errors in last 2 hours`);
+    }
+
+    res.json({
+      timestamp: now,
+      status,
+      health: {
+        activeConnections: stats.activeConnections,
+        totalGames: stats.totalGames,
+        gamesInProgress: stats.gamesInProgress,
+        totalPlayers: stats.totalPlayers,
+      },
+      issues: issues.length > 0 ? issues : ['None'],
+      metrics: {
+        errorsLast2h: errorsLast2h.length,
+        botErrorsLast2h: botErrorsLast2h.length,
+        disconnectsLast2h: disconnectsLast2h.length,
+        stuckGames: stuckGames.rowCount,
+      },
+      recentErrors: errorsLast2h.slice(0, 5),
+      stuckGameDetails: stuckGames.rows,
+    });
+  });
+
   router.get('/api/logs', requireAuth, (req, res) => {
     const level = req.query.level as string | undefined;
     const category = req.query.category as string | undefined;
