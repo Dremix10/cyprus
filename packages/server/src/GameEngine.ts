@@ -687,11 +687,15 @@ export class GameEngine {
     if (!this.state.roundEndPending) return this.events;
     this.state.roundEndPending = false;
 
-    // Save last trick for display, then clear
+    // Save last trick for display
     this.state.lastTrick = { ...this.state.currentTrick };
-    this.state.currentTrick = { plays: [], currentWinner: null, passCount: 0, passedPlayers: [] };
 
+    // Score FIRST — scoreRound() needs to see any unfinished trick still on the table
+    // (it awards those cards to the current winner before tallying points)
     this.scoreRound();
+
+    // Clear trick after scoring
+    this.state.currentTrick = { plays: [], currentWinner: null, passCount: 0, passedPlayers: [] };
     return this.events;
   }
 
