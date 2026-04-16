@@ -358,6 +358,14 @@ export class TrackerDB {
     this.db.prepare(`DELETE FROM server_logs WHERE created_at < datetime('now', '-' || ? || ' days')`).run(daysToKeep);
   }
 
+  closeAbandonedGames(inactiveMinutes: number = 120): number {
+    const result = this.db.prepare(
+      `UPDATE games SET ended_at = datetime('now'), winner_team = 'Abandoned'
+       WHERE ended_at IS NULL AND started_at < datetime('now', '-' || ? || ' minutes')`
+    ).run(inactiveMinutes);
+    return result.changes;
+  }
+
   // ─── Admin Sessions ─────────────────────────────────────────────────
 
   createAdminSession(token: string, expiresInHours: number = 24): void {
