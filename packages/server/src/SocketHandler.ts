@@ -128,10 +128,13 @@ export class SocketHandler {
 
       // Track online presence for authenticated users
       const userId = socket.data.userId as number | undefined;
+      const displayName = socket.data.displayName as string | undefined;
       this.db?.logConnection(socket.id, ip, ua, userId);
       if (userId) {
         if (!onlineUsers.has(userId)) onlineUsers.set(userId, new Set());
         onlineUsers.get(userId)!.add(socket.id);
+        // Set nickname from auth for connection tracking
+        if (displayName) this.db?.updateConnectionNickname(socket.id, displayName, null);
       }
 
       this.registerRoomEvents(socket, ip);
