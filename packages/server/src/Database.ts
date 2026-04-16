@@ -180,6 +180,7 @@ export class TrackerDB {
       `ALTER TABLE users ADD COLUMN avatar TEXT`,
       `ALTER TABLE users ADD COLUMN display_name_changed_at TEXT`,
       `ALTER TABLE users ADD COLUMN language TEXT`,
+      `ALTER TABLE connections ADD COLUMN user_id INTEGER`,
     ];
     for (const sql of addColumnMigrations) {
       try { this.db.exec(sql); } catch { /* column already exists */ }
@@ -208,10 +209,10 @@ export class TrackerDB {
 
   // ─── Connections ────────────────────────────────────────────────────
 
-  logConnection(socketId: string, ip: string | null, userAgent: string | null): void {
+  logConnection(socketId: string, ip: string | null, userAgent: string | null, userId?: number): void {
     this.db.prepare(
-      `INSERT INTO connections (socket_id, ip, user_agent) VALUES (?, ?, ?)`
-    ).run(socketId, ip, userAgent);
+      `INSERT INTO connections (socket_id, ip, user_agent, user_id) VALUES (?, ?, ?, ?)`
+    ).run(socketId, ip, userAgent, userId ?? null);
   }
 
   markAllConnectionsDisconnected(): void {
@@ -365,10 +366,13 @@ export class TrackerDB {
   }
 
   closeAbandonedGames(inactiveMinutes: number = 120): number {
-    const result = this.db.prepare(
-      `UPDATE games SET ended_at = datetime('now'), winner_team = 'Abandoned'
-       WHERE ended_at IS NULL AND started_at < datetime('now', '-' || ? || ' minutes')`
-    ).run(inactiveMinutes);
+    const result = this.db.prepare(`
+      UPDATE games SET ended_at = datetime('now'), winner_team = 'Abandoned'
+      WHERE ended_at IS NULL AND id NOT IN (
+        SELECT DISTINCT game_id FROM game_events
+        WHERE game_id IS NOT NULL AND created_at > datetime('now', '-' || ? || ' minutes')
+      ) AND started_at < datetime('now', '-' || ? || ' minutes')
+    `).run(inactiveMinutes, inactiveMinutes);
     return result.changes;
   }
 
