@@ -37,12 +37,17 @@ export function PointCards({ cards, team }: { cards: import('@cyprus/shared').Ca
     <div className="point-cards-panel">
       <h4>{t('phase.pointCards', { team, points: totalPoints })}</h4>
       <div className="point-cards-grid">
-        {cards.filter((c) => getCardPoints(c) > 0).map((c) => (
-          <div key={c.id} className="point-card-entry">
-            <CardComponent card={c} size="small" />
-            <span className="point-card-value">+{getCardPoints(c)}</span>
-          </div>
-        ))}
+        {cards.filter((c) => getCardPoints(c) !== 0).map((c) => {
+          const pts = getCardPoints(c);
+          return (
+            <div key={c.id} className="point-card-entry">
+              <CardComponent card={c} size="small" />
+              <span className={`point-card-value${pts < 0 ? ' point-card-negative' : ''}`}>
+                {pts > 0 ? `+${pts}` : pts}
+              </span>
+            </div>
+          );
+        })}
       </div>
     </div>
   );
