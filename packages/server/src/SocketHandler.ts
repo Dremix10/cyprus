@@ -126,10 +126,9 @@ export class SocketHandler {
         return;
       }
 
-      this.db?.logConnection(socket.id, ip, ua);
-
       // Track online presence for authenticated users
       const userId = socket.data.userId as number | undefined;
+      this.db?.logConnection(socket.id, ip, ua, userId);
       if (userId) {
         if (!onlineUsers.has(userId)) onlineUsers.set(userId, new Set());
         onlineUsers.get(userId)!.add(socket.id);
