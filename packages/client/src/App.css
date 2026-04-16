@@ -4141,3 +4141,29 @@ body {
   color: #fff !important;
 }
 .btn-google:hover { background: #3367d6 !important; }
+
+/* ─── Phoenix Rank Badge ─────────────────────────────────────────── */
+
+.trick-card-wrap {
+  position: relative;
+  display: inline-block;
+}
+
+.phoenix-rank-badge {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  background: #c9a84c;
+  color: #000;
+  font-size: 0.6rem;
+  font-weight: 700;
+  min-width: 16px;
+  height: 16px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 3px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+  z-index: 1;
+}
