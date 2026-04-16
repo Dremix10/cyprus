@@ -26,11 +26,20 @@ export class BotController {
     private monitor?: GameMonitor,
   ) {}
 
+  private getMcConfig(difficulty: BotDifficulty): Partial<import('./BotAI.js').BotConfig> {
+    switch (difficulty) {
+      case 'unfair': return { useMonteCarlo: true, mcSims: 600, mcTimeMs: 400 };
+      case 'extreme': return { useMonteCarlo: true, mcSims: 400, mcTimeMs: 300 };
+      case 'hard': return { useMonteCarlo: true };
+      default: return {};
+    }
+  }
+
   scheduleBotAction(roomCode: string): void {
     const room = this.rooms.getRoom(roomCode);
     if (!room || !room.engine || room.botPositions.size === 0) return;
 
-    const botAI = new BotAI(room.botDifficulty, room.botDifficulty === 'hard' ? { useMonteCarlo: true } : {});
+    const botAI = new BotAI(room.botDifficulty, this.getMcConfig(room.botDifficulty));
 
     // Pre-check: is there a bot action available right now?
     const preCheck = this.findBotAction(room, room.engine, botAI);
@@ -48,7 +57,7 @@ export class BotController {
       const currentRoom = this.rooms.getRoom(roomCode);
       if (!currentRoom || !currentRoom.engine) return;
 
-      const currentBotAI = new BotAI(currentRoom.botDifficulty, currentRoom.botDifficulty === 'hard' ? { useMonteCarlo: true } : {});
+      const currentBotAI = new BotAI(currentRoom.botDifficulty, this.getMcConfig(currentRoom.botDifficulty));
       const action = this.findBotAction(currentRoom, currentRoom.engine, currentBotAI);
       if (!action) return;
 
@@ -169,7 +178,7 @@ export class BotController {
 
       // Build MC evaluator for hard mode bots
       const mcEval = botAI.config.useMonteCarlo
-        ? (candidates: (Card[] | null)[]) => monteCarloEvaluate(engine, currentPlayer, candidates, 200, 150, this.monitor, room.code)
+        ? (candidates: (Card[] | null)[]) => monteCarloEvaluate(engine, currentPlayer, candidates, botAI.config.mcSims, botAI.config.mcTimeMs, this.monitor, room.code)
         : undefined;
 
       let cardIds = botAI.choosePlay(

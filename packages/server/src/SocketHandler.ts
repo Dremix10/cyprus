@@ -149,7 +149,7 @@ export class SocketHandler {
     socket.on('room:create', (nickname, targetScore, difficulty, callback) => {
       if (!this.checkRate(socket, 'create', 5, 30_000)) return;
       const userId = socket.data.userId as number | undefined;
-      const validDiffs: BotDifficulty[] = ['easy', 'medium', 'hard'];
+      const validDiffs: BotDifficulty[] = ['easy', 'medium', 'hard', 'extreme', 'unfair'];
       const diff: BotDifficulty = validDiffs.includes(difficulty as BotDifficulty) ? (difficulty as BotDifficulty) : 'medium';
       const nickWarning = this.rooms.checkNicknameWarning(nickname);
       const result = this.rooms.createRoom(socket.id, nickname, targetScore, userId, diff);
@@ -167,7 +167,7 @@ export class SocketHandler {
 
     socket.on('room:create_solo', (nickname, targetScore, difficulty, callback) => {
       if (!this.checkRate(socket, 'create', 5, 30_000)) return;
-      const validDifficulties: BotDifficulty[] = ['easy', 'medium', 'hard'];
+      const validDifficulties: BotDifficulty[] = ['easy', 'medium', 'hard', 'extreme', 'unfair'];
       const diff: BotDifficulty = validDifficulties.includes(difficulty as BotDifficulty) ? (difficulty as BotDifficulty) : 'medium';
       const userId = socket.data.userId as number | undefined;
       const nickWarning = this.rooms.checkNicknameWarning(nickname);

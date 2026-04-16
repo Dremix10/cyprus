@@ -200,6 +200,8 @@ export function Lobby({ onTutorial, onLeaderboard, onProfile }: { onTutorial: ()
                         <option value="easy">{t('lobby.easy')}</option>
                         <option value="medium">{t('lobby.medium')}</option>
                         <option value="hard">{t('lobby.hard')}</option>
+                        <option value="extreme">{t('lobby.extreme')}</option>
+                        <option value="unfair">{t('lobby.unfair')}</option>
                       </select>
                     </div>
                     <button className="btn btn-olympus btn-create" onClick={createRoom}>
@@ -262,6 +264,8 @@ export function Lobby({ onTutorial, onLeaderboard, onProfile }: { onTutorial: ()
                       <option value="easy">{t('lobby.easyBots')}</option>
                       <option value="medium">{t('lobby.mediumBots')}</option>
                       <option value="hard">{t('lobby.hardBots')}</option>
+                      <option value="extreme">{t('lobby.extremeBots')}</option>
+                      <option value="unfair">{t('lobby.unfairBots')}</option>
                     </select>
                     <button className="btn btn-olympus btn-solo-greek" onClick={() => createSoloRoom(difficulty)}>
                       {t('lobby.start')}
