@@ -14,6 +14,7 @@ import { AuthService } from './AuthService.js';
 import { createAuthRouter, SESSION_COOKIE } from './AuthRoutes.js';
 import { createFriendRouter } from './FriendRoutes.js';
 import { GameMonitor } from './GameMonitor.js';
+import { ServerAuditor } from './ServerAuditor.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
@@ -143,6 +144,9 @@ const startedAt = new Date().toISOString();
 monitor.serverStarted(commitHash);
 if (restored > 0) monitor.roomRestored(restored);
 
+// ─── Automated Auditor ──────────────────────────────────────────────
+const auditor = new ServerAuditor(db, monitor, () => io.engine.clientsCount);
+
 // ─── Routes ─────────────────────────────────────────────────────────
 
 app.get('/health', (_req, res) => {
@@ -269,6 +273,7 @@ function shutdown(signal: string): void {
   socketHandler.destroy();
   roomManager.destroy();
   monitor.destroy();
+  auditor.destroy();
   httpServer.close(() => {
     db.close();
     console.log('Server closed');
