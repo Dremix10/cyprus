@@ -220,7 +220,7 @@ export function GameBoard() {
       </div>
       {gameState.botDifficulty && (
         <div className="bot-difficulty-label">
-          {t('game.bots', { difficulty: gameState.botDifficulty.charAt(0).toUpperCase() + gameState.botDifficulty.slice(1) })}
+          {t('game.bots', { difficulty: t(`lobby.${gameState.botDifficulty}`) })}
         </div>
       )}
 
