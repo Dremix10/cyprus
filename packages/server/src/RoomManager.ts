@@ -332,7 +332,11 @@ export class RoomManager {
         botIndex++;
       }
     }
-    room.botDifficulty = 'hard';
+    // botDifficulty is already set by createRoom / createSoloRoom.
+    // Only default to 'hard' for matchmaking rooms that have no difficulty set.
+    if (botIndex > 0 && !room.botDifficulty) {
+      room.botDifficulty = 'hard';
+    }
 
     const nicknames: [string, string, string, string] = [
       room.players.get(0)!.nickname,
