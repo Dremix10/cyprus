@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import type { LeaderboardEntry, MyLeaderboardStats } from '@cyprus/shared';
 import { useAuthStore } from '../stores/authStore.js';
+import { useT } from '../i18n.js';
 
 type GameHistoryEntry = {
   game_id: number;
@@ -12,6 +13,7 @@ type GameHistoryEntry = {
 };
 
 export function Leaderboard({ onBack }: { onBack: () => void }) {
+  const t = useT();
   const [entries, setEntries] = useState<LeaderboardEntry[]>([]);
   const [myStats, setMyStats] = useState<MyLeaderboardStats | null>(null);
   const [gameHistory, setGameHistory] = useState<GameHistoryEntry[]>([]);
@@ -48,29 +50,29 @@ export function Leaderboard({ onBack }: { onBack: () => void }) {
 
       <div className="leaderboard-content">
         <div className="leaderboard-header">
-          <h1 className="title-greek">Leaderboard</h1>
-          <p className="subtitle-greek">Hall of Champions</p>
+          <h1 className="title-greek">{t('leaderboard.title')}</h1>
+          <p className="subtitle-greek">{t('leaderboard.subtitle')}</p>
         </div>
 
         {myStats && myStats.games_played > 0 && (
           <div className="leaderboard-my-stats">
-            <h3>Your Stats</h3>
+            <h3>{t('leaderboard.yourStats')}</h3>
             <div className="my-stats-grid">
               <div className="stat-item">
-                <span className="stat-value">{myStats.rank > 0 ? `#${myStats.rank}` : 'Unranked'}</span>
-                <span className="stat-label">Rank</span>
+                <span className="stat-value">{myStats.rank > 0 ? `#${myStats.rank}` : t('leaderboard.unranked')}</span>
+                <span className="stat-label">{t('leaderboard.rank')}</span>
               </div>
               <div className="stat-item">
                 <span className="stat-value">{Math.round(myStats.rating)}</span>
-                <span className="stat-label">Rating</span>
+                <span className="stat-label">{t('leaderboard.rating')}</span>
               </div>
               <div className="stat-item">
                 <span className="stat-value">{myStats.games_won}/{myStats.games_played}</span>
-                <span className="stat-label">W/L</span>
+                <span className="stat-label">{t('leaderboard.wl')}</span>
               </div>
               <div className="stat-item">
                 <span className="stat-value">{winRate(myStats)}%</span>
-                <span className="stat-label">Win Rate</span>
+                <span className="stat-label">{t('leaderboard.winRate')}</span>
               </div>
               <div className="stat-item">
                 <span className="stat-value">
@@ -78,7 +80,7 @@ export function Leaderboard({ onBack }: { onBack: () => void }) {
                     ? `${myStats.tichu_successes}/${myStats.tichu_calls}`
                     : '—'}
                 </span>
-                <span className="stat-label">Tichu</span>
+                <span className="stat-label">{t('leaderboard.tichu')}</span>
               </div>
               <div className="stat-item">
                 <span className="stat-value">
@@ -86,18 +88,18 @@ export function Leaderboard({ onBack }: { onBack: () => void }) {
                     ? `${myStats.grand_tichu_successes}/${myStats.grand_tichu_calls}`
                     : '—'}
                 </span>
-                <span className="stat-label">Grand</span>
+                <span className="stat-label">{t('leaderboard.grand')}</span>
               </div>
             </div>
             {gameHistory.length > 0 && (
               <div className="game-history-row">
-                <span className="stat-label">Recent</span>
+                <span className="stat-label">{t('leaderboard.recent')}</span>
                 <div className="game-history-dots">
                   {gameHistory.map((g) => (
                     <span
                       key={g.game_id}
                       className={`game-dot ${g.won ? 'game-dot-win' : 'game-dot-loss'}`}
-                      title={`${g.won ? 'Win' : 'Loss'} — ${g.myScore}-${g.opponentScore}${g.botDifficulty ? ` (${g.botDifficulty} bots)` : ''}`}
+                      title={`${g.won ? t('leaderboard.win') : t('leaderboard.loss')} — ${g.myScore}-${g.opponentScore}${g.botDifficulty ? ` (${g.botDifficulty} ${t('leaderboard.bots')})` : ''}`}
                     >
                       {g.won ? 'W' : 'L'}
                     </span>
@@ -109,23 +111,23 @@ export function Leaderboard({ onBack }: { onBack: () => void }) {
         )}
 
         {loading ? (
-          <p className="leaderboard-loading">Loading...</p>
+          <p className="leaderboard-loading">{t('leaderboard.loading')}</p>
         ) : entries.length === 0 ? (
-          <p className="leaderboard-empty">No ranked players yet. Play at least 3 online games to appear!</p>
+          <p className="leaderboard-empty">{t('leaderboard.noPlayers')}</p>
         ) : (
           <div className="leaderboard-table-wrapper">
             <table className="leaderboard-table">
               <thead>
                 <tr>
                   <th>#</th>
-                  <th>Player</th>
-                  <th>Rating</th>
-                  <th>W/L</th>
-                  <th>Win%</th>
-                  <th>1st Out</th>
-                  <th>Tichu</th>
-                  <th>Grand</th>
-                  <th>DV</th>
+                  <th>{t('leaderboard.player')}</th>
+                  <th>{t('leaderboard.rating')}</th>
+                  <th>{t('leaderboard.wl')}</th>
+                  <th>{t('leaderboard.winPercent')}</th>
+                  <th>{t('leaderboard.firstOut')}</th>
+                  <th>{t('leaderboard.tichu')}</th>
+                  <th>{t('leaderboard.grand')}</th>
+                  <th>{t('leaderboard.dv')}</th>
                 </tr>
               </thead>
               <tbody>
@@ -163,7 +165,7 @@ export function Leaderboard({ onBack }: { onBack: () => void }) {
         )}
 
         <button className="btn btn-olympus btn-back-lobby" onClick={onBack}>
-          Back to Lobby
+          {t('leaderboard.backToLobby')}
         </button>
       </div>
     </div>

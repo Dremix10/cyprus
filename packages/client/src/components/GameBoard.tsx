@@ -3,6 +3,7 @@ import { useGameStore } from '../stores/gameStore.js';
 import { useRoomStore } from '../stores/roomStore.js';
 import { GamePhase, SpecialCardType, CombinationType, getRankLabel, sortCards } from '@cyprus/shared';
 import type { Card, Combination, PlayerPosition } from '@cyprus/shared';
+import { useT } from '../i18n.js';
 
 /** Sort cards for display: Phoenix placed at its effective position in the combo. */
 function sortForDisplay(combo: Combination): Card[] {
@@ -99,6 +100,7 @@ function getRelativePositions(myPos: PlayerPosition) {
 }
 
 function SoundToggle() {
+  const t = useT();
   const [muted, setMutedState] = useState(isMuted);
   const toggle = useCallback(() => {
     const next = !muted;
@@ -107,13 +109,14 @@ function SoundToggle() {
   }, [muted]);
 
   return (
-    <button className="sound-toggle" onClick={toggle} title={muted ? 'Unmute' : 'Mute'}>
+    <button className="sound-toggle" onClick={toggle} title={muted ? t('game.unmute') : t('game.mute')}>
       {muted ? '\uD83D\uDD07' : '\uD83D\uDD0A'}
     </button>
   );
 }
 
 export function GameBoard() {
+  const t = useT();
   const gameState = useGameStore((s) => s.gameState);
   const error = useGameStore((s) => s.error);
   const skipRound = useGameStore((s) => s.skipRound);
@@ -124,7 +127,7 @@ export function GameBoard() {
   const [leaveConfirm, setLeaveConfirm] = useState(false);
 
   if (!gameState) {
-    return <div className="game-board">Loading game...</div>;
+    return <div className="game-board">{t('game.loading')}</div>;
   }
 
   const rel = getRelativePositions(gameState.myPosition);
@@ -133,6 +136,18 @@ export function GameBoard() {
   const myPlayer = gameState.players[gameState.myPosition];
   const canSkip = gameState.isSolo && myPlayer.isOut &&
     (gameState.phase === GamePhase.PLAYING || gameState.phase === GamePhase.DRAGON_GIVE);
+
+  const formatPhase = (phase: GamePhase): string => {
+    switch (phase) {
+      case GamePhase.GRAND_TICHU: return t('game.grandTichu');
+      case GamePhase.PASSING: return t('game.cardPassing');
+      case GamePhase.PLAYING: return t('game.playing');
+      case GamePhase.DRAGON_GIVE: return t('game.dragonGive');
+      case GamePhase.ROUND_SCORING: return t('game.roundOver');
+      case GamePhase.GAME_OVER: return t('game.gameOver');
+      default: return phase;
+    }
+  };
 
   return (
     <div className="game-board">
@@ -143,28 +158,28 @@ export function GameBoard() {
       )}
       <div className="game-info">
         <span className="name-teammate">
-          Your Team: {gameState.scores[myTeam]} / {gameState.targetScore}
+          {t('game.yourTeam')}: {gameState.scores[myTeam]} / {gameState.targetScore}
         </span>
         <span className="phase-label">
           {roomCode && <span className="room-code-badge">{roomCode}</span>}
           {formatPhase(gameState.phase)}
           <SoundToggle />
           {hasHistory && (
-            <button className="history-btn" onClick={() => setShowHistory(true)} title="Score History">
+            <button className="history-btn" onClick={() => setShowHistory(true)} title={t('game.scoreHistory')}>
               {'\uD83D\uDCCA'}
             </button>
           )}
           <button className="leave-btn" onClick={() => setLeaveConfirm(true)}>
-            Exit
+            {t('game.exit')}
           </button>
         </span>
         <span className="name-opponent">
-          Opponents: {gameState.scores[1 - myTeam]} / {gameState.targetScore}
+          {t('game.opponents')}: {gameState.scores[1 - myTeam]} / {gameState.targetScore}
         </span>
       </div>
       {gameState.botDifficulty && (
         <div className="bot-difficulty-label">
-          Bots: {gameState.botDifficulty.charAt(0).toUpperCase() + gameState.botDifficulty.slice(1)}
+          {t('game.bots', { difficulty: gameState.botDifficulty.charAt(0).toUpperCase() + gameState.botDifficulty.slice(1) })}
         </div>
       )}
 
@@ -179,10 +194,10 @@ export function GameBoard() {
       {leaveConfirm && (
         <div className="history-modal-overlay" onClick={() => setLeaveConfirm(false)}>
           <div className="leave-modal" onClick={(e) => e.stopPropagation()}>
-            <p>Are you sure you want to leave the game?</p>
+            <p>{t('game.leaveConfirm')}</p>
             <div className="leave-modal-buttons">
-              <button className="btn btn-danger" onClick={reset}>Yes, leave</button>
-              <button className="btn btn-secondary" onClick={() => setLeaveConfirm(false)}>Cancel</button>
+              <button className="btn btn-danger" onClick={reset}>{t('game.yesLeave')}</button>
+              <button className="btn btn-secondary" onClick={() => setLeaveConfirm(false)}>{t('game.cancel')}</button>
             </div>
           </div>
         </div>
@@ -198,7 +213,7 @@ export function GameBoard() {
           <PlayingLayout rel={rel} />
           {canSkip && (
             <button className="btn btn-olympus btn-skip" onClick={skipRound}>
-              Skip
+              {t('game.skip')}
             </button>
           )}
         </>
@@ -207,18 +222,6 @@ export function GameBoard() {
       {gameState.phase === GamePhase.GAME_OVER && <GameOverView />}
     </div>
   );
-}
-
-function formatPhase(phase: GamePhase): string {
-  switch (phase) {
-    case GamePhase.GRAND_TICHU: return 'Grand Tichu';
-    case GamePhase.PASSING: return 'Card Passing';
-    case GamePhase.PLAYING: return 'Playing';
-    case GamePhase.DRAGON_GIVE: return 'Dragon Give';
-    case GamePhase.ROUND_SCORING: return 'Round Over';
-    case GamePhase.GAME_OVER: return 'Game Over';
-    default: return phase;
-  }
 }
 
 function TurnTimer({ deadline }: { deadline: number }) {
@@ -250,6 +253,7 @@ function PlayingLayout({
 }: {
   rel: { left: PlayerPosition; top: PlayerPosition; right: PlayerPosition };
 }) {
+  const t = useT();
   const gameState = useGameStore((s) => s.gameState)!;
   const selectedCards = useGameStore((s) => s.selectedCards);
   const toggleCard = useGameStore((s) => s.toggleCard);
@@ -266,12 +270,9 @@ function PlayingLayout({
   const [playerOutName, setPlayerOutName] = useState<string | null>(null);
 
   // Wish enforcement: clear selection when wish is active so player can choose freely
-  // The "Wish active — you must play!" label and disabled pass button guide the player.
-  // Server validates that the played combo includes the wished rank.
   useEffect(() => {
     if (!gameState || gameState.currentPlayer !== gameState.myPosition) return;
     if (!gameState.wish.active || gameState.wish.wishedRank === null) return;
-    // Clear any stale selection so the player starts fresh
     setSelectedCards(new Set());
   }, [gameState?.currentPlayer, gameState?.wish.active, gameState?.wish.wishedRank]);
 
@@ -298,9 +299,9 @@ function PlayingLayout({
     if (lastEvent?.type === 'PLAYER_OUT' && lastEvent.playerPosition !== undefined) {
       const name = gameState.players[lastEvent.playerPosition]?.nickname ?? 'Player';
       const order = lastEvent.data?.place ?? gameState.players[lastEvent.playerPosition]?.finishOrder;
-      setPlayerOutName(`${name} is out!${order ? ` #${order}` : ''}`);
-      const t = setTimeout(() => setPlayerOutName(null), 2000);
-      return () => clearTimeout(t);
+      setPlayerOutName(`${t('game.playerOut', { name })}${order ? ` #${order}` : ''}`);
+      const timer = setTimeout(() => setPlayerOutName(null), 2000);
+      return () => clearTimeout(timer);
     }
   }, [lastEvent]);
 
@@ -343,7 +344,7 @@ function PlayingLayout({
         <div className={`trick-area ${bombShake ? 'trick-bomb-shake' : ''} ${trickCollecting ? 'trick-collecting' : ''}`}>
           {gameState.wish.active && (
             <div className="wish-indicator">
-              Wish: {gameState.wish.wishedRank !== null ? getRankLabel(gameState.wish.wishedRank) : ''}
+              {t('game.wish', { rank: gameState.wish.wishedRank !== null ? getRankLabel(gameState.wish.wishedRank) : '' })}
             </div>
           )}
           {gameState.currentTrick.plays.length > 0 ? (
@@ -369,7 +370,7 @@ function PlayingLayout({
             </div>
           ) : (
             <span className="no-trick">
-              {isMyTurn ? 'Your lead' : `${gameState.players[gameState.currentPlayer]?.nickname}'s lead`}
+              {isMyTurn ? t('game.yourLead') : t('game.playerLead', { name: gameState.players[gameState.currentPlayer]?.nickname || '' })}
             </span>
           )}
         </div>
@@ -391,10 +392,10 @@ function PlayingLayout({
       {/* Turn indicator */}
       <div className="turn-indicator">
         {isMyTurn ? (
-          <span className="your-turn">Your turn</span>
+          <span className="your-turn">{t('game.yourTurn')}</span>
         ) : (
           <span className="info">
-            {gameState.players[gameState.currentPlayer]?.nickname}'s turn
+            {t('game.playerTurn', { name: gameState.players[gameState.currentPlayer]?.nickname || '' })}
           </span>
         )}
         {gameState.turnDeadline && (
@@ -435,7 +436,7 @@ function PlayingLayout({
       <div className="btn-group">
         {isDragonGive && gameState.currentTrick.currentWinner === gameState.myPosition && (
           <>
-            <span className="info">Give the Dragon trick to:</span>
+            <span className="info">{t('game.giveDragonTo')}</span>
             {gameState.players
               .filter((p) => p.position % 2 !== gameState.myPosition % 2)
               .map((p) => (
@@ -451,7 +452,7 @@ function PlayingLayout({
         )}
         {isDragonGive && gameState.currentTrick.currentWinner !== gameState.myPosition && (
           <span className="info">
-            {gameState.players[gameState.currentTrick.currentWinner!]?.nickname} is choosing who to give the Dragon trick to...
+            {t('game.playerChoosingDragon', { name: gameState.players[gameState.currentTrick.currentWinner!]?.nickname || '' })}
           </span>
         )}
         {!isDragonGive && isMyTurn && canAct && (
@@ -461,31 +462,31 @@ function PlayingLayout({
               onClick={playCards}
               disabled={selectedCards.size === 0}
             >
-              Play
+              {t('game.play')}
             </button>
             {canPass && !mustPlayWish && (
               <button className="btn btn-pass" onClick={passTurn}>
-                Pass
+                {t('game.pass')}
               </button>
             )}
             {mustPlayWish && (
-              <span className="wish-forced-label">Wish active — you must play!</span>
+              <span className="wish-forced-label">{t('game.wishActive')}</span>
             )}
           </div>
         )}
         {canCallTichu && !tichuConfirm && (
           <button className="btn btn-tichu" onClick={() => setTichuConfirm(true)}>
-            Tichu!
+            {t('game.tichu')}
           </button>
         )}
         {canCallTichu && tichuConfirm && (
           <>
-            <span className="confirm-label">Call Tichu?</span>
+            <span className="confirm-label">{t('game.callTichu')}</span>
             <button className="btn btn-tichu" onClick={callTichu}>
-              Yes, call it!
+              {t('game.yesCallIt')}
             </button>
             <button className="btn btn-secondary" onClick={() => setTichuConfirm(false)}>
-              Cancel
+              {t('game.cancel')}
             </button>
           </>
         )}

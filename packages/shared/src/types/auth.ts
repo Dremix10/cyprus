@@ -11,6 +11,7 @@ export interface AuthUser {
   avatar: string | null;
   displayNameChangedAt: string | null;
   friendCount: number;
+  language: string | null;
 }
 
 export interface RegisterRequest {

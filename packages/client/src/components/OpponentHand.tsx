@@ -2,6 +2,7 @@ import type { PublicPlayerState } from '@cyprus/shared';
 import { CardComponent } from './CardComponent.js';
 import { useAuthStore } from '../stores/authStore.js';
 import { AddFriendButton } from './Friends.js';
+import { useT } from '../i18n.js';
 
 interface OpponentHandProps {
   player: PublicPlayerState;
@@ -12,6 +13,7 @@ interface OpponentHandProps {
 }
 
 export function OpponentHand({ player, position, isCurrentTurn, isTeammate, hasPassed }: OpponentHandProps) {
+  const t = useT();
   const hasRevealedHand = player.hand && player.hand.length > 0;
   const isDisconnected = player.connected === false;
   const authUser = useAuthStore((s) => s.user);
@@ -25,14 +27,14 @@ export function OpponentHand({ player, position, isCurrentTurn, isTeammate, hasP
         )}
         <span className={`opponent-name ${isTeammate ? 'name-teammate' : 'name-opponent'}`}>{player.nickname}</span>
         {showAddFriend && <AddFriendButton userId={player.userId!} displayName={player.nickname} />}
-        {isDisconnected && <span className="disconnect-badge">OFFLINE</span>}
+        {isDisconnected && <span className="disconnect-badge">{t('opponent.offline')}</span>}
         {player.tichuCall !== 'none' && (
           <span className={`tichu-badge ${player.tichuCall === 'grand_tichu' ? 'tichu-badge-grand' : ''}`}>
-            {player.tichuCall === 'grand_tichu' ? 'GRAND TICHU' : 'TICHU'}
+            {player.tichuCall === 'grand_tichu' ? t('opponent.grandTichu') : t('opponent.tichu')}
           </span>
         )}
         {hasPassed && !player.isOut && (
-          <span className="pass-badge">PASS</span>
+          <span className="pass-badge">{t('opponent.pass')}</span>
         )}
         {player.isOut && (
           <span className="out-badge">#{player.finishOrder}</span>
@@ -47,11 +49,11 @@ export function OpponentHand({ player, position, isCurrentTurn, isTeammate, hasP
       ) : (
         <div className="opponent-card-count">
           {player.isOut ? (
-            <span className="out-text">Out</span>
+            <span className="out-text">{t('opponent.out')}</span>
           ) : (
             <>
               <span className="card-count-num">{player.cardCount}</span>
-              <span className="card-count-label">cards</span>
+              <span className="card-count-label">{t('opponent.cards')}</span>
             </>
           )}
         </div>

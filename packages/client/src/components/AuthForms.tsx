@@ -1,10 +1,43 @@
 import { useState } from 'react';
 import { useAuthStore } from '../stores/authStore.js';
+import { useT, useLangStore } from '../i18n.js';
+import type { Lang } from '../i18n.js';
+
+// ─── Language Selector ──────────────────────────────────────────────
+
+export function LanguageSelector({ compact }: { compact?: boolean }) {
+  const lang = useLangStore((s) => s.lang);
+  const setLang = useLangStore((s) => s.setLang);
+  const authUser = useAuthStore((s) => s.user);
+  const changeLanguage = useAuthStore((s) => s.changeLanguage);
+
+  const handleChange = (newLang: Lang) => {
+    setLang(newLang);
+    if (authUser) changeLanguage(newLang);
+  };
+
+  if (compact) {
+    return (
+      <div className="lang-toggle">
+        <button className={`lang-btn ${lang === 'en' ? 'lang-btn-active' : ''}`} onClick={() => handleChange('en')}>EN</button>
+        <button className={`lang-btn ${lang === 'el' ? 'lang-btn-active' : ''}`} onClick={() => handleChange('el')}>EL</button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="lang-toggle">
+      <button className={`lang-btn ${lang === 'en' ? 'lang-btn-active' : ''}`} onClick={() => handleChange('en')}>English</button>
+      <button className={`lang-btn ${lang === 'el' ? 'lang-btn-active' : ''}`} onClick={() => handleChange('el')}>Ελληνικά</button>
+    </div>
+  );
+}
 
 // ─── Google Sign-In (standard OAuth2 redirect) ─────────────────────
 
 function GoogleSignInButton() {
   const googleClientId = useAuthStore((s) => s.googleClientId);
+  const t = useT();
   if (!googleClientId) return null;
 
   const handleClick = () => {
@@ -21,7 +54,7 @@ function GoogleSignInButton() {
 
   return (
     <button className="btn btn-olympus btn-google" onClick={handleClick}>
-      Sign in with Google
+      {t('auth.signInWithGoogle')}
     </button>
   );
 }
@@ -35,10 +68,11 @@ export function ResetPasswordForm({ token, onDone }: { token: string; onDone: ()
   const [success, setSuccess] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const resetPassword = useAuthStore((s) => s.resetPassword);
+  const t = useT();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (password !== confirmPassword) { setError('Passwords do not match'); return; }
+    if (password !== confirmPassword) { setError(t('auth.passwordsMismatch')); return; }
     setSubmitting(true);
     const result = await resetPassword(token, password);
     setSubmitting(false);
@@ -49,22 +83,22 @@ export function ResetPasswordForm({ token, onDone }: { token: string; onDone: ()
   if (success) {
     return (
       <div className="auth-forms">
-        <p className="auth-success">Password reset successfully!</p>
-        <button className="btn btn-olympus btn-create" onClick={onDone}>Sign In</button>
+        <p className="auth-success">{t('auth.passwordResetSuccess')}</p>
+        <button className="btn btn-olympus btn-create" onClick={onDone}>{t('auth.signIn')}</button>
       </div>
     );
   }
 
   return (
     <div className="auth-forms">
-      <h3 className="auth-title">Set New Password</h3>
+      <h3 className="auth-title">{t('auth.setNewPassword')}</h3>
       <form onSubmit={handleSubmit} className="auth-form">
-        <input type="password" placeholder="New password" value={password} onChange={(e) => setPassword(e.target.value)} minLength={8} maxLength={128} className="input input-greek" autoComplete="new-password" required />
-        <input type="password" placeholder="Confirm password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} className="input input-greek" autoComplete="new-password" required />
+        <input type="password" placeholder={t('auth.newPassword')} value={password} onChange={(e) => setPassword(e.target.value)} minLength={8} maxLength={128} className="input input-greek" autoComplete="new-password" required />
+        <input type="password" placeholder={t('auth.confirmPassword')} value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} className="input input-greek" autoComplete="new-password" required />
         {error && <p className="error">{error}</p>}
-        <button type="submit" className="btn btn-olympus btn-create" disabled={submitting}>{submitting ? '...' : 'Reset Password'}</button>
+        <button type="submit" className="btn btn-olympus btn-create" disabled={submitting}>{submitting ? '...' : t('auth.resetPassword')}</button>
       </form>
-      <button className="btn-link" onClick={onDone}>Back to sign in</button>
+      <button className="btn-link" onClick={onDone}>{t('auth.backToSignIn')}</button>
     </div>
   );
 }
@@ -86,6 +120,7 @@ export function AuthForms({ onGuest }: { onGuest: () => void }) {
   const forgotPassword = useAuthStore((s) => s.forgotPassword);
   const error = useAuthStore((s) => s.error);
   const clearError = useAuthStore((s) => s.clearError);
+  const t = useT();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -119,55 +154,57 @@ export function AuthForms({ onGuest }: { onGuest: () => void }) {
   if (mode === 'forgot') {
     return (
       <div className="auth-forms">
-        <h3 className="auth-title">Reset Password</h3>
+        <h3 className="auth-title">{t('auth.resetPassword')}</h3>
         <form onSubmit={handleForgot} className="auth-form">
-          <input type="email" placeholder="Enter your email" value={forgotEmail} onChange={(e) => setForgotEmail(e.target.value)} className="input input-greek" autoComplete="email" required />
+          <input type="email" placeholder={t('auth.enterEmail')} value={forgotEmail} onChange={(e) => setForgotEmail(e.target.value)} className="input input-greek" autoComplete="email" required />
           {forgotMessage && <p className={forgotMessage.includes('Check') || forgotMessage.includes('reset link') ? 'auth-success' : 'error'}>{forgotMessage}</p>}
-          <button type="submit" className="btn btn-olympus btn-create" disabled={submitting}>{submitting ? '...' : 'Send Reset Link'}</button>
+          <button type="submit" className="btn btn-olympus btn-create" disabled={submitting}>{submitting ? '...' : t('auth.sendResetLink')}</button>
         </form>
-        <button className="btn-link" onClick={() => switchMode('login')}>Back to sign in</button>
+        <button className="btn-link" onClick={() => switchMode('login')}>{t('auth.backToSignIn')}</button>
       </div>
     );
   }
 
   return (
     <div className="auth-forms">
+      <LanguageSelector compact />
+
       <form onSubmit={handleSubmit} className="auth-form">
         {mode === 'register' && (
-          <input type="email" placeholder="Email" value={email} onChange={(e) => setEmail(e.target.value)} maxLength={254} className="input input-greek" autoComplete="email" required />
+          <input type="email" placeholder={t('auth.email')} value={email} onChange={(e) => setEmail(e.target.value)} maxLength={254} className="input input-greek" autoComplete="email" required />
         )}
 
-        <input type="text" placeholder={mode === 'login' ? 'Username or email' : 'Username'} value={username} onChange={(e) => setUsername(e.target.value)} maxLength={mode === 'login' ? 254 : 20} className="input input-greek" autoComplete="username" required />
+        <input type="text" placeholder={mode === 'login' ? t('auth.usernameOrEmail') : t('auth.username')} value={username} onChange={(e) => setUsername(e.target.value)} maxLength={mode === 'login' ? 254 : 20} className="input input-greek" autoComplete="username" required />
 
-        <input type="password" placeholder="Password" value={password} onChange={(e) => setPassword(e.target.value)} maxLength={128} className="input input-greek" autoComplete={mode === 'login' ? 'current-password' : 'new-password'} required />
+        <input type="password" placeholder={t('auth.password')} value={password} onChange={(e) => setPassword(e.target.value)} maxLength={128} className="input input-greek" autoComplete={mode === 'login' ? 'current-password' : 'new-password'} required />
 
         {mode === 'register' && (
-          <input type="text" placeholder="Display name (shown in game)" value={displayName} onChange={(e) => setDisplayName(e.target.value)} maxLength={20} className="input input-greek" autoComplete="off" />
+          <input type="text" placeholder={t('auth.displayName')} value={displayName} onChange={(e) => setDisplayName(e.target.value)} maxLength={20} className="input input-greek" autoComplete="off" />
         )}
 
         {error && <p className="error">{error}</p>}
 
         <button type="submit" className="btn btn-olympus btn-create" disabled={submitting}>
-          {submitting ? '...' : mode === 'login' ? 'Sign In' : 'Create Account'}
+          {submitting ? '...' : mode === 'login' ? t('auth.signIn') : t('auth.createAccount')}
         </button>
       </form>
 
       {mode === 'login' && (
-        <button className="btn-link auth-forgot-link" onClick={() => switchMode('forgot')}>Forgot password?</button>
+        <button className="btn-link auth-forgot-link" onClick={() => switchMode('forgot')}>{t('auth.forgotPassword')}</button>
       )}
 
       <div className="auth-switch">
         <button className="btn-link" onClick={() => switchMode(mode === 'login' ? 'register' : 'login')}>
-          {mode === 'login' ? "Don't have an account? Register" : 'Already have an account? Sign in'}
+          {mode === 'login' ? t('auth.noAccount') : t('auth.hasAccount')}
         </button>
       </div>
 
-      <div className="divider divider-greek"><span>or</span></div>
+      <div className="divider divider-greek"><span>{t('auth.or')}</span></div>
 
       <GoogleSignInButton />
 
       <button className="btn btn-olympus btn-guest" onClick={onGuest}>
-        Play as Guest
+        {t('auth.playAsGuest')}
       </button>
     </div>
   );

@@ -1,5 +1,6 @@
 import { NormalRank, getRankLabel } from '@cyprus/shared';
 import { useGameStore } from '../stores/gameStore.js';
+import { useT } from '../i18n.js';
 
 const WISHABLE_RANKS = [
   NormalRank.TWO,
@@ -19,10 +20,11 @@ const WISHABLE_RANKS = [
 
 export function WishSelector() {
   const wish = useGameStore((s) => s.wish);
+  const t = useT();
 
   return (
     <div className="wish-selector">
-      <p className="info">You played the Mahjong! Wish for a rank:</p>
+      <p className="info">{t('game.playedMahjong')}</p>
       <div className="wish-grid">
         {WISHABLE_RANKS.map((rank) => (
           <button

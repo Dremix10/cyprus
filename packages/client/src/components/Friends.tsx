@@ -1,8 +1,10 @@
 import { useState, useEffect, useRef } from 'react';
 import { useFriendStore } from '../stores/friendStore.js';
 import type { FriendStatus } from '@cyprus/shared';
+import { useT } from '../i18n.js';
 
 export function FriendsPanel() {
+  const t = useT();
   const friends = useFriendStore((s) => s.friends);
   const requests = useFriendStore((s) => s.requests);
   const fetchFriends = useFriendStore((s) => s.fetchFriends);
@@ -23,7 +25,6 @@ export function FriendsPanel() {
   useEffect(() => {
     fetchFriends();
     fetchRequests();
-    // Poll for online status every 30s
     const interval = setInterval(() => {
       fetchFriends();
       fetchRequests();
@@ -46,14 +47,13 @@ export function FriendsPanel() {
   const handleSendRequest = async (userId: number) => {
     const result = await sendRequest(userId);
     if (result.success) {
-      setActionFeedback((prev) => ({ ...prev, [userId]: 'Sent!' }));
-      // Refresh search results to update status
+      setActionFeedback((prev) => ({ ...prev, [userId]: t('friends.sent') }));
       if (searchQuery.trim().length >= 2) {
         const results = await searchUsers(searchQuery.trim());
         setSearchResults(results);
       }
     } else {
-      setActionFeedback((prev) => ({ ...prev, [userId]: result.error || 'Failed' }));
+      setActionFeedback((prev) => ({ ...prev, [userId]: result.error || t('friends.failed') }));
     }
     setTimeout(() => setActionFeedback((prev) => { const n = { ...prev }; delete n[userId]; return n; }), 2000);
   };
@@ -82,7 +82,7 @@ export function FriendsPanel() {
         className="friends-toggle"
         onClick={() => setExpanded(!expanded)}
       >
-        Friends {friends.length > 0 && `(${friends.length})`}
+        {t('friends.title')} {friends.length > 0 && `(${friends.length})`}
         {requests.length > 0 && <span className="friends-badge">{requests.length}</span>}
         <span className={`friends-chevron ${expanded ? 'friends-chevron-up' : ''}`}>&#9662;</span>
       </button>
@@ -93,7 +93,7 @@ export function FriendsPanel() {
           <div className="friends-search">
             <input
               type="text"
-              placeholder="Search users to add..."
+              placeholder={t('friends.searchPlaceholder')}
               value={searchQuery}
               onChange={(e) => handleSearch(e.target.value)}
               className="input input-greek friends-search-input"
@@ -104,9 +104,9 @@ export function FriendsPanel() {
           {searchQuery.trim().length >= 2 && (
             <div className="friends-section">
               {searching ? (
-                <p className="friends-empty">Searching...</p>
+                <p className="friends-empty">{t('friends.searching')}</p>
               ) : searchResults.length === 0 ? (
-                <p className="friends-empty">No users found</p>
+                <p className="friends-empty">{t('friends.noUsersFound')}</p>
               ) : (
                 <ul className="friends-list">
                   {searchResults.map((u) => (
@@ -115,13 +115,13 @@ export function FriendsPanel() {
                       {actionFeedback[u.id] ? (
                         <span className="friend-action-feedback">{actionFeedback[u.id]}</span>
                       ) : u.friendStatus === 'friends' ? (
-                        <span className="friend-status-label">Friends</span>
+                        <span className="friend-status-label">{t('friends.friends')}</span>
                       ) : u.friendStatus === 'pending_sent' ? (
-                        <span className="friend-status-label">Pending</span>
+                        <span className="friend-status-label">{t('friends.pending')}</span>
                       ) : u.friendStatus === 'pending_received' ? (
-                        <button className="btn-friend btn-friend-accept" onClick={() => handleAccept(u.id)}>Accept</button>
+                        <button className="btn-friend btn-friend-accept" onClick={() => handleAccept(u.id)}>{t('friends.accept')}</button>
                       ) : (
-                        <button className="btn-friend btn-friend-add" onClick={() => handleSendRequest(u.id)}>Add</button>
+                        <button className="btn-friend btn-friend-add" onClick={() => handleSendRequest(u.id)}>{t('friends.add')}</button>
                       )}
                     </li>
                   ))}
@@ -133,14 +133,14 @@ export function FriendsPanel() {
           {/* Pending Requests */}
           {requests.length > 0 && (
             <div className="friends-section">
-              <h4 className="friends-section-title">Requests</h4>
+              <h4 className="friends-section-title">{t('friends.requests')}</h4>
               <ul className="friends-list">
                 {requests.map((r) => (
                   <li key={r.id} className="friend-item">
                     <span className="friend-name">{r.displayName}</span>
                     <div className="friend-actions">
-                      <button className="btn-friend btn-friend-accept" onClick={() => handleAccept(r.id)}>Accept</button>
-                      <button className="btn-friend btn-friend-reject" onClick={() => handleReject(r.id)}>Reject</button>
+                      <button className="btn-friend btn-friend-accept" onClick={() => handleAccept(r.id)}>{t('friends.accept')}</button>
+                      <button className="btn-friend btn-friend-reject" onClick={() => handleReject(r.id)}>{t('friends.reject')}</button>
                     </div>
                   </li>
                 ))}
@@ -150,18 +150,18 @@ export function FriendsPanel() {
 
           {/* Friends List */}
           {friends.length === 0 && requests.length === 0 && searchQuery.trim().length < 2 ? (
-            <p className="friends-empty">No friends yet. Search for users above!</p>
+            <p className="friends-empty">{t('friends.noFriendsYet')}</p>
           ) : (
             <>
               {onlineFriends.length > 0 && (
                 <div className="friends-section">
-                  <h4 className="friends-section-title">Online</h4>
+                  <h4 className="friends-section-title">{t('friends.online')}</h4>
                   <ul className="friends-list">
                     {onlineFriends.map((f) => (
                       <li key={f.id} className="friend-item">
                         <span className="friend-online-dot" />
                         <span className="friend-name">{f.displayName}</span>
-                        <button className="btn-friend btn-friend-remove" onClick={() => handleRemove(f.id)} title="Remove friend">x</button>
+                        <button className="btn-friend btn-friend-remove" onClick={() => handleRemove(f.id)} title={t('friends.removeFriend')}>x</button>
                       </li>
                     ))}
                   </ul>
@@ -169,13 +169,13 @@ export function FriendsPanel() {
               )}
               {offlineFriends.length > 0 && (
                 <div className="friends-section">
-                  <h4 className="friends-section-title">Offline</h4>
+                  <h4 className="friends-section-title">{t('friends.offline')}</h4>
                   <ul className="friends-list">
                     {offlineFriends.map((f) => (
                       <li key={f.id} className="friend-item">
                         <span className="friend-offline-dot" />
                         <span className="friend-name friend-name-offline">{f.displayName}</span>
-                        <button className="btn-friend btn-friend-remove" onClick={() => handleRemove(f.id)} title="Remove friend">x</button>
+                        <button className="btn-friend btn-friend-remove" onClick={() => handleRemove(f.id)} title={t('friends.removeFriend')}>x</button>
                       </li>
                     ))}
                   </ul>

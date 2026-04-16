@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { socket } from '../socket.js';
+import { useT } from '../i18n.js';
 
 export function ConnectionStatus() {
   const [connected, setConnected] = useState(socket.connected);
@@ -21,12 +22,14 @@ export function ConnectionStatus() {
     };
   }, []);
 
+  const t = useT();
+
   // Only show banner if we were connected before and lost connection
   if (connected || !wasConnected) return null;
 
   return (
     <div className="connection-banner">
-      Reconnecting...
+      {t('connection.reconnecting')}
     </div>
   );
 }

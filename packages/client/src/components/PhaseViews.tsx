@@ -6,6 +6,7 @@ import { getCardPoints, getRankLabel } from '@cyprus/shared';
 import { CardComponent } from './CardComponent.js';
 import { PlayerHand } from './PlayerHand.js';
 import { ScoreHistory } from './ScoreHistory.js';
+import { useT } from '../i18n.js';
 
 // ─── Shared Helpers ─────────────────────────────────────────────────
 
@@ -30,10 +31,11 @@ export function TichuCallBadges() {
 
 export function PointCards({ cards, team }: { cards: import('@cyprus/shared').Card[]; team: string }) {
   const totalPoints = cards.reduce((sum, c) => sum + getCardPoints(c), 0);
+  const t = useT();
 
   return (
     <div className="point-cards-panel">
-      <h4>{team} Point Cards ({totalPoints} pts)</h4>
+      <h4>{t('phase.pointCards', { team, points: totalPoints })}</h4>
       <div className="point-cards-grid">
         {cards.filter((c) => getCardPoints(c) > 0).map((c) => (
           <div key={c.id} className="point-card-entry">
@@ -51,9 +53,10 @@ export function ScoreBreakdown({ breakdown, players, myTeam }: {
   players: { position: number; nickname: string; tichuCall: string }[];
   myTeam: number;
 }) {
+  const t = useT();
   const teams = [
-    { label: 'Your Team', idx: myTeam, className: 'name-teammate' },
-    { label: 'Opponents', idx: 1 - myTeam, className: 'name-opponent' },
+    { label: t('game.yourTeam'), idx: myTeam, className: 'name-teammate' },
+    { label: t('game.opponents'), idx: 1 - myTeam, className: 'name-opponent' },
   ];
 
   return (
@@ -61,9 +64,9 @@ export function ScoreBreakdown({ breakdown, players, myTeam }: {
       {teams.map(({ label, idx, className }) => (
         <div key={idx} className="breakdown-team">
           <h4 className={className}>{label}</h4>
-          <div className="breakdown-line">Card points: {breakdown.cardPoints[idx]}</div>
+          <div className="breakdown-line">{t('phase.cardPoints', { points: breakdown.cardPoints[idx] })}</div>
           {breakdown.doubleVictory === idx && (
-            <div className="breakdown-line breakdown-highlight">Double victory! +200</div>
+            <div className="breakdown-line breakdown-highlight">{t('phase.doubleVictory')}</div>
           )}
           {breakdown.tichuResults
             .filter((r) => r.team === idx)
@@ -86,6 +89,7 @@ export function ScoreBreakdown({ breakdown, players, myTeam }: {
 // ─── Grand Tichu Phase ──────────────────────────────────────────────
 
 export function GrandTichuView() {
+  const t = useT();
   const gameState = useGameStore((s) => s.gameState)!;
   const grandTichuDecision = useGameStore((s) => s.grandTichuDecision);
   const selectedCards = useGameStore((s) => s.selectedCards);
@@ -95,36 +99,30 @@ export function GrandTichuView() {
   if (!gameState.grandTichuPending) {
     const myTeam = gameState.myPosition % 2;
     const waiting = gameState.players.filter((p) => !p.grandTichuDecided);
+    const names = waiting.map((p) => p.nickname).join(', ');
     return (
       <p className="info">
-        Waiting for{' '}
-        {waiting.map((p, i) => (
-          <span key={p.position}>
-            {i > 0 && ', '}
-            <strong className={p.position % 2 === myTeam ? 'name-teammate' : 'name-opponent'}>{p.nickname}</strong>
-          </span>
-        ))}
-        ...
+        {t('phase.waitingFor', { names })}
       </p>
     );
   }
 
   return (
     <div className="phase-view">
-      <h3>Grand Tichu?</h3>
-      <p className="info">You've seen 8 of your 14 cards.</p>
+      <h3>{t('phase.grandTichuQuestion')}</h3>
+      <p className="info">{t('phase.seen8Cards')}</p>
       <PlayerHand cards={gameState.myHand} selectedCards={selectedCards} onToggle={toggleCard} interactive={false} />
       <div className="btn-group">
         {confirming ? (
           <>
-            <span className="confirm-label">Call Grand Tichu?</span>
-            <button className="btn btn-tichu" onClick={() => grandTichuDecision(true)}>Yes, call it!</button>
-            <button className="btn btn-secondary" onClick={() => setConfirming(false)}>Cancel</button>
+            <span className="confirm-label">{t('phase.callGrandTichu')}</span>
+            <button className="btn btn-tichu" onClick={() => grandTichuDecision(true)}>{t('game.yesCallIt')}</button>
+            <button className="btn btn-secondary" onClick={() => setConfirming(false)}>{t('game.cancel')}</button>
           </>
         ) : (
           <>
-            <button className="btn btn-tichu" onClick={() => setConfirming(true)}>Call Grand Tichu!</button>
-            <button className="btn btn-secondary" onClick={() => grandTichuDecision(false)}>Pass</button>
+            <button className="btn btn-tichu" onClick={() => setConfirming(true)}>{t('phase.callGrandTichuBtn')}</button>
+            <button className="btn btn-secondary" onClick={() => grandTichuDecision(false)}>{t('phase.pass')}</button>
           </>
         )}
       </div>
@@ -143,6 +141,7 @@ function getRelativePositions(myPos: PlayerPosition) {
 }
 
 export function PassingView() {
+  const t = useT();
   const gameState = useGameStore((s) => s.gameState)!;
   const passCards = useGameStore((s) => s.passCards);
   const callTichu = useGameStore((s) => s.callTichu);
@@ -164,18 +163,12 @@ export function PassingView() {
   if (hasPassed) {
     const myTeam = gameState.myPosition % 2;
     const waiting = gameState.players.filter((p) => !p.hasPassed);
+    const names = waiting.map((p) => p.nickname).join(', ');
     return (
       <div className="phase-view">
         <TichuCallBadges />
         <p className="info">
-          Waiting for{' '}
-          {waiting.map((p, i) => (
-            <span key={p.position}>
-              {i > 0 && ', '}
-              <strong className={p.position % 2 === myTeam ? 'name-teammate' : 'name-opponent'}>{p.nickname}</strong>
-            </span>
-          ))}
-          ...
+          {t('phase.waitingFor', { names })}
         </p>
       </div>
     );
@@ -208,9 +201,9 @@ export function PassingView() {
   return (
     <div className="phase-view">
       <TichuCallBadges />
-      <h3>Pass Cards</h3>
+      <h3>{t('phase.passCards')}</h3>
       <p className="info">
-        {activeCard ? 'Now click a player slot to assign this card' : 'Click a card from your hand, then click a player to give it to'}
+        {activeCard ? t('phase.nowClickPlayer') : t('phase.clickCardThenPlayer')}
       </p>
 
       <div className="pass-zones">
@@ -228,7 +221,7 @@ export function PassingView() {
               <div className="pass-zone-header">
                 {player.avatar && <img className="pass-zone-avatar" src={player.avatar} alt={player.nickname} />}
                 <span className={`pass-zone-name ${teammate ? 'name-teammate' : 'name-opponent'}`}>{player.nickname}</span>
-                <span className="pass-zone-relation">{teammate ? 'Partner' : 'Opponent'}</span>
+                <span className="pass-zone-relation">{teammate ? t('phase.partner') : t('phase.opponent')}</span>
               </div>
               <div className="pass-zone-card">
                 {assignedCard ? (
@@ -237,7 +230,7 @@ export function PassingView() {
                     <span className="pass-zone-remove">✕</span>
                   </div>
                 ) : (
-                  <div className="pass-zone-empty">{activeCard ? 'Click to assign' : 'Empty'}</div>
+                  <div className="pass-zone-empty">{activeCard ? t('phase.clickToAssign') : t('phase.empty')}</div>
                 )}
               </div>
             </div>
@@ -260,17 +253,17 @@ export function PassingView() {
       <div className="btn-group">
         {canPass && (
           <button className="btn btn-primary" onClick={() => passCards({ left: assignments.left!, across: assignments.across!, right: assignments.right! })}>
-            Pass Cards
+            {t('phase.passCards')}
           </button>
         )}
         {canCallTichu && !tichuConfirm && (
-          <button className="btn btn-tichu" onClick={() => setTichuConfirm(true)}>Tichu!</button>
+          <button className="btn btn-tichu" onClick={() => setTichuConfirm(true)}>{t('phase.callTichuBtn')}</button>
         )}
         {canCallTichu && tichuConfirm && (
           <>
-            <span className="confirm-label">Call Tichu?</span>
-            <button className="btn btn-tichu" onClick={callTichu}>Yes, call it!</button>
-            <button className="btn btn-secondary" onClick={() => setTichuConfirm(false)}>Cancel</button>
+            <span className="confirm-label">{t('phase.callTichuQuestion')}</span>
+            <button className="btn btn-tichu" onClick={callTichu}>{t('game.yesCallIt')}</button>
+            <button className="btn btn-secondary" onClick={() => setTichuConfirm(false)}>{t('game.cancel')}</button>
           </>
         )}
       </div>
@@ -281,27 +274,28 @@ export function PassingView() {
 // ─── Round Scoring Phase ────────────────────────────────────────────
 
 export function ScoringView() {
+  const t = useT();
   const gameState = useGameStore((s) => s.gameState)!;
   const nextRound = useGameStore((s) => s.nextRound);
   const myTeam = gameState.myPosition % 2 === 0 ? 0 : 1;
 
   return (
     <div className="scoring-layout">
-      {gameState.roundTrickCards && <PointCards cards={gameState.roundTrickCards[myTeam]} team="Your Team" />}
+      {gameState.roundTrickCards && <PointCards cards={gameState.roundTrickCards[myTeam]} team={t('game.yourTeam')} />}
 
       <div className="phase-view">
-        <h3>Round Over</h3>
+        <h3>{t('phase.roundOver')}</h3>
         {gameState.roundBreakdown && (
           <ScoreBreakdown breakdown={gameState.roundBreakdown} players={gameState.players} myTeam={myTeam} />
         )}
         <div className="scores">
           <div className="score-row">
-            <span className="score-team name-teammate">Your Team</span>
+            <span className="score-team name-teammate">{t('game.yourTeam')}</span>
             <span className="score-round">+{gameState.roundScores[myTeam]}</span>
             <span className="score-total">{gameState.scores[myTeam]}</span>
           </div>
           <div className="score-row">
-            <span className="score-team name-opponent">Opponents</span>
+            <span className="score-team name-opponent">{t('game.opponents')}</span>
             <span className="score-round">+{gameState.roundScores[1 - myTeam]}</span>
             <span className="score-total">{gameState.scores[1 - myTeam]}</span>
           </div>
@@ -309,10 +303,10 @@ export function ScoringView() {
         {gameState.roundHistory && gameState.roundHistory.length > 1 && (
           <ScoreHistory history={gameState.roundHistory} myTeam={myTeam} />
         )}
-        <button className="btn btn-primary" onClick={nextRound}>Next Round</button>
+        <button className="btn btn-primary" onClick={nextRound}>{t('phase.nextRound')}</button>
       </div>
 
-      {gameState.roundTrickCards && <PointCards cards={gameState.roundTrickCards[1 - myTeam]} team="Opponents" />}
+      {gameState.roundTrickCards && <PointCards cards={gameState.roundTrickCards[1 - myTeam]} team={t('game.opponents')} />}
     </div>
   );
 }
@@ -320,6 +314,7 @@ export function ScoringView() {
 // ─── Game Over Phase ────────────────────────────────────────────────
 
 export function GameOverView() {
+  const t = useT();
   const gameState = useGameStore((s) => s.gameState)!;
   const reset = useRoomStore((s) => s.reset);
   const myTeam = gameState.myPosition % 2 === 0 ? 0 : 1;
@@ -338,24 +333,24 @@ export function GameOverView() {
   return (
     <div className={`phase-view game-over-view ${iWon ? 'game-over-win' : 'game-over-loss'}`}>
       <div className="game-over-banner">
-        <h2 className={iWon ? 'winner' : 'loser'}>{iWon ? 'Victory!' : 'Defeat'}</h2>
-        <p className="game-over-subtitle">{iWon ? 'Your team wins!' : 'Opponents win!'}</p>
+        <h2 className={iWon ? 'winner' : 'loser'}>{iWon ? t('phase.victory') : t('phase.defeat')}</h2>
+        <p className="game-over-subtitle">{iWon ? t('phase.yourTeamWins') : t('phase.opponentsWin')}</p>
       </div>
 
       <div className="scores">
         <div className="score-row">
-          <span className="score-team name-teammate">Your Team</span>
+          <span className="score-team name-teammate">{t('game.yourTeam')}</span>
           <span className="score-total">{gameState.scores[myTeam]}</span>
         </div>
         <div className="score-row">
-          <span className="score-team name-opponent">Opponents</span>
+          <span className="score-team name-opponent">{t('game.opponents')}</span>
           <span className="score-total">{gameState.scores[1 - myTeam]}</span>
         </div>
       </div>
 
       {finishPlayers.length > 0 && (
         <div className="game-over-finish">
-          <h4>Finish Order</h4>
+          <h4>{t('phase.finishOrder')}</h4>
           <div className="finish-list">
             {finishPlayers.map((p) => (
               <div key={p.position} className={`finish-entry ${p.isTeammate ? 'name-teammate' : 'name-opponent'}`}>
@@ -384,7 +379,7 @@ export function GameOverView() {
         <ScoreHistory history={gameState.roundHistory} myTeam={myTeam} />
       )}
 
-      <button className="btn btn-primary btn-play-again" onClick={reset}>Back to Lobby</button>
+      <button className="btn btn-primary btn-play-again" onClick={reset}>{t('phase.backToLobby')}</button>
     </div>
   );
 }

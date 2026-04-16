@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import type { AuthUser } from '@cyprus/shared';
+import { useLangStore } from '../i18n.js';
 
 interface AuthStore {
   user: AuthUser | null;
@@ -19,6 +20,7 @@ interface AuthStore {
   deleteAccount: (password: string) => Promise<{ success: boolean; error?: string }>;
   changeDisplayName: (displayName: string) => Promise<{ success: boolean; error?: string }>;
   changeAvatar: (avatar: string) => Promise<{ success: boolean; error?: string }>;
+  changeLanguage: (language: string) => Promise<{ success: boolean; error?: string }>;
   clearError: () => void;
 }
 
@@ -49,6 +51,7 @@ export const useAuthStore = create<AuthStore>((set) => ({
 
       if (meRes.ok) {
         const data = await meRes.json();
+        if (data.user?.language) useLangStore.getState().setLang(data.user.language);
         set({ user: data.user, loading: false, googleClientId: googleData.clientId || null });
       } else {
         set({ user: null, loading: false, googleClientId: googleData.clientId || null });
@@ -66,7 +69,10 @@ export const useAuthStore = create<AuthStore>((set) => ({
         body: JSON.stringify({ username, password }),
       });
       const data = await res.json();
-      if (res.ok) { set({ user: data.user, error: null }); return true; }
+      if (res.ok) {
+        if (data.user?.language) useLangStore.getState().setLang(data.user.language);
+        set({ user: data.user, error: null }); return true;
+      }
       set({ error: data.error || 'Login failed' });
       return false;
     } catch {
@@ -83,7 +89,10 @@ export const useAuthStore = create<AuthStore>((set) => ({
         body: JSON.stringify({ username, password, displayName, email }),
       });
       const data = await res.json();
-      if (res.ok) { set({ user: data.user, error: null }); return true; }
+      if (res.ok) {
+        if (data.user?.language) useLangStore.getState().setLang(data.user.language);
+        set({ user: data.user, error: null }); return true;
+      }
       set({ error: data.error || 'Registration failed', fieldError: data.field || null });
       return false;
     } catch {
@@ -100,7 +109,10 @@ export const useAuthStore = create<AuthStore>((set) => ({
         body: JSON.stringify({ credential }),
       });
       const data = await res.json();
-      if (res.ok) { set({ user: data.user, error: null }); return true; }
+      if (res.ok) {
+        if (data.user?.language) useLangStore.getState().setLang(data.user.language);
+        set({ user: data.user, error: null }); return true;
+      }
       set({ error: data.error || 'Google sign-in failed' });
       return false;
     } catch {
@@ -189,6 +201,21 @@ export const useAuthStore = create<AuthStore>((set) => ({
       const res = await authFetch('/change-avatar', {
         method: 'POST',
         body: JSON.stringify({ avatar }),
+      });
+      const data = await res.json();
+      if (res.ok) { if (data.user) set({ user: data.user }); return { success: true }; }
+      return { success: false, error: data.error || 'Failed' };
+    } catch {
+      return { success: false, error: 'Connection failed' };
+    }
+  },
+
+  changeLanguage: async (language) => {
+    useLangStore.getState().setLang(language as 'en' | 'el');
+    try {
+      const res = await authFetch('/change-language', {
+        method: 'POST',
+        body: JSON.stringify({ language }),
       });
       const data = await res.json();
       if (res.ok) { if (data.user) set({ user: data.user }); return { success: true }; }
