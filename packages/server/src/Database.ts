@@ -212,6 +212,12 @@ export class TrackerDB {
     ).run(socketId, ip, userAgent);
   }
 
+  markAllConnectionsDisconnected(): void {
+    this.db.prepare(
+      `UPDATE connections SET disconnected_at = datetime('now') WHERE disconnected_at IS NULL`
+    ).run();
+  }
+
   logDisconnection(socketId: string): void {
     this.db.prepare(
       `UPDATE connections SET disconnected_at = datetime('now') WHERE socket_id = ? AND disconnected_at IS NULL`
