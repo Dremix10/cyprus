@@ -282,8 +282,8 @@ export interface BotConfig {
   dragonFollowMinPoints: number;    // only play Dragon on tricks worth >= this (default: 10)
 
   // Phoenix usage when following
-  phoenixFollowMinPoints: number;   // only play Phoenix on tricks worth >= this (default: 5)
-  phoenixFollowMaxCards: number;    // only save Phoenix when hand > this many cards (default: 5)
+  phoenixFollowMinRank: number;     // only play Phoenix as single when top card rank >= this (default: 13 = King)
+  phoenixFollowMaxCards: number;    // ignore rank check when hand <= this many cards (default: 5)
 
   // Partner coordination
   dogPlayMaxCards: number;          // play Dog when hand <= this many cards (default: 14 = always)
@@ -302,7 +302,7 @@ export const DEFAULT_BOT_CONFIG: BotConfig = {
   leadDragonAgainstTichu: true,
   leadAcesAgainstTichu: true,
   dragonFollowMinPoints: 10,
-  phoenixFollowMinPoints: 5,
+  phoenixFollowMinRank: 13,   // King — only play Phoenix as single on King or Ace
   phoenixFollowMaxCards: 5,
   dogPlayMaxCards: 14,
   dogPlayPartnerCards: 14,
@@ -767,8 +767,10 @@ export class BotAI {
       return null;
     }
 
-    if (lowestBeat.length === 1 && isSpecial(lowestBeat[0], SpecialCardType.PHOENIX) && Math.random() < 0.5) {
-      return null;
+    // Save Phoenix for beating high cards (Queen+) — don't waste on low singles
+    if (lowestBeat.length === 1 && isSpecial(lowestBeat[0], SpecialCardType.PHOENIX) && hand.length > 5) {
+      const topRank = currentTrick.plays[currentTrick.plays.length - 1]?.combination?.rank ?? 0;
+      if (topRank < NR.QUEEN) return null;
     }
 
     return lowestBeat.map((c) => c.id);
@@ -1046,9 +1048,12 @@ export class BotAI {
       return null; // pass instead of wasting Dragon on a low-value trick
     }
 
-    // Don't waste Phoenix on worthless tricks (unless close to going out)
+    // Save Phoenix for beating high cards (King/Ace) — don't waste on low singles
     if (lowestBeat.length === 1 && isSpecial(lowestBeat[0], SpecialCardType.PHOENIX)) {
-      if (trickPoints < this.config.phoenixFollowMinPoints && hand.length > this.config.phoenixFollowMaxCards) return null;
+      if (hand.length > this.config.phoenixFollowMaxCards && !opponentAboutToOut) {
+        const topRank = currentTrick.plays[currentTrick.plays.length - 1]?.combination?.rank ?? 0;
+        if (topRank < this.config.phoenixFollowMinRank) return null;
+      }
     }
 
     // Pass if cheapest beat is Ace+ on a pointless trick and we have many cards
