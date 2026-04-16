@@ -115,6 +115,9 @@ io.use((socket, next) => {
 const roomManager = new RoomManager();
 const socketHandler = new SocketHandler(io, roomManager, db, monitor);
 
+// Mark all connections as disconnected — previous server session's sockets are dead
+db.markAllConnectionsDisconnected();
+
 // Restore any persisted rooms from a previous server session
 const restored = socketHandler.loadPersistedRooms();
 if (restored > 0) {
@@ -148,7 +151,7 @@ app.get('/health', (_req, res) => {
     commitMessage,
     commitDate,
     startedAt,
-    activeConnections: stats.activeConnections,
+    activeConnections: io.engine.clientsCount,
     totalGames: stats.totalGames,
   });
 });
