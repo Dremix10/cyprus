@@ -31,6 +31,8 @@ const monitor = new GameMonitor(db);
 const sessionCleanupInterval = setInterval(() => {
   authService.cleanExpiredSessions();
   db.cleanExpiredSessions();
+  const closed = db.closeAbandonedGames(120);
+  if (closed > 0) console.log(`Closed ${closed} abandoned game(s)`);
 }, 60 * 60_000);
 sessionCleanupInterval.unref();
 
