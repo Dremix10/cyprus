@@ -941,6 +941,32 @@ export class GameEngine {
     return this.roundHistory;
   }
 
+  getSpectatorState(roomCode: string, avatars?: Map<PlayerPosition, string>, disconnected?: Set<PlayerPosition>): ClientGameState {
+    return {
+      ...this.getClientState(0, roomCode, undefined, avatars, disconnected),
+      myHand: [],
+      isSpectator: true,
+      canAct: false,
+      canPass: false,
+      canCallTichu: false,
+      mustPlayWish: false,
+      players: this.state.players.map((p) => ({
+        position: p.position,
+        nickname: p.nickname,
+        cardCount: p.hand.length,
+        collectedCards: p.wonTricks.reduce((sum, t) => sum + t.length, 0),
+        hasPassed: p.passedCards !== null,
+        grandTichuDecided: p.grandTichuDecided,
+        tichuCall: p.tichuCall,
+        isOut: p.isOut,
+        finishOrder: p.finishOrder,
+        hand: p.hand, // Spectators see all hands
+        avatar: avatars?.get(p.position as PlayerPosition),
+        connected: disconnected?.has(p.position as PlayerPosition) ? false : true,
+      })) as PublicPlayerState[],
+    };
+  }
+
   getClientState(position: PlayerPosition, roomCode: string, botPositions?: Set<PlayerPosition>, avatars?: Map<PlayerPosition, string>, disconnected?: Set<PlayerPosition>, isSolo?: boolean): ClientGameState {
     const player = this.state.players[position];
     const iAmOut = player.isOut;
@@ -960,7 +986,6 @@ export class GameEngine {
         tichuCall: p.tichuCall,
         isOut: p.isOut,
         finishOrder: p.finishOrder,
-        // Solo: reveal all hands when out. Multiplayer: only reveal teammate's hand when out.
         hand: iAmOut && !p.isOut && (isSolo ? botPositions?.has(p.position) : isTeammate(p.position as PlayerPosition)) ? p.hand : undefined,
         avatar: avatars?.get(p.position as PlayerPosition),
         connected: disconnected?.has(p.position as PlayerPosition) ? false : true,
