@@ -476,6 +476,17 @@ export class RoomManager {
     const trimmed = nickname.trim();
     if (trimmed.length < 1 || trimmed.length > 20) return 'Nickname must be 1-20 characters';
     if (!/^[\w\s\-\u00C0-\u024F]+$/u.test(trimmed)) return 'Nickname contains invalid characters';
+    // Warning flag for potentially offensive content (returned as part of success, not blocking)
+    return null;
+  }
+
+  /** Check if nickname contains potentially offensive content. Returns warning message or null. */
+  checkNicknameWarning(nickname: string): string | null {
+    const lower = nickname.toLowerCase().replace(/[^a-z]/g, '');
+    const patterns = ['nigger', 'nigga', 'faggot', 'retard', 'kike', 'spic', 'chink', 'wetback', 'tranny'];
+    if (patterns.some(p => lower.includes(p))) {
+      return 'Your nickname may be offensive to other players';
+    }
     return null;
   }
 
