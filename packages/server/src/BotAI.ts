@@ -22,7 +22,7 @@ import {
   FULL_DECK,
 } from '@cyprus/shared';
 
-export type BotDifficulty = 'easy' | 'medium' | 'hard';
+export type BotDifficulty = 'easy' | 'medium' | 'hard' | 'extreme' | 'unfair';
 
 /** Extended context for hard mode decisions. */
 export type GameContext = {
@@ -294,6 +294,8 @@ export interface BotConfig {
 
   // Monte Carlo simulation
   useMonteCarlo: boolean;           // use MC simulation for key decisions (default: false)
+  mcSims: number;                   // max simulations per decision (default: 200)
+  mcTimeMs: number;                 // time budget in ms per decision (default: 150)
 }
 
 export const DEFAULT_BOT_CONFIG: BotConfig = {
@@ -308,6 +310,8 @@ export const DEFAULT_BOT_CONFIG: BotConfig = {
   dogPlayPartnerCards: 14,
   passAceToPartner: true,
   useMonteCarlo: false,
+  mcSims: 200,
+  mcTimeMs: 150,
 };
 
 // ─── Bot AI ─────────────────────────────────────────────────────────────
@@ -319,11 +323,13 @@ export class BotAI {
 
   constructor(private difficulty: BotDifficulty, config?: Partial<BotConfig>) {
     this.config = { ...DEFAULT_BOT_CONFIG, ...config };
-    // Shift difficulties up: easy→medium logic, medium→hard logic, hard→hard+MC
+    // Shift difficulties up: easy→medium logic, medium→hard logic, hard/unfair→hard+MC
     switch (difficulty) {
       case 'easy': this.effectiveDifficulty = 'medium'; break;
       case 'medium': this.effectiveDifficulty = 'hard'; break;
       case 'hard': this.effectiveDifficulty = 'hard'; break;
+      case 'extreme': this.effectiveDifficulty = 'hard'; break;
+      case 'unfair': this.effectiveDifficulty = 'hard'; break;
     }
   }
 
@@ -1355,6 +1361,12 @@ export class BotAI {
         break;
       case 'hard':
         base = 400 + Math.random() * 500;
+        break;
+      case 'extreme':
+        base = 450 + Math.random() * 550;
+        break;
+      case 'unfair':
+        base = 500 + Math.random() * 600;
         break;
     }
     // Slow down so the human can follow the action after they're out
