@@ -134,6 +134,24 @@ export class TrackerDB {
         used INTEGER DEFAULT 0
       );
 
+      CREATE TABLE IF NOT EXISTS ai_reviews (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        game_id INTEGER REFERENCES games(id),
+        room_code TEXT,
+        status TEXT NOT NULL,
+        summary TEXT,
+        findings TEXT,
+        created_at TEXT DEFAULT (datetime('now'))
+      );
+
+      CREATE TABLE IF NOT EXISTS review_queue (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        game_id INTEGER NOT NULL,
+        room_code TEXT NOT NULL,
+        queued_at TEXT DEFAULT (datetime('now')),
+        processed INTEGER DEFAULT 0
+      );
+
       CREATE TABLE IF NOT EXISTS user_stats (
         user_id INTEGER PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
         games_played INTEGER DEFAULT 0,
@@ -368,6 +386,60 @@ export class TrackerDB {
       ) AND started_at < datetime('now', '-' || ? || ' minutes')
     `).run(inactiveMinutes, inactiveMinutes);
     return result.changes;
+  }
+
+  // ─── AI Review Queue ────────────────────────────────────────────────
+
+  queueGameForReview(gameId: number, roomCode: string): void {
+    this.db.prepare(`INSERT INTO review_queue (game_id, room_code) VALUES (?, ?)`).run(gameId, roomCode);
+  }
+
+  getNextReviewItem(): { id: number; game_id: number; room_code: string } | undefined {
+    return this.db.prepare(
+      `SELECT id, game_id, room_code FROM review_queue WHERE processed = 0 ORDER BY queued_at ASC LIMIT 1`
+    ).get() as { id: number; game_id: number; room_code: string } | undefined;
+  }
+
+  markReviewProcessed(queueId: number): void {
+    this.db.prepare(`UPDATE review_queue SET processed = 1 WHERE id = ?`).run(queueId);
+  }
+
+  getGameReviewData(gameId: number): {
+    game: unknown;
+    players: unknown[];
+    events: unknown[];
+    errors: unknown[];
+  } {
+    const game = this.db.prepare(
+      `SELECT * FROM games WHERE id = ?`
+    ).get(gameId);
+    const players = this.db.prepare(
+      `SELECT * FROM game_players WHERE game_id = ?`
+    ).all(gameId);
+    const events = this.db.prepare(
+      `SELECT * FROM game_events WHERE game_id = ? ORDER BY created_at ASC`
+    ).all(gameId);
+    const roomCode = (game as any)?.room_code;
+    const errors = roomCode ? this.db.prepare(
+      `SELECT * FROM server_logs WHERE room_code = ? AND level IN ('error', 'warn') ORDER BY created_at ASC`
+    ).all(roomCode) : [];
+    return { game, players, events, errors };
+  }
+
+  saveAiReview(gameId: number, roomCode: string, status: string, summary: string, findings: string): void {
+    this.db.prepare(
+      `INSERT INTO ai_reviews (game_id, room_code, status, summary, findings) VALUES (?, ?, ?, ?, ?)`
+    ).run(gameId, roomCode, status, summary, findings);
+  }
+
+  getAiReviews(limit: number = 20): unknown[] {
+    return this.db.prepare(
+      `SELECT * FROM ai_reviews ORDER BY created_at DESC LIMIT ?`
+    ).all(limit);
+  }
+
+  getPendingReviewCount(): number {
+    return (this.db.prepare(`SELECT COUNT(*) as c FROM review_queue WHERE processed = 0`).get() as { c: number }).c;
   }
 
   // ─── Admin Sessions ─────────────────────────────────────────────────

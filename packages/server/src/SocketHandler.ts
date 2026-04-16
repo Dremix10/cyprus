@@ -648,6 +648,9 @@ export class SocketHandler {
       }
     });
 
+    // Queue game for AI review
+    this.db?.queueGameForReview(gameId, roomCode);
+
     roomGameIds.delete(roomCode);
   }
 
