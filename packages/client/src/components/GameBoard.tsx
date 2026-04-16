@@ -4,10 +4,16 @@ import { useRoomStore } from '../stores/roomStore.js';
 import { GamePhase, SpecialCardType, CombinationType, getRankLabel, sortCards } from '@cyprus/shared';
 import type { Card, Combination, PlayerPosition } from '@cyprus/shared';
 
-/** Get the effective rank label for Phoenix in a combo. Returns null if not applicable. */
-function getPhoenixLabel(combo: Combination): string | null {
+/** Get the effective rank label for Phoenix in a combo. For singles, pass the previous play's rank. */
+function getPhoenixLabel(combo: Combination, prevRank?: number): string | null {
   const phoenix = combo.cards.find((c) => c.type === 'special' && c.specialType === SpecialCardType.PHOENIX);
-  if (!phoenix || combo.cards.length <= 1) return null;
+  if (!phoenix) return null;
+
+  // Phoenix as single — show the rank it beats (prevRank + 0.5, displayed as the rank it sits above)
+  if (combo.cards.length === 1 && prevRank !== undefined) {
+    return getRankLabel(prevRank) + '½';
+  }
+  if (combo.cards.length <= 1) return null;
 
   const getCardRank = (c: Card) => c.type === 'normal' ? c.rank : (c.type === 'special' && c.specialType === SpecialCardType.MAHJONG ? 1 : 0);
   const others = combo.cards.filter((c) => c !== phoenix);
@@ -395,7 +401,9 @@ function PlayingLayout({
                     </span>
                     <div className={`trick-combo ${play.combination.cards.length >= 6 ? 'trick-combo-long' : ''}`}>
                       {(() => {
-                        const phoenixLabel = getPhoenixLabel(play.combination);
+                        const playIdx = gameState.currentTrick.plays.indexOf(play);
+                        const prevRank = playIdx > 0 ? gameState.currentTrick.plays[playIdx - 1].combination.rank : undefined;
+                        const phoenixLabel = getPhoenixLabel(play.combination, prevRank);
                         return sortForDisplay(play.combination).map((c) => (
                           <div key={c.id} className="trick-card-wrap">
                             <CardComponent card={c} size="small" />
