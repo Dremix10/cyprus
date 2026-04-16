@@ -105,7 +105,7 @@ function validateEmail(email: string): string | null {
 type UserRow = NonNullable<ReturnType<TrackerDB['getUserByUsername']>>;
 
 function buildAuthUser(
-  user: { id: number; username: string; display_name: string; created_at: string; email?: string | null; password_hash?: string | null; google_id?: string | null; avatar?: string | null; display_name_changed_at?: string | null },
+  user: { id: number; username: string; display_name: string; created_at: string; email?: string | null; password_hash?: string | null; google_id?: string | null; avatar?: string | null; display_name_changed_at?: string | null; language?: string | null },
   stats: { games_played: number; games_won: number },
   friendCount: number = 0
 ): AuthUser {
@@ -122,6 +122,7 @@ function buildAuthUser(
     avatar: user.avatar ?? null,
     displayNameChangedAt: user.display_name_changed_at ?? null,
     friendCount,
+    language: user.language ?? null,
   };
 }
 
@@ -407,6 +408,13 @@ export class AuthService {
     ];
     if (!VALID_AVATARS.includes(avatar)) return { error: 'Invalid avatar' };
     this.db.updateAvatar(userId, avatar);
+    return { success: true };
+  }
+
+  changeLanguage(userId: number, language: string): { success: true } | { error: string } {
+    const VALID_LANGS = ['en', 'el'];
+    if (!VALID_LANGS.includes(language)) return { error: 'Invalid language' };
+    this.db.updateLanguage(userId, language);
     return { success: true };
   }
 

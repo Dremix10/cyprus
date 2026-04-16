@@ -1,15 +1,10 @@
 import { useState } from 'react';
 import { useRoomStore } from '../stores/roomStore.js';
+import { useT } from '../i18n.js';
 import type { PlayerPosition } from '@cyprus/shared';
 
-const TEAM_LABELS: Record<PlayerPosition, string> = {
-  0: 'Team A',
-  1: 'Team B',
-  2: 'Team A',
-  3: 'Team B',
-};
-
 export function WaitingRoom() {
+  const t = useT();
   const roomCode = useRoomStore((s) => s.roomCode);
   const roomState = useRoomStore((s) => s.roomState);
   const nickname = useRoomStore((s) => s.nickname);
@@ -28,8 +23,15 @@ export function WaitingRoom() {
   };
 
   if (!roomState) {
-    return <div className="waiting-room">Connecting...</div>;
+    return <div className="waiting-room">{t('waiting.connecting')}</div>;
   }
+
+  const TEAM_LABELS: Record<PlayerPosition, string> = {
+    0: t('waiting.teamA'),
+    1: t('waiting.teamB'),
+    2: t('waiting.teamA'),
+    3: t('waiting.teamB'),
+  };
 
   const myPlayer = roomState.players.find((p) => p.nickname === nickname);
 
@@ -37,18 +39,18 @@ export function WaitingRoom() {
     <div className="waiting-room">
       <div className="room-header">
         <h2>
-          Room: {roomCode}
+          {t('waiting.room', { code: roomCode || '' })}
           <button className="btn-copy" onClick={copyRoomCode} title="Copy room code">
             {copied ? '✓' : '⧉'}
           </button>
         </h2>
         <button className="btn btn-small" onClick={reset}>
-          Leave
+          {t('waiting.leave')}
         </button>
       </div>
 
       <p className="room-code-hint">
-        Share this code with friends to join!
+        {t('waiting.shareCode')}
       </p>
 
       <div className="seats-grid">
@@ -68,10 +70,10 @@ export function WaitingRoom() {
                 {seated ? (
                   <>
                     <span className="player-name">{seated.nickname}</span>
-                    {!seated.connected && <span className="disconnected">(disconnected)</span>}
+                    {!seated.connected && <span className="disconnected">{t('waiting.disconnected')}</span>}
                   </>
                 ) : (
-                  <span className="empty-seat">Empty</span>
+                  <span className="empty-seat">{t('waiting.empty')}</span>
                 )}
               </div>
             </div>
@@ -82,14 +84,14 @@ export function WaitingRoom() {
       <div className="waiting-actions">
         {roomState.isStartable && myPlayer && (
           <button className="btn btn-primary" onClick={startGame}>
-            Start Game
+            {t('waiting.startGame')}
           </button>
         )}
         {!roomState.isStartable && (
-          <p className="info">Waiting for at least 2 players...</p>
+          <p className="info">{t('waiting.waitingForPlayers')}</p>
         )}
         {roomState.isStartable && roomState.players.length < 4 && (
-          <p className="info">Empty seats will be filled by bots</p>
+          <p className="info">{t('waiting.emptySeats')}</p>
         )}
       </div>
 

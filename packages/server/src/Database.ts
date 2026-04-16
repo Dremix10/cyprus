@@ -116,7 +116,8 @@ export class TrackerDB {
         failed_login_attempts INTEGER DEFAULT 0,
         last_login_at TEXT,
         avatar TEXT,
-        display_name_changed_at TEXT
+        display_name_changed_at TEXT,
+        language TEXT
       );
 
       CREATE TABLE IF NOT EXISTS user_sessions (
@@ -178,6 +179,7 @@ export class TrackerDB {
       `ALTER TABLE game_players ADD COLUMN user_id INTEGER`,
       `ALTER TABLE users ADD COLUMN avatar TEXT`,
       `ALTER TABLE users ADD COLUMN display_name_changed_at TEXT`,
+      `ALTER TABLE users ADD COLUMN language TEXT`,
     ];
     for (const sql of addColumnMigrations) {
       try { this.db.exec(sql); } catch { /* column already exists */ }
@@ -496,9 +498,10 @@ export class TrackerDB {
     id: number; username: string; display_name: string; created_at: string;
     last_login_at: string | null; email: string | null;
     avatar: string | null; display_name_changed_at: string | null;
+    language: string | null;
   } | undefined {
     return this.db.prepare(
-      `SELECT id, username, display_name, created_at, last_login_at, email, avatar, display_name_changed_at FROM users WHERE id = ?`
+      `SELECT id, username, display_name, created_at, last_login_at, email, avatar, display_name_changed_at, language FROM users WHERE id = ?`
     ).get(id) as ReturnType<TrackerDB['getUserById']>;
   }
 
@@ -904,6 +907,12 @@ export class TrackerDB {
     this.db.prepare(
       `UPDATE users SET avatar = ?, updated_at = datetime('now') WHERE id = ?`
     ).run(avatar, userId);
+  }
+
+  updateLanguage(userId: number, language: string): void {
+    this.db.prepare(
+      `UPDATE users SET language = ?, updated_at = datetime('now') WHERE id = ?`
+    ).run(language, userId);
   }
 
   // ─── Read-Only Query ─────────────────────────────────────────────

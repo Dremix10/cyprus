@@ -3,6 +3,7 @@ import { useRoomStore } from '../stores/roomStore.js';
 import { useAuthStore } from '../stores/authStore.js';
 import { AuthForms, UserBadge } from './AuthForms.js';
 import { FriendsPanel } from './Friends.js';
+import { useT } from '../i18n.js';
 
 function MeanderBorder() {
   return (
@@ -51,6 +52,7 @@ function GreekColumn({ side }: { side: 'left' | 'right' }) {
 }
 
 export function Lobby({ onTutorial, onLeaderboard, onProfile }: { onTutorial: () => void; onLeaderboard: () => void; onProfile: () => void }) {
+  const t = useT();
   const [roomCode, setRoomCode] = useState('');
   const [difficulty, setDifficulty] = useState('medium');
   const [guestMode, setGuestMode] = useState(false);
@@ -95,21 +97,21 @@ export function Lobby({ onTutorial, onLeaderboard, onProfile }: { onTutorial: ()
       {/* Main content */}
       <div className="lobby-content">
         <div className="lobby-header">
-          <h1 className="title-greek">TICHU</h1>
-          <p className="subtitle-greek">Online Card Game</p>
+          <h1 className="title-greek">{t('lobby.title')}</h1>
+          <p className="subtitle-greek">{t('lobby.subtitle')}</p>
           <MeanderBorder />
         </div>
 
         <div className="lobby-form-card">
           {staleSession && (
             <div className="reconnect-banner">
-              <p>You were in room <strong>{staleSession.roomCode}</strong></p>
+              <p>{t('lobby.reconnectBanner', { roomCode: staleSession.roomCode })}</p>
               <div className="reconnect-actions">
                 <button className="btn btn-olympus btn-reconnect" onClick={trySessionReconnect}>
-                  Reconnect
+                  {t('lobby.reconnect')}
                 </button>
                 <button className="btn-link reconnect-dismiss" onClick={dismissStaleSession}>
-                  Dismiss
+                  {t('lobby.dismiss')}
                 </button>
               </div>
             </div>
@@ -118,14 +120,14 @@ export function Lobby({ onTutorial, onLeaderboard, onProfile }: { onTutorial: ()
           {authUser && <FriendsPanel />}
           <div className="lobby-form">
             {authLoading ? (
-              <p className="auth-loading">Loading...</p>
+              <p className="auth-loading">{t('lobby.loading')}</p>
             ) : !showGameForm ? (
               <AuthForms onGuest={() => setGuestMode(true)} />
             ) : (
               <>
                 <input
                   type="text"
-                  placeholder="Enter your name"
+                  placeholder={t('lobby.enterName')}
                   value={nickname}
                   onChange={(e) => setNickname(e.target.value)}
                   maxLength={16}
@@ -138,7 +140,7 @@ export function Lobby({ onTutorial, onLeaderboard, onProfile }: { onTutorial: ()
                       className="btn btn-olympus btn-play-online"
                       onClick={joinMatchmaking}
                     >
-                      Play Online
+                      {t('lobby.playOnline')}
                     </button>
 
                     <div className="lobby-room-row">
@@ -146,13 +148,13 @@ export function Lobby({ onTutorial, onLeaderboard, onProfile }: { onTutorial: ()
                         className="btn btn-olympus btn-create"
                         onClick={() => setSubView('create')}
                       >
-                        Create Room
+                        {t('lobby.createRoom')}
                       </button>
                       <button
                         className="btn btn-olympus btn-join"
                         onClick={() => setSubView('join')}
                       >
-                        Join Room
+                        {t('lobby.joinRoom')}
                       </button>
                     </div>
 
@@ -160,16 +162,16 @@ export function Lobby({ onTutorial, onLeaderboard, onProfile }: { onTutorial: ()
                       className="btn btn-olympus btn-solo-greek"
                       onClick={() => setSubView('solo')}
                     >
-                      Solo Game
+                      {t('lobby.soloGame')}
                     </button>
                   </>
                 )}
 
                 {subView === 'create' && (
                   <div className="lobby-subview">
-                    <h3 className="lobby-subview-title">Create Room</h3>
+                    <h3 className="lobby-subview-title">{t('lobby.createRoom')}</h3>
                     <div className="target-score-row">
-                      <label htmlFor="targetScore">Play to</label>
+                      <label htmlFor="targetScore">{t('lobby.playTo')}</label>
                       <input
                         id="targetScore"
                         type="number"
@@ -185,36 +187,36 @@ export function Lobby({ onTutorial, onLeaderboard, onProfile }: { onTutorial: ()
                         }}
                         className="input input-score input-greek"
                       />
-                      <span>pts</span>
+                      <span>{t('lobby.pts')}</span>
                     </div>
                     <div className="target-score-row">
-                      <label htmlFor="botDiff">Bot Level</label>
+                      <label htmlFor="botDiff">{t('lobby.botLevel')}</label>
                       <select
                         id="botDiff"
                         value={botDifficulty}
                         onChange={(e) => setBotDifficulty(e.target.value)}
                         className="input input-select input-greek"
                       >
-                        <option value="easy">Easy</option>
-                        <option value="medium">Medium</option>
-                        <option value="hard">Hard</option>
+                        <option value="easy">{t('lobby.easy')}</option>
+                        <option value="medium">{t('lobby.medium')}</option>
+                        <option value="hard">{t('lobby.hard')}</option>
                       </select>
                     </div>
                     <button className="btn btn-olympus btn-create" onClick={createRoom}>
-                      Start
+                      {t('lobby.start')}
                     </button>
                     <button className="btn-link lobby-back" onClick={() => setSubView('none')}>
-                      Back
+                      {t('lobby.back')}
                     </button>
                   </div>
                 )}
 
                 {subView === 'join' && (
                   <div className="lobby-subview">
-                    <h3 className="lobby-subview-title">Join Room</h3>
+                    <h3 className="lobby-subview-title">{t('lobby.joinRoom')}</h3>
                     <input
                       type="text"
-                      placeholder="Room code"
+                      placeholder={t('lobby.roomCode')}
                       value={roomCode}
                       onChange={(e) => setRoomCode(e.target.value.toUpperCase())}
                       maxLength={4}
@@ -222,19 +224,19 @@ export function Lobby({ onTutorial, onLeaderboard, onProfile }: { onTutorial: ()
                       style={{ textAlign: 'center', textTransform: 'uppercase' }}
                     />
                     <button className="btn btn-olympus btn-join" onClick={() => joinRoom(roomCode)}>
-                      Join
+                      {t('lobby.join')}
                     </button>
                     <button className="btn-link lobby-back" onClick={() => setSubView('none')}>
-                      Back
+                      {t('lobby.back')}
                     </button>
                   </div>
                 )}
 
                 {subView === 'solo' && (
                   <div className="lobby-subview">
-                    <h3 className="lobby-subview-title">Solo Game</h3>
+                    <h3 className="lobby-subview-title">{t('lobby.soloGame')}</h3>
                     <div className="target-score-row">
-                      <label htmlFor="targetScore">Play to</label>
+                      <label htmlFor="targetScore">{t('lobby.playTo')}</label>
                       <input
                         id="targetScore"
                         type="number"
@@ -250,22 +252,22 @@ export function Lobby({ onTutorial, onLeaderboard, onProfile }: { onTutorial: ()
                         }}
                         className="input input-score input-greek"
                       />
-                      <span>pts</span>
+                      <span>{t('lobby.pts')}</span>
                     </div>
                     <select
                       value={difficulty}
                       onChange={(e) => setDifficulty(e.target.value)}
                       className="input input-select input-greek"
                     >
-                      <option value="easy">Easy Bots</option>
-                      <option value="medium">Medium Bots</option>
-                      <option value="hard">Hard Bots</option>
+                      <option value="easy">{t('lobby.easyBots')}</option>
+                      <option value="medium">{t('lobby.mediumBots')}</option>
+                      <option value="hard">{t('lobby.hardBots')}</option>
                     </select>
                     <button className="btn btn-olympus btn-solo-greek" onClick={() => createSoloRoom(difficulty)}>
-                      Start
+                      {t('lobby.start')}
                     </button>
                     <button className="btn-link lobby-back" onClick={() => setSubView('none')}>
-                      Back
+                      {t('lobby.back')}
                     </button>
                   </div>
                 )}
@@ -274,17 +276,17 @@ export function Lobby({ onTutorial, onLeaderboard, onProfile }: { onTutorial: ()
 
                 <div className="lobby-links">
                   <button className="btn-link lobby-link" onClick={onTutorial}>
-                    How to Play
+                    {t('lobby.howToPlay')}
                   </button>
                   <span className="lobby-link-sep">|</span>
                   <button className="btn-link lobby-link" onClick={onLeaderboard}>
-                    Leaderboard
+                    {t('lobby.leaderboard')}
                   </button>
                 </div>
 
                 {!authUser && guestMode && (
                   <button className="btn-link auth-back-link" onClick={() => setGuestMode(false)}>
-                    Sign in instead
+                    {t('lobby.signInInstead')}
                   </button>
                 )}
               </>

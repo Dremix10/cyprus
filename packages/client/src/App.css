@@ -1507,6 +1507,42 @@ body {
   margin: 0;
 }
 
+/* ─── Language Toggle ───────────────────────────────────────── */
+
+.lang-toggle {
+  display: flex;
+  gap: 0;
+  border: 1px solid rgba(201, 168, 76, 0.3);
+  border-radius: 6px;
+  overflow: hidden;
+  margin-bottom: 0.5rem;
+  align-self: center;
+}
+
+.lang-btn {
+  background: transparent;
+  border: none;
+  color: rgba(201, 168, 76, 0.6);
+  padding: 0.3rem 0.75rem;
+  font-size: 0.8rem;
+  cursor: pointer;
+  transition: background 0.2s, color 0.2s;
+}
+
+.lang-btn:hover {
+  background: rgba(201, 168, 76, 0.1);
+}
+
+.lang-btn-active {
+  background: rgba(201, 168, 76, 0.2);
+  color: #c9a84c;
+  font-weight: 600;
+}
+
+.lang-btn + .lang-btn {
+  border-left: 1px solid rgba(201, 168, 76, 0.3);
+}
+
 /* ─── Friends Panel ─────────────────────────────────────────── */
 
 .friends-panel {

@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useRoomStore } from './stores/roomStore.js';
 import { useAuthStore } from './stores/authStore.js';
+import { useT } from './i18n.js';
 import { useSocketEvents } from './hooks/useSocketEvents.js';
 import { Lobby } from './components/Lobby.js';
 import { WaitingRoom } from './components/WaitingRoom.js';
@@ -40,11 +41,13 @@ export default function App() {
     trySessionReconnect();
   }, []);
 
+  const t = useT();
+
   if (reconnecting) {
     return (
       <div className="app">
         <div className="reconnecting-screen">
-          <p>Reconnecting to game...</p>
+          <p>{t('app.reconnecting')}</p>
         </div>
       </div>
     );

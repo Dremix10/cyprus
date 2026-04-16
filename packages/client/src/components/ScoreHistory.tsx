@@ -1,4 +1,5 @@
 import type { RoundHistoryEntry } from '@cyprus/shared';
+import { useT } from '../i18n.js';
 
 interface ScoreHistoryProps {
   history: RoundHistoryEntry[];
@@ -7,10 +8,12 @@ interface ScoreHistoryProps {
 }
 
 export function ScoreHistory({ history, myTeam = 0, onClose }: ScoreHistoryProps) {
+  const t = useT();
+
   if (history.length === 0) {
     return (
       <div className="score-history">
-        <p className="info">No rounds played yet.</p>
+        <p className="info">{t('score.noRounds')}</p>
       </div>
     );
   }
@@ -18,19 +21,19 @@ export function ScoreHistory({ history, myTeam = 0, onClose }: ScoreHistoryProps
   return (
     <div className="score-history">
       <div className="score-history-header">
-        <h3>Score History</h3>
+        <h3>{t('score.scoreHistory')}</h3>
         {onClose && (
-          <button className="btn btn-small" onClick={onClose}>Close</button>
+          <button className="btn btn-small" onClick={onClose}>{t('score.close')}</button>
         )}
       </div>
       <div className="score-table-wrapper">
       <table className="score-table">
         <thead>
           <tr>
-            <th>Round</th>
-            <th className="name-teammate">Your Team</th>
-            <th className="name-opponent">Opponents</th>
-            <th>Notes</th>
+            <th>{t('score.round')}</th>
+            <th className="name-teammate">{t('score.yourTeam')}</th>
+            <th className="name-opponent">{t('score.opponents')}</th>
+            <th>{t('score.notes')}</th>
           </tr>
         </thead>
         <tbody>

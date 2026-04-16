@@ -1,5 +1,7 @@
 import { useState } from 'react';
 import { useAuthStore } from '../stores/authStore.js';
+import { useT } from '../i18n.js';
+import { LanguageSelector } from './AuthForms.js';
 
 const AVATARS = [
   'zeus', 'athena', 'poseidon', 'apollo', 'artemis', 'hermes',
@@ -22,6 +24,7 @@ function canChangeDisplayName(changedAt: string | null): { canChange: boolean; d
 }
 
 export function Profile({ onBack }: { onBack: () => void }) {
+  const t = useT();
   const user = useAuthStore((s) => s.user);
   const changeDisplayName = useAuthStore((s) => s.changeDisplayName);
   const changeAvatar = useAuthStore((s) => s.changeAvatar);
@@ -70,7 +73,7 @@ export function Profile({ onBack }: { onBack: () => void }) {
 
   const handleChangePassword = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (newPassword !== confirmPassword) { setPasswordError('Passwords do not match'); return; }
+    if (newPassword !== confirmPassword) { setPasswordError(t('auth.passwordsMismatch')); return; }
     setSubmitting(true);
     setPasswordError(null);
     const result = await changePassword(currentPassword, newPassword);
@@ -111,8 +114,8 @@ export function Profile({ onBack }: { onBack: () => void }) {
     <div className="profile-fullscreen">
       <div className="profile-container">
         <div className="profile-header">
-          <button className="btn-link profile-back" onClick={onBack}>&larr; Back</button>
-          <h2 className="profile-title">Profile</h2>
+          <button className="btn-link profile-back" onClick={onBack}>&larr; {t('profile.back')}</button>
+          <h2 className="profile-title">{t('profile.title')}</h2>
         </div>
 
         {/* Avatar Section */}
@@ -138,12 +141,12 @@ export function Profile({ onBack }: { onBack: () => void }) {
         {/* Info Section */}
         <div className="profile-section">
           <div className="profile-info-row">
-            <span className="profile-info-label">Username</span>
+            <span className="profile-info-label">{t('profile.username')}</span>
             <span className="profile-info-value">{user.username}</span>
           </div>
 
           <div className="profile-info-row">
-            <span className="profile-info-label">Display Name</span>
+            <span className="profile-info-label">{t('profile.displayName')}</span>
             {editingName ? (
               <div className="profile-edit-inline">
                 <input
@@ -155,89 +158,96 @@ export function Profile({ onBack }: { onBack: () => void }) {
                   autoFocus
                 />
                 <button className="btn btn-olympus btn-profile-save" onClick={handleChangeName} disabled={submitting}>
-                  {submitting ? '...' : 'Save'}
+                  {submitting ? '...' : t('profile.save')}
                 </button>
-                <button className="btn-link" onClick={() => { setEditingName(false); setNameError(null); }}>Cancel</button>
+                <button className="btn-link" onClick={() => { setEditingName(false); setNameError(null); }}>{t('profile.cancel')}</button>
                 {nameError && <p className="error profile-inline-error">{nameError}</p>}
               </div>
             ) : (
               <span className="profile-info-value">
                 {user.displayName}
                 {canChange ? (
-                  <button className="btn-link profile-edit-btn" onClick={() => { setEditingName(true); setNewDisplayName(user.displayName); }}>Edit</button>
+                  <button className="btn-link profile-edit-btn" onClick={() => { setEditingName(true); setNewDisplayName(user.displayName); }}>{t('profile.edit')}</button>
                 ) : (
-                  <span className="profile-info-hint">Can change in {daysLeft}d</span>
+                  <span className="profile-info-hint">{t('profile.canChangeIn', { days: daysLeft })}</span>
                 )}
-                {nameSuccess && <span className="profile-success-inline">Updated!</span>}
+                {nameSuccess && <span className="profile-success-inline">{t('profile.updated')}</span>}
               </span>
             )}
           </div>
 
           <div className="profile-info-row">
-            <span className="profile-info-label">Email</span>
-            <span className="profile-info-value">{user.email || 'Not set'}</span>
+            <span className="profile-info-label">{t('profile.email')}</span>
+            <span className="profile-info-value">{user.email || t('profile.notSet')}</span>
           </div>
 
           <div className="profile-info-row">
-            <span className="profile-info-label">Google</span>
+            <span className="profile-info-label">{t('profile.google')}</span>
             <span className="profile-info-value">
               {user.hasGoogle ? (
-                <span className="profile-google-linked">Linked <span className="profile-check">{'\u2705'}</span></span>
+                <span className="profile-google-linked">{t('profile.linked')} <span className="profile-check">{'\u2705'}</span></span>
               ) : (
-                <span className="profile-google-unlinked">Not linked</span>
+                <span className="profile-google-unlinked">{t('profile.notLinked')}</span>
               )}
             </span>
           </div>
 
           <div className="profile-info-row">
-            <span className="profile-info-label">Friends</span>
+            <span className="profile-info-label">{t('profile.friends')}</span>
             <span className="profile-info-value">{user.friendCount}</span>
           </div>
 
           <div className="profile-info-row">
-            <span className="profile-info-label">Member Since</span>
+            <span className="profile-info-label">{t('profile.memberSince')}</span>
             <span className="profile-info-value">{memberSince}</span>
+          </div>
+
+          <div className="profile-info-row">
+            <span className="profile-info-label">{t('profile.language')}</span>
+            <span className="profile-info-value">
+              <LanguageSelector />
+            </span>
           </div>
         </div>
 
         {/* Stats Section */}
         <div className="profile-section">
-          <h3 className="profile-section-title">Game Stats</h3>
+          <h3 className="profile-section-title">{t('profile.gameStats')}</h3>
           <div className="profile-stats-grid">
             <div className="profile-stat">
               <span className="profile-stat-value">{user.gamesPlayed}</span>
-              <span className="profile-stat-label">Games Played</span>
+              <span className="profile-stat-label">{t('profile.gamesPlayed')}</span>
             </div>
             <div className="profile-stat">
               <span className="profile-stat-value">{user.gamesWon}</span>
-              <span className="profile-stat-label">Games Won</span>
+              <span className="profile-stat-label">{t('profile.gamesWon')}</span>
             </div>
             <div className="profile-stat">
               <span className="profile-stat-value">{user.gamesPlayed > 0 ? Math.round((user.gamesWon / user.gamesPlayed) * 100) : 0}%</span>
-              <span className="profile-stat-label">Win Rate</span>
+              <span className="profile-stat-label">{t('profile.winRate')}</span>
             </div>
           </div>
         </div>
 
         {/* Password Section */}
         <div className="profile-section">
-          {passwordSuccess && <p className="auth-success">Password changed! You will be signed out.</p>}
+          {passwordSuccess && <p className="auth-success">{t('profile.passwordChanged')}</p>}
           {!showPasswordForm ? (
             <button className="btn btn-olympus btn-profile-action" onClick={() => setShowPasswordForm(true)}>
-              {user.hasPassword ? 'Change Password' : 'Set Password'}
+              {user.hasPassword ? t('profile.changePassword') : t('profile.setPassword')}
             </button>
           ) : (
             <form onSubmit={handleChangePassword} className="profile-password-form">
-              <h3 className="profile-section-title">{user.hasPassword ? 'Change Password' : 'Set Password'}</h3>
+              <h3 className="profile-section-title">{user.hasPassword ? t('profile.changePassword') : t('profile.setPassword')}</h3>
               {user.hasPassword && (
-                <input type="password" placeholder="Current password" value={currentPassword} onChange={(e) => setCurrentPassword(e.target.value)} className="input input-greek" autoComplete="current-password" required />
+                <input type="password" placeholder={t('profile.currentPassword')} value={currentPassword} onChange={(e) => setCurrentPassword(e.target.value)} className="input input-greek" autoComplete="current-password" required />
               )}
-              <input type="password" placeholder="New password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} minLength={8} maxLength={128} className="input input-greek" autoComplete="new-password" required />
-              <input type="password" placeholder="Confirm new password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} className="input input-greek" autoComplete="new-password" required />
+              <input type="password" placeholder={t('profile.newPassword')} value={newPassword} onChange={(e) => setNewPassword(e.target.value)} minLength={8} maxLength={128} className="input input-greek" autoComplete="new-password" required />
+              <input type="password" placeholder={t('profile.confirmNewPassword')} value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} className="input input-greek" autoComplete="new-password" required />
               {passwordError && <p className="error">{passwordError}</p>}
               <div className="profile-form-actions">
-                <button type="submit" className="btn btn-olympus btn-profile-save" disabled={submitting}>{submitting ? '...' : 'Save'}</button>
-                <button type="button" className="btn-link" onClick={() => { setShowPasswordForm(false); setPasswordError(null); }}>Cancel</button>
+                <button type="submit" className="btn btn-olympus btn-profile-save" disabled={submitting}>{submitting ? '...' : t('profile.save')}</button>
+                <button type="button" className="btn-link" onClick={() => { setShowPasswordForm(false); setPasswordError(null); }}>{t('profile.cancel')}</button>
               </div>
             </form>
           )}
@@ -247,13 +257,13 @@ export function Profile({ onBack }: { onBack: () => void }) {
         <div className="profile-section">
           {!showSignOutConfirm ? (
             <button className="btn btn-olympus btn-profile-action" onClick={() => setShowSignOutConfirm(true)}>
-              Sign Out
+              {t('profile.signOut')}
             </button>
           ) : (
             <div className="profile-form-actions profile-signout-confirm">
-              <span className="profile-confirm-text">Are you sure?</span>
-              <button className="btn btn-olympus btn-profile-save" onClick={logout}>Yes, sign out</button>
-              <button className="btn-link" onClick={() => setShowSignOutConfirm(false)}>Cancel</button>
+              <span className="profile-confirm-text">{t('profile.areYouSure')}</span>
+              <button className="btn btn-olympus btn-profile-save" onClick={logout}>{t('profile.yesSignOut')}</button>
+              <button className="btn-link" onClick={() => setShowSignOutConfirm(false)}>{t('profile.cancel')}</button>
             </div>
           )}
         </div>
@@ -262,20 +272,20 @@ export function Profile({ onBack }: { onBack: () => void }) {
         <div className="profile-delete-zone">
           {!showDeleteConfirm ? (
             <button className="btn-link profile-delete-trigger" onClick={() => setShowDeleteConfirm(true)}>
-              Delete Account
+              {t('profile.deleteAccount')}
             </button>
           ) : (
             <div className="profile-delete-confirm">
-              <p className="profile-delete-warning">This action is permanent and cannot be undone.</p>
+              <p className="profile-delete-warning">{t('profile.deleteWarning')}</p>
               {user.hasPassword && (
-                <input type="password" placeholder="Enter your password to confirm" value={deletePassword} onChange={(e) => setDeletePassword(e.target.value)} className="input input-greek" autoComplete="current-password" />
+                <input type="password" placeholder={t('profile.enterPasswordConfirm')} value={deletePassword} onChange={(e) => setDeletePassword(e.target.value)} className="input input-greek" autoComplete="current-password" />
               )}
               {deleteError && <p className="error">{deleteError}</p>}
               <div className="profile-form-actions">
                 <button className="btn-link profile-delete-trigger profile-delete-confirm-btn" onClick={handleDeleteAccount} disabled={submitting}>
-                  {submitting ? '...' : 'Yes, delete my account'}
+                  {submitting ? '...' : t('profile.yesDeleteAccount')}
                 </button>
-                <button className="btn-link" onClick={() => { setShowDeleteConfirm(false); setDeleteError(null); }}>Cancel</button>
+                <button className="btn-link" onClick={() => { setShowDeleteConfirm(false); setDeleteError(null); }}>{t('profile.cancel')}</button>
               </div>
             </div>
           )}
