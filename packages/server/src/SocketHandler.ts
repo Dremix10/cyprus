@@ -589,6 +589,7 @@ export class SocketHandler {
     const isSolo = room.botPositions.size === 3;
     const state = engine.getClientState(info.position, room.code, room.botPositions, avatars, disconnected, isSolo);
     state.turnDeadline = this.timers.getTurnDeadline(room.code);
+    state.disconnectDeadlines = this.timers.getDisconnectDeadlines(room.code);
     if (room.botPositions.size > 0) state.botDifficulty = room.botDifficulty;
     for (const p of state.players) {
       const uid = userIds.get(p.position);
@@ -737,6 +738,7 @@ export class SocketHandler {
 
     this.timers.scheduleTurnTimer(roomCode);
     const deadline = this.timers.getTurnDeadline(roomCode);
+    const disconnectDeadlines = this.timers.getDisconnectDeadlines(roomCode);
 
     // Build userId map for friend-add buttons (exclude bots)
     const userIds = new Map<number, number>();
@@ -751,6 +753,7 @@ export class SocketHandler {
       const isSolo = room.botPositions.size === 3;
       const state = room.engine.getClientState(position, roomCode, room.botPositions, avatars, disconnected, isSolo);
       state.turnDeadline = deadline;
+      state.disconnectDeadlines = disconnectDeadlines;
       if (room.botPositions.size > 0) state.botDifficulty = room.botDifficulty;
       // Attach user IDs for friend feature
       for (const p of state.players) {
