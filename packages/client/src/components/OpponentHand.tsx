@@ -3,6 +3,7 @@ import type { PublicPlayerState } from '@cyprus/shared';
 import { CardComponent } from './CardComponent.js';
 import { useAuthStore } from '../stores/authStore.js';
 import { AddFriendButton } from './Friends.js';
+import { PlayerAvatar } from './PlayerAvatar.js';
 import { useT } from '../i18n.js';
 
 interface OpponentHandProps {
@@ -37,7 +38,11 @@ export function OpponentHand({ player, position, isCurrentTurn, isTeammate, hasP
     <div className={`opponent-panel opponent-${position} ${isCurrentTurn ? 'opponent-active' : ''} ${isDisconnected ? 'opponent-disconnected' : ''}`}>
       <div className="opponent-info">
         {player.avatar && (
-          <img className={`player-avatar ${isDisconnected ? 'avatar-disconnected' : ''}`} src={player.avatar} alt={player.nickname} />
+          <PlayerAvatar
+            avatar={player.avatar}
+            alt={player.nickname}
+            className={`player-avatar ${isDisconnected ? 'avatar-disconnected' : ''}`}
+          />
         )}
         <span className={`opponent-name ${isTeammate ? 'name-teammate' : 'name-opponent'}`}>{player.nickname}</span>
         {showAddFriend && <AddFriendButton userId={player.userId!} displayName={player.nickname} />}
