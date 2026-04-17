@@ -35,14 +35,22 @@ if [ -n "${DATA_API_KEY:-}" ]; then
 fi
 # Fallback: try pkill in case API shutdown didn't work
 pkill -f "node.*packages/server" 2>/dev/null || true
-sleep 1
+sleep 2
+# Force kill anything still alive
 pkill -9 -f "node.*packages/server" 2>/dev/null || true
+sleep 1
+# Also kill by port if something else grabbed it
+fuser -k 3001/tcp 2>/dev/null || true
 # Wait for port to be released
 echo "Waiting for port to be freed..."
-for i in $(seq 1 10); do
+for i in $(seq 1 15); do
   if ! ss -tlnp 2>/dev/null | grep -q ":3001 "; then
     echo "Port is free."
     break
+  fi
+  if [ "$i" = "10" ]; then
+    echo "Force killing by port..."
+    fuser -k 3001/tcp 2>/dev/null || true
   fi
   sleep 1
 done
