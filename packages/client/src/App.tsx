@@ -10,6 +10,7 @@ import { Tutorial } from './components/Tutorial.js';
 import { Leaderboard } from './components/Leaderboard.js';
 import { ConnectionStatus } from './components/ConnectionStatus.js';
 import { ResetPasswordForm } from './components/AuthForms.js';
+import { LiveGames } from './components/LiveGames.js';
 import './App.css';
 
 function getResetToken(): string | null {
@@ -25,6 +26,7 @@ export default function App() {
   const checkAuth = useAuthStore((s) => s.checkAuth);
   const [showTutorial, setShowTutorial] = useState(false);
   const [showLeaderboard, setShowLeaderboard] = useState(false);
+  const [showLiveGames, setShowLiveGames] = useState(false);
   const [resetToken, setResetToken] = useState<string | null>(getResetToken);
 
   // Check auth and attempt session reconnect on mount
@@ -86,10 +88,18 @@ export default function App() {
     );
   }
 
+  if (showLiveGames) {
+    return (
+      <div className="app">
+        <LiveGames onBack={() => setShowLiveGames(false)} />
+      </div>
+    );
+  }
+
   return (
     <div className="app">
       <ConnectionStatus />
-      {view === 'lobby' && <Lobby onTutorial={() => setShowTutorial(true)} onLeaderboard={() => setShowLeaderboard(true)} />}
+      {view === 'lobby' && <Lobby onTutorial={() => setShowTutorial(true)} onLeaderboard={() => setShowLeaderboard(true)} onLiveGames={() => setShowLiveGames(true)} />}
       {view === 'queue' && <MatchmakingQueue />}
       {view === 'waiting' && <WaitingRoom />}
       {view === 'game' && <GameBoard />}

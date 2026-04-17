@@ -50,7 +50,7 @@ function GreekColumn({ side }: { side: 'left' | 'right' }) {
   );
 }
 
-export function Lobby({ onTutorial, onLeaderboard }: { onTutorial: () => void; onLeaderboard: () => void }) {
+export function Lobby({ onTutorial, onLeaderboard, onLiveGames }: { onTutorial: () => void; onLeaderboard: () => void; onLiveGames: () => void }) {
   const [roomCode, setRoomCode] = useState('');
   const [difficulty, setDifficulty] = useState('medium');
   const [guestMode, setGuestMode] = useState(false);
@@ -279,6 +279,10 @@ export function Lobby({ onTutorial, onLeaderboard }: { onTutorial: () => void; o
                   <span className="lobby-link-sep">|</span>
                   <button className="btn-link lobby-link" onClick={onLeaderboard}>
                     Leaderboard
+                  </button>
+                  <span className="lobby-link-sep">|</span>
+                  <button className="btn-link lobby-link" onClick={onLiveGames}>
+                    Watch Live
                   </button>
                 </div>
 

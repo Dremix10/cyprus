@@ -403,6 +403,38 @@ export class RoomManager {
     return null;
   }
 
+  getActiveGames(): Array<{
+    roomCode: string;
+    players: Array<{ nickname: string; position: number; isBot: boolean }>;
+    scores: [number, number];
+    targetScore: number;
+    phase: string;
+    round: number;
+    botDifficulty: string;
+    startedAt: number;
+  }> {
+    const result: ReturnType<RoomManager['getActiveGames']> = [];
+    for (const [, room] of this.rooms) {
+      if (!room.engine) continue;
+      const players = [...room.players.values()].map((p) => ({
+        nickname: p.nickname,
+        position: p.position,
+        isBot: room.botPositions.has(p.position),
+      }));
+      result.push({
+        roomCode: room.code,
+        players,
+        scores: room.engine.state.scores,
+        targetScore: room.targetScore,
+        phase: room.engine.state.phase,
+        round: room.engine.getRoundHistory().length + 1,
+        botDifficulty: room.botDifficulty,
+        startedAt: room.createdAt,
+      });
+    }
+    return result;
+  }
+
   getRoomState(roomCode: string): RoomState | null {
     const room = this.rooms.get(roomCode);
     if (!room) return null;
