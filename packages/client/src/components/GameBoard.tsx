@@ -216,8 +216,8 @@ export function GameBoard() {
               {'\uD83D\uDCCA'}
             </button>
           )}
-          <button className="leave-btn" onClick={() => setLeaveConfirm(true)}>
-            {t('game.exit')}
+          <button className="leave-btn" onClick={() => gameState.isSpectator ? reset() : setLeaveConfirm(true)}>
+            {gameState.isSpectator ? 'Exit' : t('game.exit')}
           </button>
         </span>
         <span className="name-opponent">
@@ -252,8 +252,12 @@ export function GameBoard() {
 
       {error && <p className="error">{error}</p>}
 
-      {gameState.phase === GamePhase.GRAND_TICHU && <GrandTichuView />}
-      {gameState.phase === GamePhase.PASSING && <PassingView />}
+      {gameState.phase === GamePhase.GRAND_TICHU && (gameState.isSpectator
+        ? <p className="info">Players deciding on Grand Tichu...</p>
+        : <GrandTichuView />)}
+      {gameState.phase === GamePhase.PASSING && (gameState.isSpectator
+        ? <p className="info">Players passing cards...</p>
+        : <PassingView />)}
       {(gameState.phase === GamePhase.PLAYING ||
         gameState.phase === GamePhase.DRAGON_GIVE) && (
         <>

@@ -308,7 +308,9 @@ export function ScoringView() {
         {gameState.roundHistory && gameState.roundHistory.length > 1 && (
           <ScoreHistory history={gameState.roundHistory} myTeam={myTeam} />
         )}
-        <button className="btn btn-primary" onClick={nextRound}>{t('phase.nextRound')}</button>
+        {!gameState.isSpectator && (
+          <button className="btn btn-primary" onClick={nextRound}>{t('phase.nextRound')}</button>
+        )}
       </div>
 
       {gameState.roundTrickCards && <PointCards cards={gameState.roundTrickCards[1 - myTeam]} team={t('game.opponents')} />}
@@ -384,7 +386,9 @@ export function GameOverView() {
         <ScoreHistory history={gameState.roundHistory} myTeam={myTeam} />
       )}
 
-      <button className="btn btn-primary btn-play-again" onClick={reset}>{t('phase.backToLobby')}</button>
+      <button className="btn btn-primary btn-play-again" onClick={reset}>
+        {gameState.isSpectator ? 'Back to Games' : t('phase.backToLobby')}
+      </button>
     </div>
   );
 }
