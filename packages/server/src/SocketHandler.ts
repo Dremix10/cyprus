@@ -700,6 +700,58 @@ export class SocketHandler {
 
       this.computeAndUpdateRating(userId);
     }
+
+    // ELO: only when both teams have 2 authed humans and there is a winner
+    const team0 = playersToUpdate.filter((p) => p.pos % 2 === 0);
+    const team1 = playersToUpdate.filter((p) => p.pos % 2 === 1);
+    if (team0.length === 2 && team1.length === 2 && winTeam !== -1) {
+      this.applyElo(team0, team1, s[0], s[1]);
+    }
+  }
+
+  private applyElo(
+    team0: Array<{ userId: number; disconnected: boolean }>,
+    team1: Array<{ userId: number; disconnected: boolean }>,
+    score0: number,
+    score1: number
+  ): void {
+    if (!this.db) return;
+
+    const fetch = (p: { userId: number; disconnected: boolean }) => {
+      const e = this.db!.getUserElo(p.userId);
+      return { ...p, elo: e.elo, elo_games: e.elo_games };
+    };
+    const t0 = team0.map(fetch);
+    const t1 = team1.map(fetch);
+
+    const avg0 = (t0[0].elo + t0[1].elo) / 2;
+    const avg1 = (t1[0].elo + t1[1].elo) / 2;
+
+    const expected0 = 1 / (1 + Math.pow(10, (avg1 - avg0) / 400));
+    const expected1 = 1 - expected0;
+
+    // Margin-of-victory score, clamped to [0,1] (Tichu scores can be negative)
+    const total = Math.abs(score0) + Math.abs(score1);
+    const raw0 = total === 0 ? 0.5 : 0.5 + 0.5 * (score0 - score1) / total;
+    const actual0 = Math.max(0, Math.min(1, raw0));
+    const actual1 = 1 - actual0;
+
+    const kFor = (games: number) => (games < 20 ? 40 : games < 100 ? 20 : 10);
+
+    const apply = (
+      p: { userId: number; elo: number; elo_games: number; disconnected: boolean },
+      expected: number,
+      actual: number
+    ) => {
+      let k = kFor(p.elo_games);
+      if (p.disconnected) k = k / 2;
+      const delta = k * (actual - expected);
+      const newElo = Math.max(100, Math.round(p.elo + delta));
+      this.db!.updateUserElo(p.userId, newElo);
+    };
+
+    for (const p of t0) apply(p, expected0, actual0);
+    for (const p of t1) apply(p, expected1, actual1);
   }
 
   private computeAndUpdateRating(userId: number): void {

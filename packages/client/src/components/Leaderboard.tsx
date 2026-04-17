@@ -63,8 +63,12 @@ export function Leaderboard({ onBack }: { onBack: () => void }) {
                 <span className="stat-label">{t('leaderboard.rank')}</span>
               </div>
               <div className="stat-item">
-                <span className="stat-value">{Math.round(myStats.rating)}</span>
-                <span className="stat-label">{t('leaderboard.rating')}</span>
+                <span className="stat-value">{myStats.elo}</span>
+                <span className="stat-label">{t('leaderboard.elo')}</span>
+              </div>
+              <div className="stat-item">
+                <span className="stat-value">{myStats.elo_peak}</span>
+                <span className="stat-label">{t('leaderboard.eloPeak')}</span>
               </div>
               <div className="stat-item">
                 <span className="stat-value">{myStats.games_won}/{myStats.games_played}</span>
@@ -121,7 +125,7 @@ export function Leaderboard({ onBack }: { onBack: () => void }) {
                 <tr>
                   <th>#</th>
                   <th>{t('leaderboard.player')}</th>
-                  <th>{t('leaderboard.rating')}</th>
+                  <th>{t('leaderboard.elo')}</th>
                   <th>{t('leaderboard.wl')}</th>
                   <th>{t('leaderboard.winPercent')}</th>
                   <th>{t('leaderboard.firstOut')}</th>
@@ -142,7 +146,7 @@ export function Leaderboard({ onBack }: { onBack: () => void }) {
                       {i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : i + 1}
                     </td>
                     <td className="name-cell">{e.username}</td>
-                    <td className="rating-cell">{Math.round(e.rating)}</td>
+                    <td className="rating-cell">{e.elo}</td>
                     <td>{e.games_won}/{e.games_played}</td>
                     <td>{winRate(e)}%</td>
                     <td>{e.first_out_count}</td>
