@@ -15,6 +15,7 @@ import { createAuthRouter, SESSION_COOKIE } from './AuthRoutes.js';
 import { createFriendRouter } from './FriendRoutes.js';
 import { GameMonitor } from './GameMonitor.js';
 import { ServerAuditor } from './ServerAuditor.js';
+import { AiReviewer } from './AiReviewer.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
@@ -146,6 +147,7 @@ if (restored > 0) monitor.roomRestored(restored);
 
 // ─── Automated Auditor ──────────────────────────────────────────────
 const auditor = new ServerAuditor(db, monitor, () => io.engine.clientsCount);
+const aiReviewer = new AiReviewer(db, () => io.engine.clientsCount);
 
 // ─── Routes ─────────────────────────────────────────────────────────
 
@@ -160,6 +162,12 @@ app.get('/health', (_req, res) => {
     activeConnections: io.engine.clientsCount,
     totalGames: stats.totalGames,
   });
+});
+
+// Live games list for spectator mode
+app.get('/api/live-games', (_req, res) => {
+  const rooms = roomManager.getActiveGames();
+  res.json(rooms);
 });
 
 // Public leaderboard API
@@ -274,6 +282,7 @@ function shutdown(signal: string): void {
   roomManager.destroy();
   monitor.destroy();
   auditor.destroy();
+  aiReviewer.destroy();
   httpServer.close(() => {
     db.close();
     console.log('Server closed');

@@ -4178,3 +4178,122 @@ body {
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
   z-index: 1;
 }
+
+/* ─── Live Games Browser ─────────────────────────────────────────── */
+
+.live-games {
+  max-width: 600px;
+  margin: 0 auto;
+  padding: 1.5rem;
+}
+
+.live-games-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+.live-games-header h2 {
+  color: #c9a84c;
+  font-size: 1.3rem;
+  margin: 0;
+}
+
+.live-games-status {
+  text-align: center;
+  color: var(--text-muted);
+  padding: 2rem 0;
+}
+
+.live-games-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.live-game-card {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: rgba(22, 33, 62, 0.6);
+  border: 1px solid rgba(201, 168, 76, 0.15);
+  border-radius: 12px;
+  padding: 1rem 1.2rem;
+  transition: border-color 0.2s;
+}
+.live-game-card:hover {
+  border-color: rgba(201, 168, 76, 0.4);
+}
+
+.live-game-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.live-game-top {
+  display: flex;
+  gap: 0.6rem;
+  align-items: center;
+}
+.live-game-code {
+  background: rgba(201, 168, 76, 0.15);
+  color: #c9a84c;
+  padding: 0.15rem 0.5rem;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+}
+.live-game-phase {
+  color: var(--text-muted);
+  font-size: 0.8rem;
+}
+.live-game-round {
+  color: var(--text-muted);
+  font-size: 0.75rem;
+}
+
+.live-game-scores {
+  display: flex;
+  align-items: baseline;
+  gap: 0.3rem;
+  font-size: 1.1rem;
+}
+.live-game-score {
+  color: var(--text);
+  font-weight: 600;
+}
+.live-game-vs {
+  color: var(--text-muted);
+  font-size: 0.85rem;
+}
+.live-game-target {
+  color: var(--text-muted);
+  font-size: 0.75rem;
+}
+
+.live-game-players {
+  display: flex;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+}
+.live-game-player {
+  color: var(--text);
+  font-size: 0.8rem;
+}
+.live-game-player:not(:last-child)::after {
+  content: ',';
+  color: var(--text-muted);
+}
+.live-game-bots {
+  color: var(--text-muted);
+  font-size: 0.75rem;
+  font-style: italic;
+}
+
+.btn-spectate {
+  white-space: nowrap;
+  padding: 0.5rem 1rem !important;
+  font-size: 0.85rem !important;
+}

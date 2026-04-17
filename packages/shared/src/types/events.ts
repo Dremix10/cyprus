@@ -71,6 +71,10 @@ export interface ClientToServerEvents {
   'game:next_round': () => void;
   'game:skip_round': () => void;
   'game:resync': () => void;
+  'room:spectate': (
+    roomCode: string,
+    callback: (response: { success: true; roomCode: string } | { error: string }) => void
+  ) => void;
 }
 
 export interface ServerToClientEvents {

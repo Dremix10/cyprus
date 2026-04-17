@@ -196,6 +196,11 @@ export function GameBoard() {
           {roomNotification}
         </div>
       )}
+      {gameState.isSpectator && (
+        <div className="game-toast game-toast-info">
+          Spectating
+        </div>
+      )}
       <div className="game-info">
         <span className="name-teammate">
           {t('game.yourTeam')}: {gameState.scores[myTeam]} / {gameState.targetScore}

@@ -82,4 +82,5 @@ export type ClientGameState = {
   mustPlayWish?: boolean;    // true when wish is active and player has playable wish combos
   isSolo?: boolean;          // true when playing solo (3 bots)
   botDifficulty?: string;    // bot difficulty level when bots are present
+  isSpectator?: boolean;     // true when viewing as spectator (all hands visible)
 };
