@@ -273,35 +273,56 @@ export class SocketHandler {
   }
 
   private registerGameEvents(socket: TypedSocket): void {
+    const rejectSpectator = () => {
+      if (this.spectators.has(socket.id)) {
+        socket.emit('game:error', 'Spectators cannot perform game actions');
+        return true;
+      }
+      return false;
+    };
+
     socket.on('game:grand_tichu_decision', (call) => {
+      if (rejectSpectator()) return;
       if (!this.checkRate(socket, 'action')) return;
       this.handleGameAction(socket, (engine, position) => engine.grandTichuDecision(position, call));
     });
     socket.on('game:pass_cards', (cards) => {
+      if (rejectSpectator()) return;
       if (!this.checkRate(socket, 'action')) return;
       this.handleGameAction(socket, (engine, position) => engine.passCards(position, cards));
     });
+    socket.on('game:undo_pass', () => {
+      if (rejectSpectator()) return;
+      if (!this.checkRate(socket, 'action')) return;
+      this.handleGameAction(socket, (engine, position) => engine.undoPassCards(position));
+    });
     socket.on('game:play', (cardIds) => {
+      if (rejectSpectator()) return;
       if (!this.checkRate(socket, 'action')) return;
       this.handleGameAction(socket, (engine, position) => engine.playCards(position, cardIds));
     });
     socket.on('game:pass_turn', () => {
+      if (rejectSpectator()) return;
       if (!this.checkRate(socket, 'action')) return;
       this.handleGameAction(socket, (engine, position) => engine.passTurn(position));
     });
     socket.on('game:call_tichu', () => {
+      if (rejectSpectator()) return;
       if (!this.checkRate(socket, 'action')) return;
       this.handleGameAction(socket, (engine, position) => engine.callTichu(position));
     });
     socket.on('game:dragon_give', (opponentPosition) => {
+      if (rejectSpectator()) return;
       if (!this.checkRate(socket, 'action')) return;
       this.handleGameAction(socket, (engine, position) => engine.dragonGive(position, opponentPosition));
     });
     socket.on('game:wish', (rank) => {
+      if (rejectSpectator()) return;
       if (!this.checkRate(socket, 'action')) return;
       this.handleGameAction(socket, (engine, position) => engine.setWish(position, rank));
     });
     socket.on('game:next_round', () => {
+      if (rejectSpectator()) return;
       if (!this.checkRate(socket, 'action')) return;
       this.handleGameAction(socket, (engine) => engine.nextRound());
     });

@@ -63,6 +63,7 @@ export interface ClientToServerEvents {
     across: string;
     right: string;
   }) => void;
+  'game:undo_pass': () => void;
   'game:play': (cardIds: string[]) => void;
   'game:pass_turn': () => void;
   'game:call_tichu': () => void;

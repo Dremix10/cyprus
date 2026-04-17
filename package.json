@@ -13,6 +13,7 @@
     "clean": "rm -rf packages/*/dist"
   },
   "devDependencies": {
+    "@vitest/coverage-v8": "^4.1.4",
     "concurrently": "^9.2.1",
     "eslint": "^9.0.0",
     "prettier": "^3.3.0",
