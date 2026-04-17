@@ -12,7 +12,7 @@ interface LiveGame {
   startedAt: number;
 }
 
-export function LiveGames({ onBack }: { onBack: () => void }) {
+export function LiveGames({ onBack, onSpectate }: { onBack: () => void; onSpectate?: () => void }) {
   const [games, setGames] = useState<LiveGame[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -83,7 +83,7 @@ export function LiveGames({ onBack }: { onBack: () => void }) {
             </div>
             <button
               className="btn btn-olympus btn-spectate"
-              onClick={() => spectateRoom(g.roomCode)}
+              onClick={async () => { await spectateRoom(g.roomCode); onSpectate?.(); }}
             >
               Watch
             </button>
