@@ -148,7 +148,7 @@ export class ServerAuditor {
     // Telegram alert
     if (TELEGRAM_BOT_TOKEN && TELEGRAM_CHAT_ID) {
       try {
-        await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`, {
+        const res = await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -157,8 +157,13 @@ export class ServerAuditor {
             parse_mode: 'Markdown',
           }),
         });
+        if (!res.ok) {
+          console.error(`Telegram API error: ${res.status}`);
+          this.db.writeLog('error', 'system', `Telegram alert failed: ${res.status}`);
+        }
       } catch (err) {
-        console.error('Telegram alert failed:', err);
+        console.error('Telegram network error:', err);
+        this.db.writeLog('error', 'system', `Telegram network error: ${(err as Error).message}`);
       }
     }
 

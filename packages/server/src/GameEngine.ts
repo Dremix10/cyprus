@@ -185,7 +185,7 @@ export class GameEngine {
     this.state.phase = GamePhase.PASSING;
   }
 
-  /** Player passes 3 cards (one to each other player). */
+  /** Player passes 3 cards (one to each other player). Can re-submit until all 4 are ready. */
   passCards(
     position: PlayerPosition,
     cards: { left: string; across: string; right: string }
@@ -193,10 +193,6 @@ export class GameEngine {
     this.events = [];
     this.assertPhase(GamePhase.PASSING);
     const player = this.state.players[position];
-
-    if (player.passedCards) {
-      throw new Error('Already passed cards');
-    }
 
     // Validate all 3 card IDs are in hand and distinct
     const cardIds = [cards.left, cards.across, cards.right];
@@ -216,6 +212,18 @@ export class GameEngine {
       this.resolveCardPassing();
     }
 
+    return this.events;
+  }
+
+  /** Player undoes their card pass selection. Only allowed during PASSING phase before all submit. */
+  undoPassCards(position: PlayerPosition): GameEvent[] {
+    this.events = [];
+    this.assertPhase(GamePhase.PASSING);
+    if (this.state.players.every((p) => p.passedCards !== null)) {
+      throw new Error('All players have submitted — cannot undo');
+    }
+    const player = this.state.players[position];
+    player.passedCards = null;
     return this.events;
   }
 
@@ -950,7 +958,7 @@ export class GameEngine {
       roomCode,
       phase: this.state.phase,
       myPosition: 0, // spectator views from position 0's perspective
-      myHand: this.state.players[0].hand, // show position 0's hand as "my hand"
+      myHand: [], // spectators don't have a hand
       isSpectator: true,
       canAct: false,
       canPass: false,
@@ -966,7 +974,8 @@ export class GameEngine {
         tichuCall: p.tichuCall,
         isOut: p.isOut,
         finishOrder: p.finishOrder,
-        hand: p.hand, // Spectators see ALL hands
+        // Hide hands during Grand Tichu and Passing (strategic info); show during play
+        hand: (this.state.phase === GamePhase.GRAND_TICHU || this.state.phase === GamePhase.PASSING) ? undefined : p.hand,
         avatar: avatars?.get(p.position as PlayerPosition),
         connected: disconnected?.has(p.position as PlayerPosition) ? false : true,
       })) as PublicPlayerState[],

@@ -149,10 +149,12 @@ export function PassingView() {
   const t = useT();
   const gameState = useGameStore((s) => s.gameState)!;
   const passCards = useGameStore((s) => s.passCards);
+  const undoPassCards = useGameStore((s) => s.undoPassCards);
   const callTichu = useGameStore((s) => s.callTichu);
   const hasPassed = gameState.players[gameState.myPosition]?.hasPassed;
   const myInfo = gameState.players[gameState.myPosition];
   const canCallTichu = myInfo?.tichuCall === 'none' && !gameState.hasPlayedCards;
+  const readyCount = gameState.players.filter((p) => p.hasPassed).length;
 
   const rel = getRelativePositions(gameState.myPosition);
   const leftPlayer = gameState.players[rel.left];
@@ -166,15 +168,18 @@ export function PassingView() {
   const [activeCard, setActiveCard] = useState<string | null>(null);
 
   if (hasPassed) {
-    const myTeam = gameState.myPosition % 2;
     const waiting = gameState.players.filter((p) => !p.hasPassed);
     const names = waiting.map((p) => p.nickname).join(', ');
     return (
       <div className="phase-view">
         <TichuCallBadges />
+        <div className="pass-ready-counter">{readyCount}/4 ready</div>
         <p className="info">
           {t('phase.waitingFor', { names })}
         </p>
+        <button className="btn btn-secondary" onClick={() => { undoPassCards(); setAssignments({ left: null, across: null, right: null }); }}>
+          Change Cards
+        </button>
       </div>
     );
   }
@@ -206,6 +211,7 @@ export function PassingView() {
   return (
     <div className="phase-view">
       <TichuCallBadges />
+      <div className="pass-ready-counter">{readyCount}/4 ready</div>
       <h3>{t('phase.passCards')}</h3>
       <p className="info">
         {activeCard ? t('phase.nowClickPlayer') : t('phase.clickCardThenPlayer')}
