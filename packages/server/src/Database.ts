@@ -700,12 +700,10 @@ export class TrackerDB {
   }
 
   getUserGameStats(userId: number): { games_played: number; games_won: number } {
-    const displayName = this.getUserById(userId)?.display_name;
-    if (!displayName) return { games_played: 0, games_won: 0 };
     const row = this.db.prepare(
-      `SELECT COALESCE(SUM(games_played), 0) as games_played, COALESCE(SUM(games_won), 0) as games_won FROM players WHERE nickname = ?`
-    ).get(displayName) as { games_played: number; games_won: number };
-    return row;
+      `SELECT games_played, games_won FROM user_stats WHERE user_id = ?`
+    ).get(userId) as { games_played: number; games_won: number } | undefined;
+    return row ?? { games_played: 0, games_won: 0 };
   }
 
   // ─── User Stats (Leaderboard) ───────────────────────────────────

@@ -681,7 +681,7 @@ export class SocketHandler {
       }
 
       const isSolo = info.room.botPositions.size === 3;
-      if (!isSolo && this.db) {
+      if (!isSolo && this.db && this.hasActiveHuman(info.room)) {
         this.updateLeaderboardStats(info.room, engine, roundHistory);
       }
     });
@@ -690,6 +690,14 @@ export class SocketHandler {
     this.db?.queueGameForReview(gameId, roomCode);
 
     roomGameIds.delete(roomCode);
+  }
+
+  private hasActiveHuman(room: NonNullable<ReturnType<RoomManager['getRoom']>>): boolean {
+    for (const [pos, player] of room.players) {
+      if (room.botPositions.has(pos)) continue;
+      if (player.userId && player.connected) return true;
+    }
+    return false;
   }
 
   private updateLeaderboardStats(
