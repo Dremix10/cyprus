@@ -369,6 +369,7 @@ function PlayingLayout({
           isCurrentTurn={gameState.currentPlayer === rel.top}
           isTeammate={isTeammate(rel.top)}
           hasPassed={passedSet.has(rel.top)}
+          disconnectDeadline={gameState.disconnectDeadlines?.[rel.top]}
         />
       </div>
 
@@ -380,6 +381,7 @@ function PlayingLayout({
           isCurrentTurn={gameState.currentPlayer === rel.left}
           isTeammate={isTeammate(rel.left)}
           hasPassed={passedSet.has(rel.left)}
+          disconnectDeadline={gameState.disconnectDeadlines?.[rel.left]}
         />
 
         <div className={`trick-area ${bombShake ? 'trick-bomb-shake' : ''} ${trickCollecting ? 'trick-collecting' : ''}`}>
@@ -432,6 +434,7 @@ function PlayingLayout({
           isCurrentTurn={gameState.currentPlayer === rel.right}
           isTeammate={isTeammate(rel.right)}
           hasPassed={passedSet.has(rel.right)}
+          disconnectDeadline={gameState.disconnectDeadlines?.[rel.right]}
         />
       </div>
 

@@ -72,6 +72,7 @@ export type ClientGameState = {
   dogPending?: boolean;
   trickWonPending?: boolean;
   turnDeadline?: number | null;
+  disconnectDeadlines?: Record<number, number>; // position -> timestamp when bot replaces player
   roundHistory?: RoundHistoryEntry[];
   receivedCards?: ReceivedCard[];
   // Server-computed action flags — single source of truth, no client-side game logic needed

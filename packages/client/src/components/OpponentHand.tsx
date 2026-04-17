@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react';
 import type { PublicPlayerState } from '@cyprus/shared';
 import { CardComponent } from './CardComponent.js';
 import { useAuthStore } from '../stores/authStore.js';
@@ -10,9 +11,22 @@ interface OpponentHandProps {
   isCurrentTurn: boolean;
   isTeammate?: boolean;
   hasPassed?: boolean;
+  disconnectDeadline?: number;
 }
 
-export function OpponentHand({ player, position, isCurrentTurn, isTeammate, hasPassed }: OpponentHandProps) {
+function DisconnectCountdown({ deadline }: { deadline: number }) {
+  const t = useT();
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    const id = setInterval(() => setNow(Date.now()), 500);
+    return () => clearInterval(id);
+  }, []);
+  const seconds = Math.max(0, Math.ceil((deadline - now) / 1000));
+  if (seconds <= 0) return null;
+  return <span className="disconnect-countdown">{t('opponent.replacedIn', { seconds })}</span>;
+}
+
+export function OpponentHand({ player, position, isCurrentTurn, isTeammate, hasPassed, disconnectDeadline }: OpponentHandProps) {
   const t = useT();
   const hasRevealedHand = player.hand && player.hand.length > 0;
   const isDisconnected = player.connected === false;
@@ -28,6 +42,7 @@ export function OpponentHand({ player, position, isCurrentTurn, isTeammate, hasP
         <span className={`opponent-name ${isTeammate ? 'name-teammate' : 'name-opponent'}`}>{player.nickname}</span>
         {showAddFriend && <AddFriendButton userId={player.userId!} displayName={player.nickname} />}
         {isDisconnected && <span className="disconnect-badge">{t('opponent.offline')}</span>}
+        {isDisconnected && disconnectDeadline && <DisconnectCountdown deadline={disconnectDeadline} />}
         {player.tichuCall !== 'none' && (
           <span className={`tichu-badge ${player.tichuCall === 'grand_tichu' ? 'tichu-badge-grand' : ''}`}>
             {player.tichuCall === 'grand_tichu' ? t('opponent.grandTichu') : t('opponent.tichu')}

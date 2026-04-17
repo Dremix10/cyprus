@@ -2390,6 +2390,13 @@ body {
   animation: badge-pop 0.2s ease-out;
 }
 
+.disconnect-countdown {
+  color: #ff9b6b;
+  font-size: 0.6rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
 .opponent-info {
   display: flex;
   align-items: center;

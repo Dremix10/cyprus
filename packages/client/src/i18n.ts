@@ -252,6 +252,7 @@ const translations: Record<Lang, Record<string, string>> = {
 
     // ─── Opponent ────────────────────────────────────────────
     'opponent.offline': 'OFFLINE',
+    'opponent.replacedIn': 'Bot in {seconds}s',
     'opponent.grandTichu': 'GRAND TICHU',
     'opponent.tichu': 'TICHU',
     'opponent.pass': 'PASS',
@@ -632,6 +633,7 @@ const translations: Record<Lang, Record<string, string>> = {
 
     // ─── Opponent ────────────────────────────────────────────
     'opponent.offline': '\u0391\u03a0\u039f\u03a3\u03a5\u039d\u0394\u0395\u03a4\u039f\u03a3',
+    'opponent.replacedIn': 'Bot \u03c3\u03b5 {seconds}s',
     'opponent.grandTichu': 'GRAND TICHU',
     'opponent.tichu': 'TICHU',
     'opponent.pass': '\u03a0\u0391\u03a3\u039f',

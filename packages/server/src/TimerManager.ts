@@ -4,7 +4,7 @@ import type { RoomManager, Room } from './RoomManager.js';
 import type { GameMonitor } from './GameMonitor.js';
 
 const TURN_TIMEOUT_MS = 60_000;
-const DISCONNECT_REPLACE_MS = 120_000;
+const DISCONNECT_REPLACE_MS = 45_000;
 
 
 type BroadcastFn = (roomCode: string) => void;
@@ -13,7 +13,9 @@ type EmitFn = (roomCode: string, event: string, ...args: unknown[]) => void;
 export class TimerManager {
   private turnTimers = new Map<string, NodeJS.Timeout>();
   private turnDeadlines = new Map<string, number>();
+  private turnTimerPlayer = new Map<string, PlayerPosition>();
   private disconnectTimers = new Map<string, NodeJS.Timeout>();
+  private disconnectDeadlines = new Map<string, number>();
   private dogTimers = new Map<string, NodeJS.Timeout>();
   private trickWonTimers = new Map<string, NodeJS.Timeout>();
   private roundEndTimers = new Map<string, NodeJS.Timeout>();
@@ -29,6 +31,17 @@ export class TimerManager {
 
   getTurnDeadline(roomCode: string): number | null {
     return this.turnDeadlines.get(roomCode) ?? null;
+  }
+
+  getDisconnectDeadlines(roomCode: string): Record<number, number> {
+    const result: Record<number, number> = {};
+    for (const [key, deadline] of this.disconnectDeadlines) {
+      if (key.startsWith(`${roomCode}-`)) {
+        const pos = parseInt(key.slice(roomCode.length + 1), 10);
+        if (!Number.isNaN(pos)) result[pos] = deadline;
+      }
+    }
+    return result;
   }
 
   destroy(): void {
@@ -49,6 +62,7 @@ export class TimerManager {
         clearTimeout(existing);
         this.disconnectTimers.delete(timerKey);
       }
+      this.disconnectDeadlines.delete(timerKey);
     }
     const dogTimer = this.dogTimers.get(roomCode);
     if (dogTimer) { clearTimeout(dogTimer); this.dogTimers.delete(roomCode); }
@@ -66,28 +80,36 @@ export class TimerManager {
     if (existing) clearTimeout(existing);
     this.turnTimers.delete(roomCode);
     this.turnDeadlines.delete(roomCode);
+    this.turnTimerPlayer.delete(roomCode);
   }
 
   scheduleTurnTimer(roomCode: string): void {
-    this.clearTurnTimer(roomCode);
-
     const room = this.rooms.getRoom(roomCode);
-    if (!room || !room.engine) return;
-    if (room.botPositions.size >= 3) return;
+    if (!room || !room.engine) { this.clearTurnTimer(roomCode); return; }
+    if (room.botPositions.size >= 3) { this.clearTurnTimer(roomCode); return; }
 
     const engine = room.engine;
-    if (engine.state.phase !== GamePhase.PLAYING) return;
-    if (engine.state.wishPending !== null) return;
+    if (engine.state.phase !== GamePhase.PLAYING) { this.clearTurnTimer(roomCode); return; }
+    if (engine.state.wishPending !== null) { this.clearTurnTimer(roomCode); return; }
 
     const currentPlayer = engine.state.currentPlayer;
-    if (room.botPositions.has(currentPlayer)) return;
+    if (room.botPositions.has(currentPlayer)) { this.clearTurnTimer(roomCode); return; }
+
+    // If a timer is already running for this same player, preserve its deadline.
+    // Only reset when the turn actually advances to a different player.
+    const existingPlayer = this.turnTimerPlayer.get(roomCode);
+    if (existingPlayer === currentPlayer && this.turnTimers.has(roomCode)) return;
+
+    this.clearTurnTimer(roomCode);
 
     const deadline = Date.now() + TURN_TIMEOUT_MS;
     this.turnDeadlines.set(roomCode, deadline);
+    this.turnTimerPlayer.set(roomCode, currentPlayer);
 
     const timer = setTimeout(() => {
       this.turnTimers.delete(roomCode);
       this.turnDeadlines.delete(roomCode);
+      this.turnTimerPlayer.delete(roomCode);
 
       const currentRoom = this.rooms.getRoom(roomCode);
       if (!currentRoom || !currentRoom.engine) return;
@@ -143,6 +165,7 @@ export class TimerManager {
       clearTimeout(existing);
       this.disconnectTimers.delete(timerKey);
     }
+    this.disconnectDeadlines.delete(timerKey);
   }
 
   scheduleDisconnectReplace(roomCode: string, position: PlayerPosition, nickname: string): void {
@@ -150,8 +173,11 @@ export class TimerManager {
     const existing = this.disconnectTimers.get(timerKey);
     if (existing) clearTimeout(existing);
 
+    this.disconnectDeadlines.set(timerKey, Date.now() + DISCONNECT_REPLACE_MS);
+
     const timer = setTimeout(() => {
       this.disconnectTimers.delete(timerKey);
+      this.disconnectDeadlines.delete(timerKey);
 
       const roomBeforeReplace = this.rooms.getRoom(roomCode);
       const playerBeforeReplace = roomBeforeReplace?.players.get(position);
