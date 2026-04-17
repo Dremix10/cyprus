@@ -273,6 +273,10 @@ export class SocketHandler {
       if (!this.checkRate(socket, 'action')) return;
       this.handleGameAction(socket, (engine, position) => engine.passCards(position, cards));
     });
+    socket.on('game:undo_pass', () => {
+      if (!this.checkRate(socket, 'action')) return;
+      this.handleGameAction(socket, (engine, position) => engine.undoPassCards(position));
+    });
     socket.on('game:play', (cardIds) => {
       if (!this.checkRate(socket, 'action')) return;
       this.handleGameAction(socket, (engine, position) => engine.playCards(position, cardIds));

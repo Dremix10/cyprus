@@ -34,6 +34,7 @@ interface GameStore {
 
   grandTichuDecision: (call: boolean) => void;
   passCards: (cards: { left: string; across: string; right: string }) => void;
+  undoPassCards: () => void;
   playCards: () => void;
   passTurn: () => void;
   callTichu: () => void;
@@ -130,6 +131,10 @@ export const useGameStore = create<GameStore>((set, get) => ({
   passCards: (cards) => {
     socket.emit('game:pass_cards', cards);
     set({ selectedCards: new Set() });
+  },
+
+  undoPassCards: () => {
+    socket.emit('game:undo_pass');
   },
 
   playCards: () => {
