@@ -283,20 +283,36 @@ describe('GameEngine', () => {
       ).toThrow('not in hand');
     });
 
-    it('rejects double-passing', () => {
+    it('allows re-passing (changing card selection)', () => {
       const hand = engine.state.players[0].hand;
       engine.passCards(0, {
         left: hand[0].id,
         across: hand[1].id,
         right: hand[2].id,
       });
-      expect(() =>
-        engine.passCards(0, {
-          left: hand[3].id,
-          across: hand[4].id,
-          right: hand[5].id,
-        })
-      ).toThrow('Already passed');
+      // Re-submit with different cards — should succeed
+      engine.passCards(0, {
+        left: hand[3].id,
+        across: hand[4].id,
+        right: hand[5].id,
+      });
+      expect(engine.state.players[0].passedCards).toEqual({
+        left: hand[3].id,
+        across: hand[4].id,
+        right: hand[5].id,
+      });
+    });
+
+    it('allows undoing pass and re-selecting', () => {
+      const hand = engine.state.players[0].hand;
+      engine.passCards(0, {
+        left: hand[0].id,
+        across: hand[1].id,
+        right: hand[2].id,
+      });
+      expect(engine.state.players[0].passedCards).not.toBeNull();
+      engine.undoPassCards(0);
+      expect(engine.state.players[0].passedCards).toBeNull();
     });
 
     it('cards are actually transferred to correct recipients', () => {
