@@ -464,6 +464,12 @@ function PlayingLayout({
 
       {/* My hand */}
       <div className="my-hand-row">
+        {myInfo?.avatar && (
+          <div className="my-player-info">
+            <img className="player-avatar" src={myInfo.avatar} alt={myInfo.nickname} />
+            <span className="my-name">{myInfo.nickname}</span>
+          </div>
+        )}
         {myInfo?.tichuCall !== 'none' && (
           <span className={`tichu-badge ${myInfo.tichuCall === 'grand_tichu' ? 'tichu-badge-grand' : ''}`}>
             {myInfo.tichuCall === 'grand_tichu' ? 'GRAND TICHU' : 'TICHU'}

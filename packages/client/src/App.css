@@ -2550,6 +2550,25 @@ body {
   flex-shrink: 0;
 }
 
+.my-player-info {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.25rem;
+  flex-shrink: 0;
+  margin-bottom: 0.3rem;
+}
+
+.my-name {
+  font-weight: 600;
+  font-size: 0.85rem;
+  color: var(--success);
+  max-width: 80px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 /* ─── Trick Area ────────────────────────── */
 
 .trick-area {
