@@ -14,6 +14,9 @@ export type LeaderboardEntry = {
   total_rounds: number;
   disconnects: number;
   rating: number;
+  elo: number;
+  elo_peak: number;
+  elo_games: number;
 };
 
 export type MyLeaderboardStats = LeaderboardEntry & {

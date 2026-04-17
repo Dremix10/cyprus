@@ -152,6 +152,9 @@ export class TrackerDB {
         total_points_scored INTEGER DEFAULT 0,
         disconnects INTEGER DEFAULT 0,
         rating REAL DEFAULT 0,
+        elo INTEGER NOT NULL DEFAULT 1000,
+        elo_peak INTEGER DEFAULT 1000,
+        elo_games INTEGER DEFAULT 0,
         updated_at TEXT DEFAULT (datetime('now'))
       );
 
@@ -181,6 +184,9 @@ export class TrackerDB {
       `ALTER TABLE users ADD COLUMN display_name_changed_at TEXT`,
       `ALTER TABLE users ADD COLUMN language TEXT`,
       `ALTER TABLE connections ADD COLUMN user_id INTEGER`,
+      `ALTER TABLE user_stats ADD COLUMN elo INTEGER NOT NULL DEFAULT 1000`,
+      `ALTER TABLE user_stats ADD COLUMN elo_peak INTEGER DEFAULT 1000`,
+      `ALTER TABLE user_stats ADD COLUMN elo_games INTEGER DEFAULT 0`,
     ];
     for (const sql of addColumnMigrations) {
       try { this.db.exec(sql); } catch { /* column already exists */ }
@@ -693,6 +699,26 @@ export class TrackerDB {
     ).run(rating, userId);
   }
 
+  getUserElo(userId: number): { elo: number; elo_peak: number; elo_games: number } {
+    this.ensureUserStats(userId);
+    const row = this.db.prepare(
+      `SELECT elo, elo_peak, elo_games FROM user_stats WHERE user_id = ?`
+    ).get(userId) as { elo: number; elo_peak: number; elo_games: number } | undefined;
+    return row ?? { elo: 1000, elo_peak: 1000, elo_games: 0 };
+  }
+
+  updateUserElo(userId: number, newElo: number): void {
+    this.ensureUserStats(userId);
+    this.db.prepare(`
+      UPDATE user_stats SET
+        elo = ?,
+        elo_peak = MAX(elo_peak, ?),
+        elo_games = elo_games + 1,
+        updated_at = datetime('now')
+      WHERE user_id = ?
+    `).run(newElo, newElo, userId);
+  }
+
   recordDisconnect(userId: number): void {
     this.ensureUserStats(userId);
     this.db.prepare(
@@ -721,6 +747,9 @@ export class TrackerDB {
     total_rounds: number;
     disconnects: number;
     rating: number;
+    elo: number;
+    elo_peak: number;
+    elo_games: number;
   }> {
     return this.db.prepare(`
       SELECT
@@ -729,11 +758,11 @@ export class TrackerDB {
         us.first_out_count, us.tichu_calls, us.tichu_successes,
         us.grand_tichu_calls, us.grand_tichu_successes,
         us.double_victories, us.total_rounds, us.disconnects,
-        us.rating
+        us.rating, us.elo, us.elo_peak, us.elo_games
       FROM user_stats us
       JOIN users u ON u.id = us.user_id
       WHERE us.games_played >= 3
-      ORDER BY us.rating DESC
+      ORDER BY us.elo DESC
       LIMIT ?
     `).all(limit) as ReturnType<TrackerDB['getLeaderboard']>;
   }
@@ -752,6 +781,9 @@ export class TrackerDB {
     total_rounds: number;
     disconnects: number;
     rating: number;
+    elo: number;
+    elo_peak: number;
+    elo_games: number;
     rank: number;
   } | undefined {
     this.ensureUserStats(userId);
@@ -759,19 +791,21 @@ export class TrackerDB {
       SELECT user_id, games_played, games_won, games_lost,
         first_out_count, tichu_calls, tichu_successes,
         grand_tichu_calls, grand_tichu_successes,
-        double_victories, total_rounds, disconnects, rating
+        double_victories, total_rounds, disconnects, rating,
+        elo, elo_peak, elo_games
       FROM user_stats WHERE user_id = ?
     `).get(userId) as {
       user_id: number; games_played: number; games_won: number; games_lost: number;
       first_out_count: number; tichu_calls: number; tichu_successes: number;
       grand_tichu_calls: number; grand_tichu_successes: number;
       double_victories: number; total_rounds: number; disconnects: number; rating: number;
+      elo: number; elo_peak: number; elo_games: number;
     } | undefined;
     if (!stats) return undefined;
 
     const rankRow = this.db.prepare(`
       SELECT COUNT(*) + 1 as rank FROM user_stats
-      WHERE rating > (SELECT rating FROM user_stats WHERE user_id = ?)
+      WHERE elo > (SELECT elo FROM user_stats WHERE user_id = ?)
       AND games_played >= 3
     `).get(userId) as { rank: number };
 
