@@ -125,6 +125,7 @@ function sortForDisplay(combo: Combination): Card[] {
 import { CardComponent } from './CardComponent.js';
 import { PlayerHand } from './PlayerHand.js';
 import { OpponentHand } from './OpponentHand.js';
+import { PlayerAvatar } from './PlayerAvatar.js';
 import { WishSelector } from './WishSelector.js';
 import { ScoreHistory } from './ScoreHistory.js';
 import { QuickGuideButton } from './QuickGuide.js';
@@ -466,7 +467,7 @@ function PlayingLayout({
       <div className="my-hand-row">
         {myInfo?.avatar && (
           <div className="my-player-info">
-            <img className="player-avatar" src={myInfo.avatar} alt={myInfo.nickname} />
+            <PlayerAvatar avatar={myInfo.avatar} alt={myInfo.nickname} className="player-avatar" />
             <span className="my-name">{myInfo.nickname}</span>
           </div>
         )}

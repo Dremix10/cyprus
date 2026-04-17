@@ -2411,6 +2411,15 @@ body {
   border: 2px solid rgba(255, 255, 255, 0.3);
 }
 
+span.player-avatar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 38px;
+  line-height: 1;
+  background: rgba(255, 255, 255, 0.08);
+}
+
 .opponent-name {
   font-weight: 600;
   font-size: 0.9rem;
@@ -3521,6 +3530,10 @@ body {
     height: 48px;
   }
 
+  span.player-avatar {
+    font-size: 28px;
+  }
+
   .opponent-panel {
     padding: 0.5rem 0.75rem;
     min-width: 80px;
@@ -3624,6 +3637,10 @@ body {
   .player-avatar {
     width: 28px;
     height: 28px;
+  }
+
+  span.player-avatar {
+    font-size: 16px;
   }
 
   .opponent-panel {
@@ -3929,6 +3946,10 @@ body {
   .player-avatar {
     width: 24px;
     height: 24px;
+  }
+
+  span.player-avatar {
+    font-size: 14px;
   }
 
   .opponent-name {
