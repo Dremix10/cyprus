@@ -185,7 +185,7 @@ export class GameEngine {
     this.state.phase = GamePhase.PASSING;
   }
 
-  /** Player passes 3 cards (one to each other player). */
+  /** Player passes 3 cards (one to each other player). Can re-submit until all 4 are ready. */
   passCards(
     position: PlayerPosition,
     cards: { left: string; across: string; right: string }
@@ -193,10 +193,6 @@ export class GameEngine {
     this.events = [];
     this.assertPhase(GamePhase.PASSING);
     const player = this.state.players[position];
-
-    if (player.passedCards) {
-      throw new Error('Already passed cards');
-    }
 
     // Validate all 3 card IDs are in hand and distinct
     const cardIds = [cards.left, cards.across, cards.right];
@@ -216,6 +212,15 @@ export class GameEngine {
       this.resolveCardPassing();
     }
 
+    return this.events;
+  }
+
+  /** Player undoes their card pass selection. Only allowed during PASSING phase. */
+  undoPassCards(position: PlayerPosition): GameEvent[] {
+    this.events = [];
+    this.assertPhase(GamePhase.PASSING);
+    const player = this.state.players[position];
+    player.passedCards = null;
     return this.events;
   }
 
