@@ -1,4 +1,5 @@
 import type { PlayerPosition, RoomState } from '@cyprus/shared';
+import { GamePhase } from '@cyprus/shared';
 import { GameEngine } from './GameEngine.js';
 import type { BotDifficulty } from './BotAI.js';
 import { randomUUID } from 'node:crypto';
@@ -420,7 +421,7 @@ export class RoomManager {
     const result: ReturnType<RoomManager['getActiveGames']> = [];
     for (const [, room] of this.rooms) {
       if (!room.engine) continue;
-      if (room.engine.state.phase === 'GAME_OVER' || room.engine.state.phase === 'WAITING') continue;
+      if (room.engine.state.phase === GamePhase.GAME_OVER || room.engine.state.phase === GamePhase.WAITING) continue;
       const players = [...room.players.values()].map((p) => ({
         nickname: p.nickname,
         position: p.position,

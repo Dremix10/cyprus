@@ -1,4 +1,4 @@
-import { execSync } from 'node:child_process';
+import { spawn } from 'node:child_process';
 import type { TrackerDB } from './Database.js';
 
 const CHECK_INTERVAL_MS = 2 * 60_000; // Check every 2 minutes
@@ -75,21 +75,28 @@ export class AiReviewer {
 
     const prompt = this.buildPrompt(item.game_id, item.room_code, data);
 
-    // Spawn Claude Code CLI
+    // Spawn Claude Code CLI (async — does not block event loop)
     let output: string;
     try {
-      output = execSync(
-        `claude -p ${JSON.stringify(prompt)} --output-format json --max-turns 1`,
-        {
-          timeout: 120_000, // 2 minute timeout
+      output = await new Promise<string>((resolve, reject) => {
+        const proc = spawn('claude', ['-p', prompt, '--output-format', 'json', '--max-turns', '1'], {
           cwd: '/home/dev/cyprus',
           env: { ...process.env, HOME: '/home/dev' },
-          encoding: 'utf-8',
           stdio: ['pipe', 'pipe', 'pipe'],
-        }
-      );
+        });
+        let stdout = '';
+        let stderr = '';
+        proc.stdout.on('data', (d) => { stdout += d; });
+        proc.stderr.on('data', (d) => { stderr += d; });
+        proc.on('close', (code) => {
+          if (code === 0) resolve(stdout);
+          else reject(new Error(`Exit code ${code}: ${stderr.slice(0, 200)}`));
+        });
+        proc.on('error', reject);
+        // Kill if takes too long
+        setTimeout(() => { try { proc.kill(); } catch {} reject(new Error('Timeout')); }, 120_000);
+      });
     } catch (err: any) {
-      // If Claude CLI fails, store the error
       this.db.saveAiReview(
         item.game_id, item.room_code, 'error',
         `Claude CLI failed: ${err.message?.slice(0, 200)}`,
