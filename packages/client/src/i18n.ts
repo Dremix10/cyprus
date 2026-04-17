@@ -195,7 +195,7 @@ const translations: Record<Lang, Record<string, string>> = {
     'leaderboard.player': 'Player',
     'leaderboard.winPercent': 'Win%',
     'leaderboard.firstOut': '1st Out',
-    'leaderboard.dv': 'DV',
+    'leaderboard.dv': '1-2',
     'leaderboard.backToLobby': 'Back to Lobby',
 
     // ─── Profile ─────────────────────────────────────────────
@@ -578,7 +578,7 @@ const translations: Record<Lang, Record<string, string>> = {
     'leaderboard.player': '\u03a0\u03b1\u03af\u03ba\u03c4\u03b7\u03c2',
     'leaderboard.winPercent': 'N%',
     'leaderboard.firstOut': '1\u03bf\u03c2',
-    'leaderboard.dv': '\u0394N',
+    'leaderboard.dv': '1-2',
     'leaderboard.backToLobby': '\u03a0\u03af\u03c3\u03c9 \u03c3\u03c4\u03bf Lobby',
 
     // ─── Profile ─────────────────────────────────────────────
