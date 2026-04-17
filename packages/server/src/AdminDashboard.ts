@@ -221,6 +221,13 @@ export function createAdminRouter(db: TrackerDB): express.Router {
     });
   });
 
+  router.get('/api/reviews', requireAuth, (req, res) => {
+    const limit = Math.min(Number(req.query.limit) || 20, 100);
+    const reviews = db.getAiReviews(limit);
+    const pending = db.getPendingReviewCount();
+    res.json({ pending, reviews });
+  });
+
   router.get('/api/logs', requireAuth, (req, res) => {
     const level = req.query.level as string | undefined;
     const category = req.query.category as string | undefined;

@@ -62,6 +62,7 @@ interface RoomStore {
   setNickname: (name: string) => void;
   setTargetScore: (score: number) => void;
   setBotDifficulty: (difficulty: string) => void;
+  spectateRoom: (code: string) => Promise<void>;
   createRoom: () => Promise<void>;
   createSoloRoom: (difficulty: string) => Promise<void>;
   joinRoom: (code: string) => Promise<void>;
@@ -94,6 +95,17 @@ export const useRoomStore = create<RoomStore>((set, get) => ({
   setNickname: (name) => set({ nickname: name }),
   setTargetScore: (score) => set({ targetScore: score }),
   setBotDifficulty: (difficulty) => set({ botDifficulty: difficulty }),
+
+  spectateRoom: async (code: string) => {
+    if (!code.trim()) { set({ error: 'Enter a room code' }); return; }
+    try { await ensureConnected(); } catch {
+      set({ error: 'Could not connect to server' }); return;
+    }
+    socket.emit('room:spectate', code.trim().toUpperCase(), (response) => {
+      if ('error' in response) { set({ error: response.error }); return; }
+      set({ roomCode: response.roomCode, view: 'game', error: null });
+    });
+  },
 
   createRoom: () => {
     return new Promise<void>(async (resolve) => {
