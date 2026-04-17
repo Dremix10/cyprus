@@ -420,6 +420,7 @@ export class RoomManager {
     const result: ReturnType<RoomManager['getActiveGames']> = [];
     for (const [, room] of this.rooms) {
       if (!room.engine) continue;
+      if (room.engine.state.phase === 'GAME_OVER' || room.engine.state.phase === 'WAITING') continue;
       const players = [...room.players.values()].map((p) => ({
         nickname: p.nickname,
         position: p.position,
