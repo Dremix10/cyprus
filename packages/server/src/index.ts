@@ -164,6 +164,12 @@ app.get('/health', (_req, res) => {
   });
 });
 
+// Live games list for spectator mode
+app.get('/api/live-games', (_req, res) => {
+  const rooms = roomManager.getActiveGames();
+  res.json(rooms);
+});
+
 // Public leaderboard API
 app.get('/api/leaderboard', (_req, res) => {
   const limit = Math.min(Number(_req.query.limit) || 50, 100);
