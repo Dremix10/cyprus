@@ -947,8 +947,10 @@ export class GameEngine {
 
   getSpectatorState(roomCode: string, avatars?: Map<PlayerPosition, string>, disconnected?: Set<PlayerPosition>): ClientGameState {
     return {
-      ...this.getClientState(0, roomCode, undefined, avatars, disconnected),
-      myHand: [],
+      roomCode,
+      phase: this.state.phase,
+      myPosition: 0, // spectator views from position 0's perspective
+      myHand: this.state.players[0].hand, // show position 0's hand as "my hand"
       isSpectator: true,
       canAct: false,
       canPass: false,
@@ -964,10 +966,21 @@ export class GameEngine {
         tichuCall: p.tichuCall,
         isOut: p.isOut,
         finishOrder: p.finishOrder,
-        hand: p.hand, // Spectators see all hands
+        hand: p.hand, // Spectators see ALL hands
         avatar: avatars?.get(p.position as PlayerPosition),
         connected: disconnected?.has(p.position as PlayerPosition) ? false : true,
       })) as PublicPlayerState[],
+      currentPlayer: this.state.currentPlayer,
+      currentTrick: this.state.currentTrick,
+      wish: this.state.wish,
+      finishOrder: this.state.finishOrder as PlayerPosition[],
+      scores: this.state.scores,
+      roundScores: this.state.roundScores,
+      targetScore: this.targetScore,
+      lastTrick: this.state.lastTrick ?? undefined,
+      roundTrickCards: this.roundTrickCards,
+      roundBreakdown: this.roundBreakdown ?? undefined,
+      roundHistory: this.roundHistory.length > 0 ? this.roundHistory : undefined,
     };
   }
 
