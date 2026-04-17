@@ -104,7 +104,7 @@ export default function App() {
   if (showLiveGames) {
     return (
       <div className="app">
-        <LiveGames onBack={() => setShowLiveGames(false)} />
+        <LiveGames onBack={() => setShowLiveGames(false)} onSpectate={() => setShowLiveGames(false)} />
       </div>
     );
   }
