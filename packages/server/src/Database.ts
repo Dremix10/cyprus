@@ -176,6 +176,15 @@ export class TrackerDB {
         updated_at TEXT DEFAULT (datetime('now'))
       );
 
+      CREATE TABLE IF NOT EXISTS bot_elo (
+        difficulty TEXT PRIMARY KEY,
+        elo INTEGER NOT NULL DEFAULT 1000,
+        elo_peak INTEGER NOT NULL DEFAULT 1000,
+        elo_games INTEGER NOT NULL DEFAULT 0,
+        games_won INTEGER NOT NULL DEFAULT 0,
+        updated_at TEXT DEFAULT (datetime('now'))
+      );
+
       CREATE INDEX IF NOT EXISTS idx_conn_ip ON connections(ip);
       CREATE INDEX IF NOT EXISTS idx_conn_at ON connections(connected_at);
       CREATE INDEX IF NOT EXISTS idx_conn_socket ON connections(socket_id);
@@ -215,6 +224,10 @@ export class TrackerDB {
       CREATE UNIQUE INDEX IF NOT EXISTS idx_users_email ON users(email);
       CREATE UNIQUE INDEX IF NOT EXISTS idx_users_google ON users(google_id);
     `);
+
+    // Seed bot_elo rows for each difficulty tier (no-op if already present)
+    const seedBot = this.db.prepare(`INSERT OR IGNORE INTO bot_elo (difficulty) VALUES (?)`);
+    for (const d of ['easy', 'medium', 'hard', 'extreme', 'unfair']) seedBot.run(d);
 
     // Friendships table
     this.db.exec(`
@@ -789,6 +802,25 @@ export class TrackerDB {
     `).run(newElo, newElo, userId);
   }
 
+  getBotElo(difficulty: string): { elo: number; elo_peak: number; elo_games: number; games_won: number } {
+    const row = this.db.prepare(
+      `SELECT elo, elo_peak, elo_games, games_won FROM bot_elo WHERE difficulty = ?`
+    ).get(difficulty) as { elo: number; elo_peak: number; elo_games: number; games_won: number } | undefined;
+    return row ?? { elo: 1000, elo_peak: 1000, elo_games: 0, games_won: 0 };
+  }
+
+  updateBotElo(difficulty: string, newElo: number, won: boolean): void {
+    this.db.prepare(`
+      UPDATE bot_elo SET
+        elo = ?,
+        elo_peak = MAX(elo_peak, ?),
+        elo_games = elo_games + 1,
+        games_won = games_won + ?,
+        updated_at = datetime('now')
+      WHERE difficulty = ?
+    `).run(newElo, newElo, won ? 1 : 0, difficulty);
+  }
+
   recordDisconnect(userId: number): void {
     this.ensureUserStats(userId);
     this.db.prepare(
@@ -820,19 +852,36 @@ export class TrackerDB {
     elo: number;
     elo_peak: number;
     elo_games: number;
+    is_bot: number;
   }> {
     return this.db.prepare(`
-      SELECT
-        us.user_id, u.username, u.display_name,
-        us.games_played, us.games_won, us.games_lost,
-        us.first_out_count, us.tichu_calls, us.tichu_successes,
-        us.grand_tichu_calls, us.grand_tichu_successes,
-        us.double_victories, us.total_rounds, us.disconnects,
-        us.rating, us.elo, us.elo_peak, us.elo_games
-      FROM user_stats us
-      JOIN users u ON u.id = us.user_id
-      WHERE us.games_played >= 3
-      ORDER BY us.elo DESC
+      SELECT * FROM (
+        SELECT
+          us.user_id, u.username, u.display_name,
+          us.games_played, us.games_won, us.games_lost,
+          us.first_out_count, us.tichu_calls, us.tichu_successes,
+          us.grand_tichu_calls, us.grand_tichu_successes,
+          us.double_victories, us.total_rounds, us.disconnects,
+          us.rating, us.elo, us.elo_peak, us.elo_games,
+          0 as is_bot
+        FROM user_stats us
+        JOIN users u ON u.id = us.user_id
+        WHERE us.games_played >= 3
+        UNION ALL
+        SELECT
+          -(CASE difficulty
+              WHEN 'easy' THEN 1 WHEN 'medium' THEN 2 WHEN 'hard' THEN 3
+              WHEN 'extreme' THEN 4 WHEN 'unfair' THEN 5 ELSE 99 END) as user_id,
+          UPPER(SUBSTR(difficulty, 1, 1)) || SUBSTR(difficulty, 2) || ' Bot' as username,
+          UPPER(SUBSTR(difficulty, 1, 1)) || SUBSTR(difficulty, 2) || ' Bot' as display_name,
+          elo_games as games_played, games_won, elo_games - games_won as games_lost,
+          0, 0, 0, 0, 0, 0, 0, 0, 0,
+          elo, elo_peak, elo_games,
+          1 as is_bot
+        FROM bot_elo
+        WHERE elo_games >= 3
+      )
+      ORDER BY elo DESC
       LIMIT ?
     `).all(limit) as ReturnType<TrackerDB['getLeaderboard']>;
   }
@@ -874,9 +923,11 @@ export class TrackerDB {
     if (!stats) return undefined;
 
     const rankRow = this.db.prepare(`
-      SELECT COUNT(*) + 1 as rank FROM user_stats
-      WHERE elo > (SELECT elo FROM user_stats WHERE user_id = ?)
-      AND games_played >= 3
+      SELECT COUNT(*) + 1 as rank FROM (
+        SELECT elo FROM user_stats WHERE games_played >= 3
+        UNION ALL
+        SELECT elo FROM bot_elo WHERE elo_games >= 3
+      ) WHERE elo > (SELECT elo FROM user_stats WHERE user_id = ?)
     `).get(userId) as { rank: number };
 
     return { ...stats, rank: stats.games_played >= 3 ? rankRow.rank : 0 };

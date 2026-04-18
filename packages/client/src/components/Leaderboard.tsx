@@ -139,13 +139,13 @@ export function Leaderboard({ onBack }: { onBack: () => void }) {
                   <tr
                     key={e.user_id}
                     className={
-                      myStats && e.user_id === myStats.user_id ? 'leaderboard-row-me' : ''
+                      myStats && e.user_id === myStats.user_id ? 'leaderboard-row-me' : e.is_bot ? 'leaderboard-row-bot' : ''
                     }
                   >
                     <td className="rank-cell">
                       {i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : i + 1}
                     </td>
-                    <td className="name-cell">{e.username}</td>
+                    <td className="name-cell">{e.is_bot ? '🤖 ' : ''}{e.username}</td>
                     <td className="rating-cell">{e.elo}</td>
                     <td>{e.games_won}/{e.games_played}</td>
                     <td>{winRate(e)}%</td>
