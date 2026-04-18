@@ -879,7 +879,7 @@ export class TrackerDB {
           elo, elo_peak, elo_games,
           1 as is_bot
         FROM bot_elo
-        WHERE elo_games >= 3
+        WHERE elo_games >= 1
       )
       ORDER BY elo DESC
       LIMIT ?
@@ -926,7 +926,7 @@ export class TrackerDB {
       SELECT COUNT(*) + 1 as rank FROM (
         SELECT elo FROM user_stats WHERE games_played >= 3
         UNION ALL
-        SELECT elo FROM bot_elo WHERE elo_games >= 3
+        SELECT elo FROM bot_elo WHERE elo_games >= 1
       ) WHERE elo > (SELECT elo FROM user_stats WHERE user_id = ?)
     `).get(userId) as { rank: number };
 
