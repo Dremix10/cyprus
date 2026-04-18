@@ -17,6 +17,7 @@ export type LeaderboardEntry = {
   elo: number;
   elo_peak: number;
   elo_games: number;
+  is_bot?: number;
 };
 
 export type MyLeaderboardStats = LeaderboardEntry & {
