@@ -538,14 +538,25 @@ export function findPlayableFromHand(
     });
   }
 
-  // Wish enforcement: if wish is active and we have playable combos containing wished rank, we must play one of those
+  // Wish enforcement: if wish is active and we have playable combos containing wished rank, we must play one of those.
+  // House rule: if any of those wish-satisfying combos is a bomb, the player is forced to play a bomb.
   if (wish.active && wish.wishedRank !== null) {
     const withWish = playable.filter((cards) =>
       cards.some(
         (c) => c.type === 'normal' && c.rank === wish.wishedRank
       )
     );
-    if (withWish.length > 0) return withWish;
+    if (withWish.length > 0) {
+      const bombsWithWish = withWish.filter((cards) => {
+        const combo = detectCombination(cards);
+        return combo !== null && (
+          combo.type === CombinationType.FOUR_OF_A_KIND_BOMB ||
+          combo.type === CombinationType.STRAIGHT_FLUSH_BOMB
+        );
+      });
+      if (bombsWithWish.length > 0) return bombsWithWish;
+      return withWish;
+    }
   }
 
   return playable;
