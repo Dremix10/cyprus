@@ -3015,6 +3015,15 @@ span.player-avatar {
   object-fit: cover;
 }
 
+span.pass-zone-avatar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 22px;
+  line-height: 1;
+  background: rgba(255, 255, 255, 0.08);
+}
+
 .pass-zone-name {
   font-size: 0.8rem;
   font-weight: 600;
