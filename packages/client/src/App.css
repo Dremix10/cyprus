@@ -1817,6 +1817,11 @@ body {
   color: #c9a84c;
 }
 
+.leaderboard-row-bot td {
+  color: #9fb4c9;
+  font-style: italic;
+}
+
 .btn-back-lobby {
   background: transparent;
   border: 1px solid rgba(201, 168, 76, 0.4);

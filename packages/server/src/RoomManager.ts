@@ -334,9 +334,9 @@ export class RoomManager {
       }
     }
     // botDifficulty is already set by createRoom / createSoloRoom.
-    // Only default to 'hard' for matchmaking rooms that have no difficulty set.
+    // Only default to 'unfair' for matchmaking rooms that have no difficulty set.
     if (botIndex > 0 && !room.botDifficulty) {
-      room.botDifficulty = 'hard';
+      room.botDifficulty = 'unfair';
     }
 
     const nicknames: [string, string, string, string] = [
