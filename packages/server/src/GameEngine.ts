@@ -759,12 +759,11 @@ export class GameEngine {
     const lastPos = this.state.finishOrder[this.state.finishOrder.length - 1];
     const lastPlayer = this.state.players[lastPos];
 
-    // Collect trick points per team
-    const teamTricks: [Card[], Card[]] = [[], []];
+    // Collect each player's won trick cards
+    const wonTricksByPosition: [Card[], Card[], Card[], Card[]] = [[], [], [], []];
     for (const p of this.state.players) {
-      const team = getTeam(p.position);
       for (const trick of p.wonTricks) {
-        teamTricks[team].push(...trick);
+        wonTricksByPosition[p.position].push(...trick);
       }
     }
 
@@ -777,15 +776,28 @@ export class GameEngine {
 
     const result = calculateRoundScore({
       finishOrder: this.state.finishOrder as PlayerPosition[],
-      trickPoints: teamTricks,
+      wonTricksByPosition,
       lastPlayerHand: lastPlayer.hand,
       tichuCalls,
     });
 
-    // Include last player's hand in the opposing team's trick cards for display
-    if (!sameTeam(this.state.finishOrder[0], this.state.finishOrder[1])) {
+    // Build the per-team card display, applying the same reattribution as scoring:
+    //   last player's tricks go to the 1st finisher's team, hand goes to opposing team.
+    const teamTricks: [Card[], Card[]] = [[], []];
+    const isDoubleVictory = sameTeam(this.state.finishOrder[0], this.state.finishOrder[1]);
+    if (isDoubleVictory) {
+      for (const pos of [0, 1, 2, 3] as PlayerPosition[]) {
+        teamTricks[getTeam(pos)].push(...wonTricksByPosition[pos]);
+      }
+    } else {
+      const firstPos = this.state.finishOrder[0];
+      const firstTeam = getTeam(firstPos);
       const lastTeam = getTeam(lastPos);
       const opposingTeam = lastTeam === 0 ? 1 : 0;
+      for (const pos of [0, 1, 2, 3] as PlayerPosition[]) {
+        const destTeam = pos === lastPos ? firstTeam : getTeam(pos);
+        teamTricks[destTeam].push(...wonTricksByPosition[pos]);
+      }
       teamTricks[opposingTeam].push(...lastPlayer.hand);
     }
     this.roundTrickCards = teamTricks;
