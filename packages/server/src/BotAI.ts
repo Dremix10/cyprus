@@ -292,6 +292,11 @@ export interface BotConfig {
   // Passing strategy
   passAceToPartner: boolean;        // pass an Ace to partner when not holding a bomb (default: true)
 
+  // Experimental heuristic flags (default off — tested via versus-tier-sim)
+  scoreAwareTichu: boolean;         // adjust Tichu thresholds based on score differential (default: false)
+  opponentCardCountBombing: boolean; // bomb aggressively when opponents have few cards (default: false)
+  smartCardTracking: boolean;       // use remaining-card tracker more widely during follow (default: true)
+
   // Monte Carlo simulation
   useMonteCarlo: boolean;           // use MC simulation for key decisions (default: false)
   mcSims: number;                   // max simulations per decision (default: 200)
@@ -309,6 +314,9 @@ export const DEFAULT_BOT_CONFIG: BotConfig = {
   dogPlayMaxCards: 14,
   dogPlayPartnerCards: 14,
   passAceToPartner: true,
+  scoreAwareTichu: false,
+  opponentCardCountBombing: false,
+  smartCardTracking: true,
   useMonteCarlo: false,
   mcSims: 200,
   mcTimeMs: 150,
@@ -401,45 +409,50 @@ export class BotAI {
 
   // ─── Regular Tichu ──────────────────────────────────────────────────
 
-  decideTichu(hand: Card[]): boolean {
+  decideTichu(hand: Card[], context?: GameContext, botPosition?: PlayerPosition): boolean {
     if (this.effectiveDifficulty === 'easy') return false;
 
     const plan = planHand(hand);
 
+    // Score-aware adjustment: loosen when behind, tighten when ahead.
+    let scoreMode: 'behind' | 'even' | 'ahead' = 'even';
+    if (this.config.scoreAwareTichu && context && botPosition !== undefined) {
+      const myTeam = botPosition % 2;
+      const diff = context.scores[myTeam] - context.scores[1 - myTeam];
+      if (diff <= -300) scoreMode = 'behind';
+      else if (diff >= 300) scoreMode = 'ahead';
+    }
+
     if (this.effectiveDifficulty === 'medium') {
-      // Medium: call Tichu if very strong (few turns, many control)
+      if (scoreMode === 'behind') return plan.turnsToOut <= 5 && plan.controlCount >= 3;
+      if (scoreMode === 'ahead') return plan.turnsToOut <= 4 && plan.controlCount >= 5;
       return plan.turnsToOut <= 4 && plan.controlCount >= 4;
     }
 
-    // Hard: call Tichu with a nuanced evaluation
-    // Need enough control cards to regain the lead after losing it
-    // turnsToOut is how many plays to empty hand
-    // controlCount is how many of those are near-guaranteed winners
-    // "losable turns" = turnsToOut - controlCount
     const losableTurns = plan.turnsToOut - plan.controlCount;
 
-    // Call Tichu if:
-    // - We can go out in 7 or fewer turns
-    // - We lose the lead at most 2 times (need control for the rest)
-    // - We have at least 3 control cards
-    if (plan.turnsToOut <= 6 && losableTurns <= 1 && plan.controlCount >= 4) {
-      return true;
+    if (scoreMode === 'behind') {
+      // More aggressive — take the gamble when losing
+      if (plan.turnsToOut <= 7 && losableTurns <= 2 && plan.controlCount >= 3) return true;
+      if (plan.turnsToOut <= 6 && plan.controlCount >= 3) return true;
+      if (plan.turnsToOut <= 5 && plan.controlCount >= 2) return true;
+      if (plan.hasBomb && plan.turnsToOut <= 6 && plan.controlCount >= 2) return true;
+      return false;
     }
 
-    // Very strong hands: few turns even with fewer control
-    if (plan.turnsToOut <= 5 && losableTurns <= 2 && plan.controlCount >= 3) {
-      return true;
+    if (scoreMode === 'ahead') {
+      // More conservative — don't risk -100 when winning
+      if (plan.turnsToOut <= 5 && losableTurns <= 1 && plan.controlCount >= 5) return true;
+      if (plan.turnsToOut <= 4 && plan.controlCount >= 3) return true;
+      if (plan.hasBomb && plan.turnsToOut <= 4 && plan.controlCount >= 4) return true;
+      return false;
     }
 
-    // Compact hands
-    if (plan.turnsToOut <= 4 && plan.controlCount >= 2) {
-      return true;
-    }
-
-    // Bomb + strong hand
-    if (plan.hasBomb && plan.turnsToOut <= 5 && plan.controlCount >= 3) {
-      return true;
-    }
+    // Default thresholds
+    if (plan.turnsToOut <= 6 && losableTurns <= 1 && plan.controlCount >= 4) return true;
+    if (plan.turnsToOut <= 5 && losableTurns <= 2 && plan.controlCount >= 3) return true;
+    if (plan.turnsToOut <= 4 && plan.controlCount >= 2) return true;
+    if (plan.hasBomb && plan.turnsToOut <= 5 && plan.controlCount >= 3) return true;
 
     return false;
   }
@@ -999,6 +1012,18 @@ export class BotAI {
 
     // ── Proactive bombing: bomb high-value tricks even when regular plays exist ──
     if (bombs.length > 0 && !partnerWinning) {
+      // Opponent card-count awareness: bomb aggressively when opponents are thin
+      if (this.config.opponentCardCountBombing && context) {
+        const minOppCards = this.minOpponentCardCount(botPosition, context);
+        // Opponent at 1 card — always bomb
+        if (minOppCards <= 1) return this.pickLowestCombo(bombs);
+        // Opponent at ≤2 cards — bomb any trick
+        if (minOppCards <= 2) return this.pickLowestCombo(bombs);
+        // Opponent at ≤3 with Tichu call — bomb any trick ≥5 pts
+        if (minOppCards <= 3 && opponentTichuActive && trickPoints >= 5) {
+          return this.pickLowestCombo(bombs);
+        }
+      }
       // Bomb valuable tricks (15+ points) — worth spending a bomb to steal
       if (trickPoints >= this.config.bombPointThreshold) {
         return this.pickLowestCombo(bombs);
@@ -1125,6 +1150,43 @@ export class BotAI {
         if (!higherExists) score -= 5; // this is the top card — safe to play
       }
 
+      // Smart card tracking: extend the "top remaining" bonus to multi-card combos
+      // and penalize overkill (playing much higher than needed).
+      if (this.config.smartCardTracking && cardInfo) {
+        if (play.length >= 2 && combo) {
+          // For pairs/trips/etc: is there any remaining rank with enough copies to beat us?
+          const needed = play.length === 2 ? 2 : play.length >= 3 ? 3 : 0;
+          if (needed > 0) {
+            const remainingRankCounts = new Map<number, number>();
+            for (const c of cardInfo.remainingCards) {
+              if (isNormalCard(c) && c.rank > combo.rank) {
+                remainingRankCounts.set(c.rank, (remainingRankCounts.get(c.rank) || 0) + 1);
+              }
+            }
+            const canBeBeaten = [...remainingRankCounts.values()].some((n) => n >= needed);
+            // Phoenix can make a pair/trip too (if not yet played)
+            const phoenixStillOut = !cardInfo.phoenixPlayed && !play.some(
+              (c) => isSpecial(c, SpecialCardType.PHOENIX)
+            );
+            const phoenixCanHelp = phoenixStillOut && [...remainingRankCounts.values()].some(
+              (n) => n >= needed - 1
+            );
+            if (!canBeBeaten && !phoenixCanHelp) score -= 6; // our combo is the top remaining
+          }
+        }
+
+        // Penalize "overkill" singles: playing an Ace when a King beats the top.
+        if (play.length === 1 && isNormalCard(play[0])) {
+          const myRank = play[0].rank;
+          // Would a lower rank have sufficed? (Only makes sense if we had lower beats available.)
+          const lowerBeats = sortedPlays.filter((p) => {
+            const c = detectCombination(p);
+            return p.length === 1 && c && c.rank < myRank && c.rank >= 10;
+          });
+          if (lowerBeats.length > 0 && myRank >= NR.ACE) score += 4;
+        }
+      }
+
       if (score < bestScore) {
         bestScore = score;
         bestPlay = play;
@@ -1174,6 +1236,17 @@ export class BotAI {
       if (call === 'tichu' || call === 'grand_tichu') return true;
     }
     return false;
+  }
+
+  private minOpponentCardCount(botPosition: PlayerPosition, context: GameContext): number {
+    let min = 14;
+    for (const pos of [0, 1, 2, 3] as PlayerPosition[]) {
+      if (pos % 2 === botPosition % 2) continue;
+      if (context.finishOrder.includes(pos)) continue;
+      const cards = context.playerCardCounts.get(pos) ?? 14;
+      if (cards < min) min = cards;
+    }
+    return min;
   }
 
   private isOpponentAboutToOut(botPosition: PlayerPosition, context: GameContext): boolean {
