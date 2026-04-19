@@ -25,7 +25,7 @@ export function getPartner(position: PlayerPosition): PlayerPosition {
 
 export type RoundResult = {
   finishOrder: PlayerPosition[];
-  trickPoints: [Card[], Card[]]; // cards won by each team
+  wonTricksByPosition: [Card[], Card[], Card[], Card[]]; // cards won in tricks per player position
   lastPlayerHand: Card[]; // remaining cards of the 4th-place player
   tichuCalls: Record<PlayerPosition, TichuCall>;
 };
@@ -53,7 +53,7 @@ export type RoundScoreBreakdown = {
 
 /** Calculate round scores from a round result. */
 export function calculateRoundScore(result: RoundResult): RoundScore {
-  const { finishOrder, trickPoints, lastPlayerHand, tichuCalls } = result;
+  const { finishOrder, wonTricksByPosition, lastPlayerHand, tichuCalls } = result;
   const teamPoints: [number, number] = [0, 0];
 
   const first = finishOrder[0];
@@ -75,17 +75,22 @@ export function calculateRoundScore(result: RoundResult): RoundScore {
     teamPoints[winTeam === 0 ? 1 : 0] = 0;
     breakdown.doubleVictory = winTeam;
   } else {
-    // Normal scoring
-    const cardPts0 = sumCardPoints(trickPoints[0]);
-    const cardPts1 = sumCardPoints(trickPoints[1]);
-    teamPoints[0] = cardPts0;
-    teamPoints[1] = cardPts1;
-    breakdown.cardPoints = [cardPts0, cardPts1];
-
-    // Last player gives their hand to the opposing team
+    // Normal scoring:
+    //   - each player's won tricks go to their own team,
+    //     EXCEPT the last player's tricks go to the 1st finisher's team
+    //   - the last player's remaining hand goes to the opposing team
     const lastPlayer = finishOrder[3];
+    const firstTeam = getTeam(first);
     const lastTeam = getTeam(lastPlayer);
-    const opposingTeam = lastTeam === 0 ? 1 : 0;
+    const opposingTeam = (lastTeam === 0 ? 1 : 0) as 0 | 1;
+
+    for (const pos of [0, 1, 2, 3] as PlayerPosition[]) {
+      const pts = sumCardPoints(wonTricksByPosition[pos]);
+      const destTeam = pos === lastPlayer ? firstTeam : getTeam(pos);
+      teamPoints[destTeam] += pts;
+    }
+    breakdown.cardPoints = [teamPoints[0], teamPoints[1]];
+
     const handPoints = sumCardPoints(lastPlayerHand);
     teamPoints[opposingTeam] += handPoints;
     breakdown.lastPlayerHandPoints = handPoints;
