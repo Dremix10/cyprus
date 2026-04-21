@@ -31,9 +31,13 @@ function cfgFor(diff: BotDifficulty): Partial<BotConfig> {
 const NUM_GAMES = parseInt(process.argv[2] || '50', 10);
 const TIER_A = (process.argv[3] || 'hard') as BotDifficulty;
 const TIER_B = (process.argv[4] || 'unfair') as BotDifficulty;
+// Optional flag args (comma-separated). e.g. "scoreAwareTichu,opponentCardCountBombing" or "none".
+const FLAGS_A = process.argv[5] || 'none';
+const FLAGS_B = process.argv[6] || 'none';
 const TARGET_SCORE = 1000;
 const MAX_ROUNDS = 50;
-const PROGRESS_EVERY = 5;
+// Progress cadence: every 5 for small runs; every N/20 for big ones so we get ~20 updates.
+const PROGRESS_EVERY = Math.max(5, Math.floor(NUM_GAMES / 20));
 
 const VALID: BotDifficulty[] = ['easy', 'medium', 'hard', 'extreme', 'unfair'];
 if (!VALID.includes(TIER_A) || !VALID.includes(TIER_B)) {
@@ -41,8 +45,22 @@ if (!VALID.includes(TIER_A) || !VALID.includes(TIER_B)) {
   process.exit(1);
 }
 
-const CONFIG_A = cfgFor(TIER_A);
-const CONFIG_B = cfgFor(TIER_B);
+const KNOWN_FLAGS = ['scoreAwareTichu', 'opponentCardCountBombing', 'smartCardTracking'] as const;
+function parseFlags(raw: string): Partial<BotConfig> {
+  if (raw === 'none' || raw === '') return {};
+  const out: Partial<BotConfig> = {};
+  for (const f of raw.split(',').map((s) => s.trim())) {
+    if (!KNOWN_FLAGS.includes(f as (typeof KNOWN_FLAGS)[number])) {
+      console.error(`Unknown flag: ${f}. Valid: ${KNOWN_FLAGS.join(', ')}`);
+      process.exit(1);
+    }
+    (out as Record<string, boolean>)[f] = true;
+  }
+  return out;
+}
+
+const CONFIG_A: Partial<BotConfig> = { ...cfgFor(TIER_A), ...parseFlags(FLAGS_A) };
+const CONFIG_B: Partial<BotConfig> = { ...cfgFor(TIER_B), ...parseFlags(FLAGS_B) };
 
 function buildCtx(engine: GameEngine) {
   const played: Card[] = [];
@@ -147,7 +165,7 @@ function runGame(swapped: boolean): GameResult {
       const cp = engine.state.currentPlayer;
       const pl = engine.state.players[cp];
 
-      if (pl.tichuCall === 'none' && !pl.hasPlayedCards && bots[cp].decideTichu(pl.hand)) {
+      if (pl.tichuCall === 'none' && !pl.hasPlayedCards && bots[cp].decideTichu(pl.hand, buildCtx(engine), cp as PlayerPosition)) {
         engine.callTichu(cp);
         tichuCalls[cp % 2]++;
       }
@@ -216,13 +234,14 @@ function runGame(swapped: boolean): GameResult {
   };
 }
 
-function label(t: BotDifficulty, cfg: Partial<BotConfig>): string {
-  if (cfg.useMonteCarlo) return `${t.toUpperCase()} (${cfg.mcSims}/${cfg.mcTimeMs}ms)`;
-  return `${t.toUpperCase()}`;
+function label(t: BotDifficulty, cfg: Partial<BotConfig>, flags: string): string {
+  const mc = cfg.useMonteCarlo ? ` (${cfg.mcSims}/${cfg.mcTimeMs}ms)` : '';
+  const fl = flags !== 'none' && flags !== '' ? ` [+${flags}]` : '';
+  return `${t.toUpperCase()}${mc}${fl}`;
 }
 
-const labelA = label(TIER_A, CONFIG_A);
-const labelB = label(TIER_B, CONFIG_B);
+const labelA = label(TIER_A, CONFIG_A, FLAGS_A);
+const labelB = label(TIER_B, CONFIG_B, FLAGS_B);
 
 console.log(`=== ${labelA} vs ${labelB} — ${NUM_GAMES} games ===`);
 console.log(`Positions swapped at halfway. Updates every ${PROGRESS_EVERY} games.`);
