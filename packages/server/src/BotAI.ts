@@ -33,6 +33,10 @@ export type GameContext = {
   scores: [number, number];
 };
 
+export interface BotDecisionRecorder {
+  record(branch: string): void;
+}
+
 // ─── Hand Analysis ──────────────────────────────────────────────────────
 
 interface HandPlan {
@@ -328,6 +332,7 @@ export class BotAI {
   public config: BotConfig;
   public inRollout: boolean = false; // true during MC rollouts (prevents recursion)
   private effectiveDifficulty: BotDifficulty;
+  private recorder?: BotDecisionRecorder;
 
   constructor(private difficulty: BotDifficulty, config?: Partial<BotConfig>) {
     this.config = { ...DEFAULT_BOT_CONFIG, ...config };
@@ -339,6 +344,14 @@ export class BotAI {
       case 'extreme': this.effectiveDifficulty = 'hard'; break;
       case 'unfair': this.effectiveDifficulty = 'hard'; break;
     }
+  }
+
+  setRecorder(r: BotDecisionRecorder | undefined): void {
+    this.recorder = r;
+  }
+
+  private tag(branch: string): void {
+    this.recorder?.record(branch);
   }
 
   // ─── Grand Tichu ────────────────────────────────────────────────────
@@ -810,6 +823,7 @@ export class BotAI {
     // ── Endgame: 1-3 cards left, just go out ──
     if (hand.length <= 3) {
       const biggest = [...playable].sort((a, b) => b.length - a.length);
+      this.tag('lead:endgame-dump');
       return biggest[0].map((c) => c.id);
     }
 
@@ -824,6 +838,7 @@ export class BotAI {
 
       // Play Dog if partner called Tichu, partner has few cards, or bot is holding it too long
       if (!partnerOut && (partnerCalledTichu || (partnerCards <= this.config.dogPlayPartnerCards && partnerCards > 0) || hand.length <= this.config.dogPlayMaxCards)) {
+        this.tag('lead:dog');
         return dogPlay.map((c) => c.id);
       }
     }
@@ -832,6 +847,7 @@ export class BotAI {
     // ── Lead with Mahjong first (it's the lowest card, hardest to get rid of later) ──
     const mahjongPlay = combos.singles.find((c) => isSpecial(c[0], SpecialCardType.MAHJONG));
     if (mahjongPlay) {
+      this.tag('lead:mahjong');
       return mahjongPlay.map((c) => c.id);
     }
 
@@ -846,6 +862,7 @@ export class BotAI {
       // If partner called Tichu, isn't out, and has fewer cards: lead low to let them win
       if (!partnerOut2 && partnerCalledTichu2 && partnerCards2 < hand.length) {
         if (combos.nonSpecialSingles.length > 0) {
+          this.tag('lead:partner-tichu-low');
           return this.pickLowestCombo(combos.nonSpecialSingles);
         }
       }
@@ -857,6 +874,7 @@ export class BotAI {
       if (this.config.leadDragonAgainstTichu) {
         const dragonPlay = combos.singles.find((c) => isSpecial(c[0], SpecialCardType.DRAGON));
         if (dragonPlay) {
+          this.tag('lead:vs-tichu-dragon');
           return dragonPlay.map((c) => c.id);
         }
       }
@@ -866,6 +884,7 @@ export class BotAI {
           (c) => isNormalCard(c[0]) && c[0].rank === NR.ACE
         );
         if (aceSingles.length > 0) {
+          this.tag('lead:vs-tichu-ace');
           return aceSingles[0].map((c) => c.id);
         }
       }
@@ -874,6 +893,7 @@ export class BotAI {
         (c) => isNormalCard(c[0]) && c[0].rank >= NR.KING
       );
       if (highSingles.length > 0) {
+        this.tag('lead:vs-tichu-high');
         return this.pickHighestCombo(highSingles);
       }
       // Lead strong multi-card combos (high rank, hard to beat)
@@ -883,6 +903,7 @@ export class BotAI {
           const rb = detectCombination(b)?.rank ?? 0;
           return rb - ra; // highest rank first
         });
+        this.tag('lead:vs-tichu-multi');
         return sorted[0].map((c) => c.id);
       }
     }
@@ -904,6 +925,7 @@ export class BotAI {
         if (b.length !== a.length) return b.length - a.length;
         return (detectCombination(a)?.rank ?? 0) - (detectCombination(b)?.rank ?? 0);
       });
+      this.tag('lead:long-5plus');
       return sorted[0].map((c) => c.id);
     }
 
@@ -911,6 +933,7 @@ export class BotAI {
     const isolatedMulti = this.findIsolatedMultiCardCombos(hand, noAceCombos);
     if (isolatedMulti.length > 0) {
       const sorted = [...isolatedMulti].sort((a, b) => b.length - a.length);
+      this.tag('lead:isolated-multi');
       return sorted[0].map((c) => c.id);
     }
 
@@ -920,17 +943,20 @@ export class BotAI {
         if (b.length !== a.length) return b.length - a.length;
         return (detectCombination(a)?.rank ?? 0) - (detectCombination(b)?.rank ?? 0);
       });
+      this.tag('lead:multi');
       return sorted[0].map((c) => c.id);
     }
 
     // ── Lead singleton low cards ──
     const singletons = this.findSingletonCards(hand, combos.nonSpecialSingles);
     if (singletons.length > 0) {
+      this.tag('lead:singleton');
       return this.pickLowestCombo(singletons);
     }
 
     // ── Lead lowest non-special single ──
     if (combos.nonSpecialSingles.length > 0) {
+      this.tag('lead:low-single');
       return this.pickLowestCombo(combos.nonSpecialSingles);
     }
 
@@ -946,11 +972,13 @@ export class BotAI {
           return r > rank;
         });
         if (!canBeBeat) {
+          this.tag('lead:safe-high-single');
           return single.map((c) => c.id);
         }
       }
     }
 
+    this.tag('lead:fallback');
     return this.pickLowestCombo(playable);
   }
 
@@ -981,6 +1009,7 @@ export class BotAI {
     // ── Endgame urgency: play to go out ──
     if (hand.length <= 3 && regular.length > 0) {
       const sorted = this.sortByRank(regular);
+      this.tag('follow:endgame-urgency');
       return sorted[0].map((c) => c.id);
     }
 
@@ -995,6 +1024,7 @@ export class BotAI {
         const winnerCall = context.tichuCalls[winner];
         // Bomb if Tichu caller is winning and has ≤5 cards
         if ((winnerCall === 'tichu' || winnerCall === 'grand_tichu') && winnerCards <= 5) {
+          this.tag('follow:bomb-opp-tichu-thin');
           return this.pickLowestCombo(bombs);
         }
       }
@@ -1004,9 +1034,11 @@ export class BotAI {
     if (partnerWinning) {
       // Bomb only if opponent is about to go out (prevent them)
       if (opponentAboutToOut && bombs.length > 0) {
+        this.tag('follow:bomb-block-opp-out');
         return this.pickLowestCombo(bombs);
       }
       // Partner is winning — let them have it
+      this.tag('follow:pass-partner-winning');
       return null;
     }
 
@@ -1016,24 +1048,28 @@ export class BotAI {
       if (this.config.opponentCardCountBombing && context) {
         const minOppCards = this.minOpponentCardCount(botPosition, context);
         // Opponent at 1 card — always bomb
-        if (minOppCards <= 1) return this.pickLowestCombo(bombs);
+        if (minOppCards <= 1) { this.tag('follow:bomb-opp-1-card'); return this.pickLowestCombo(bombs); }
         // Opponent at ≤2 cards — bomb any trick
-        if (minOppCards <= 2) return this.pickLowestCombo(bombs);
+        if (minOppCards <= 2) { this.tag('follow:bomb-opp-2-card'); return this.pickLowestCombo(bombs); }
         // Opponent at ≤3 with Tichu call — bomb any trick ≥5 pts
         if (minOppCards <= 3 && opponentTichuActive && trickPoints >= 5) {
+          this.tag('follow:bomb-opp-3-tichu');
           return this.pickLowestCombo(bombs);
         }
       }
       // Bomb valuable tricks (15+ points) — worth spending a bomb to steal
       if (trickPoints >= this.config.bombPointThreshold) {
+        this.tag('follow:bomb-high-points');
         return this.pickLowestCombo(bombs);
       }
       // Bomb 10+ point tricks if opponent is about to go out or has Tichu
       if (trickPoints >= 10 && (opponentAboutToOut || opponentTichuActive)) {
+        this.tag('follow:bomb-10pts-urgent');
         return this.pickLowestCombo(bombs);
       }
       // Bomb any trick if close to going out (use bombs before hand empties)
       if (hand.length <= this.config.bombEndgameCards) {
+        this.tag('follow:bomb-endgame-clear');
         return this.pickLowestCombo(bombs);
       }
     }
@@ -1048,7 +1084,10 @@ export class BotAI {
           const cheapest = sorted[0];
           const cheapCombo = detectCombination(cheapest);
           // Only pass if cheapest beat costs us an Ace (not King — Kings are worth playing)
-          if (cheapCombo && cheapCombo.rank >= NR.ACE) return null;
+          if (cheapCombo && cheapCombo.rank >= NR.ACE) {
+            this.tag('follow:pass-leadback-ace-cost');
+            return null;
+          }
         }
       }
     }
@@ -1056,8 +1095,10 @@ export class BotAI {
     // ── No regular plays — consider bombing ──
     if (regular.length === 0) {
       if (bombs.length > 0 && this.shouldUseBombHard(hand, trickPoints, opponentAboutToOut, opponentTichuActive, bombs.length)) {
+        this.tag('follow:bomb-no-regular');
         return this.pickLowestCombo(bombs);
       }
+      this.tag('follow:pass-no-regular');
       return null;
     }
 
@@ -1065,7 +1106,7 @@ export class BotAI {
 
     // ── Smart card selection ──
     const bestPlay = this.findBestFollowCard(hand, sorted, trickPoints, cardInfo);
-    if (bestPlay) return bestPlay;
+    if (bestPlay) { this.tag('follow:smart-select'); return bestPlay; }
 
     // Fallback to lowest beat
     const lowestBeat = sorted[0];
@@ -1074,8 +1115,10 @@ export class BotAI {
     // Dragon wins singles — but only on tricks worth enough points (configurable)
     if (lowestBeat.length === 1 && isSpecial(lowestBeat[0], SpecialCardType.DRAGON) && !partnerWinning) {
       if (trickPoints >= this.config.dragonFollowMinPoints || hand.length <= 3) {
+        this.tag('follow:dragon-play');
         return lowestBeat.map((c) => c.id);
       }
+      this.tag('follow:pass-dragon-save');
       return null; // pass instead of wasting Dragon on a low-value trick
     }
 
@@ -1083,20 +1126,26 @@ export class BotAI {
     if (lowestBeat.length === 1 && isSpecial(lowestBeat[0], SpecialCardType.PHOENIX)) {
       if (hand.length > this.config.phoenixFollowMaxCards && !opponentAboutToOut) {
         const topRank = currentTrick.plays[currentTrick.plays.length - 1]?.combination?.rank ?? 0;
-        if (topRank < this.config.phoenixFollowMinRank) return null;
+        if (topRank < this.config.phoenixFollowMinRank) {
+          this.tag('follow:pass-phoenix-save');
+          return null;
+        }
       }
     }
 
     // Pass if cheapest beat is Ace+ on a pointless trick and we have many cards
     if (lowestCombo && lowestCombo.rank >= NR.ACE && trickPoints <= 0 && hand.length > 10) {
+      this.tag('follow:pass-ace-pointless');
       return null;
     }
 
     // If opponent is about to go out, always play (don't let them win tricks)
     if (opponentAboutToOut) {
+      this.tag('follow:play-opp-about-out');
       return lowestBeat.map((c) => c.id);
     }
 
+    this.tag('follow:play-lowest-beat');
     return lowestBeat.map((c) => c.id);
   }
 
