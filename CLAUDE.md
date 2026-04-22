@@ -121,12 +121,13 @@ Players get a `sessionId` (UUID v4) on create/join, stored in localStorage. On p
 
 The server tracks connections, players, games, events, and HTTP requests in SQLite. You can query this data remotely via the admin API.
 
-**API key**: `b295880c4d8b6118079c13457cc96ac0972396923894262b`
+**API key**: `4dd4daf3be64b48c9d9c23fa1d16bc7b29ed34bbf1eda1270f10792a7a2be816`
+(Source of truth: `/home/dev/cyprus/.env` on the droplet. Check via `ssh root@165.245.175.45 'grep ^DATA_API_KEY /home/dev/cyprus/.env'`. If the key is rotated, update this line.)
 
 **Query any data** (read-only SELECT queries only):
 ```bash
 curl -s -X POST https://aegist.dev/admin/api/query \
-  -H "Authorization: Bearer b295880c4d8b6118079c13457cc96ac0972396923894262b" \
+  -H "Authorization: Bearer 4dd4daf3be64b48c9d9c23fa1d16bc7b29ed34bbf1eda1270f10792a7a2be816" \
   -H "Content-Type: application/json" \
   -d '{"sql": "SELECT * FROM players ORDER BY games_won DESC", "limit": 100}'
 ```
@@ -134,7 +135,7 @@ curl -s -X POST https://aegist.dev/admin/api/query \
 **List tables and row counts**:
 ```bash
 curl -s https://aegist.dev/admin/api/tables \
-  -H "Authorization: Bearer b295880c4d8b6118079c13457cc96ac0972396923894262b"
+  -H "Authorization: Bearer 4dd4daf3be64b48c9d9c23fa1d16bc7b29ed34bbf1eda1270f10792a7a2be816"
 ```
 
 **Available tables**: `connections`, `players`, `games`, `game_players`, `game_events`, `http_requests`, `admin_sessions`
