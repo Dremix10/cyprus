@@ -122,6 +122,7 @@ Players get a `sessionId` (UUID v4) on create/join, stored in localStorage. On p
 The server tracks connections, players, games, events, and HTTP requests in SQLite. You can query this data remotely via the admin API.
 
 **API key**: `REDACTED-ROTATED-KEY`
+(Source of truth: `/home/dev/cyprus/.env` on the droplet. Check via `ssh root@165.245.175.45 'grep ^DATA_API_KEY /home/dev/cyprus/.env'`. If the key is rotated, update this line.)
 
 **Query any data** (read-only SELECT queries only):
 ```bash
