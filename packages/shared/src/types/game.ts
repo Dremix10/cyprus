@@ -80,6 +80,7 @@ export type ClientGameState = {
   canPass?: boolean;         // false when leading (no trick on table)
   canCallTichu?: boolean;    // false after playing cards or already called
   mustPlayWish?: boolean;    // true when wish is active and player has playable wish combos
+  mustPass?: boolean;        // true when it's my turn with a trick on table and no legal play exists
   isSolo?: boolean;          // true when playing solo (3 bots)
   botDifficulty?: string;    // bot difficulty level when bots are present
   isSpectator?: boolean;     // true when viewing as spectator (all hands visible)

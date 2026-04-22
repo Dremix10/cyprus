@@ -64,6 +64,34 @@ export class SocketHandler {
   private timers: TimerManager;
   private persistence: GamePersistence;
   private bots: BotController;
+  private draining = false;
+
+  setDraining(value: boolean): void {
+    if (this.draining === value) return;
+    this.draining = value;
+    if (value) {
+      // Tell everyone in every active room that an update is coming.
+      for (const code of this.rooms.getAllRoomCodes()) {
+        (this.io.to(code).emit as Function)('server:maintenance', {
+          message: 'Server update starting — finish your game and we will restart after.',
+        });
+      }
+    }
+  }
+
+  isDraining(): boolean {
+    return this.draining;
+  }
+
+  /** Number of rooms with a live game engine (i.e. games in progress). */
+  getActiveGameCount(): number {
+    let count = 0;
+    for (const code of this.rooms.getAllRoomCodes()) {
+      const room = this.rooms.getRoom(code);
+      if (room?.engine) count++;
+    }
+    return count;
+  }
 
   constructor(
     private io: TypedServer,
@@ -155,6 +183,7 @@ export class SocketHandler {
   private registerRoomEvents(socket: TypedSocket, ip: string | null): void {
     socket.on('room:create', (nickname, targetScore, difficulty, callback) => {
       if (!this.checkRate(socket, 'create', 5, 30_000)) return;
+      if (this.draining) { callback({ error: 'Server is updating — please try again in a minute' }); return; }
       const userId = socket.data.userId as number | undefined;
       const validDiffs: BotDifficulty[] = ['easy', 'medium', 'hard', 'extreme', 'unfair'];
       const diff: BotDifficulty = validDiffs.includes(difficulty as BotDifficulty) ? (difficulty as BotDifficulty) : 'medium';
@@ -175,6 +204,7 @@ export class SocketHandler {
 
     socket.on('room:create_solo', (nickname, targetScore, difficulty, callback) => {
       if (!this.checkRate(socket, 'create', 5, 30_000)) return;
+      if (this.draining) { callback({ error: 'Server is updating — please try again in a minute' }); return; }
       const validDifficulties: BotDifficulty[] = ['easy', 'medium', 'hard', 'extreme', 'unfair'];
       const diff: BotDifficulty = validDifficulties.includes(difficulty as BotDifficulty) ? (difficulty as BotDifficulty) : 'medium';
       const userId = socket.data.userId as number | undefined;
@@ -202,6 +232,7 @@ export class SocketHandler {
 
     socket.on('room:join', (roomCode, nickname, callback) => {
       if (!this.checkRate(socket, 'join', 10, 30_000)) return;
+      if (this.draining) { callback({ error: 'Server is updating — please try again in a minute' }); return; }
       const userId = socket.data.userId as number | undefined;
       const nickWarning = this.rooms.checkNicknameWarning(nickname);
       const avatar = this.getUserAvatar(userId);
@@ -257,6 +288,7 @@ export class SocketHandler {
   private registerMatchmakingEvents(socket: TypedSocket, ip: string | null): void {
     socket.on('matchmaking:join', (nickname, targetScore, callback) => {
       if (!this.checkRate(socket, 'matchmaking', 5, 30_000)) return;
+      if (this.draining) { callback({ error: 'Server is updating — please try again in a minute' }); return; }
       const userId = socket.data.userId as number | undefined;
       const result = this.matchmaking.enqueue(socket.id, nickname, targetScore, userId);
       if ('error' in result) { callback({ error: result.error }); return; }
@@ -428,8 +460,9 @@ export class SocketHandler {
 
         const room = this.rooms.getRoom(result.roomCode);
         if (room?.engine && info) {
+          // broadcastGameState → scheduleTurnTimer will schedule the 30s bot-replace
+          // if (and only if) it's the disconnected player's turn.
           this.broadcastGameState(result.roomCode);
-          this.timers.scheduleDisconnectReplace(result.roomCode, info.position, result.nickname);
         }
       }
     });
@@ -702,8 +735,8 @@ export class SocketHandler {
       }
 
       const isSolo = info.room.botPositions.size === 3;
-      if (!isSolo && this.db && this.hasActiveHuman(info.room)) {
-        this.updateLeaderboardStats(info.room, engine, roundHistory);
+      if (this.db && this.hasActiveHuman(info.room)) {
+        this.updateLeaderboardStats(info.room, engine, roundHistory, isSolo);
       }
     });
 
@@ -724,7 +757,8 @@ export class SocketHandler {
   private updateLeaderboardStats(
     room: NonNullable<ReturnType<RoomManager['getRoom']>>,
     engine: GameEngine,
-    roundHistory: ReturnType<GameEngine['getRoundHistory']>
+    roundHistory: ReturnType<GameEngine['getRoundHistory']>,
+    isSolo: boolean
   ): void {
     const s = engine.state.scores;
     const winTeam = s[0] > s[1] ? 0 : s[1] > s[0] ? 1 : -1;
@@ -767,7 +801,9 @@ export class SocketHandler {
         disconnected,
       });
 
-      this.computeAndUpdateRating(userId);
+      // Rating is a leaderboard signal — only recompute from multiplayer games so
+      // solo runs against bots can't inflate it.
+      if (!isSolo) this.computeAndUpdateRating(userId);
     }
 
     // ELO: symmetric rule — humans + bots both count in team averages and both get rating updates.

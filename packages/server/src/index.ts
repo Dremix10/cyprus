@@ -242,24 +242,52 @@ app.use('/api/friends', createFriendRouter(db, authService));
 app.use('/admin', createAdminRouter(db));
 
 // Shutdown endpoint for deploy scripts (same auth as admin API)
-app.post('/admin/api/shutdown', (req, res) => {
+function requireApiKey(req: express.Request, res: express.Response): boolean {
   const apiKey = process.env.DATA_API_KEY;
   const auth = req.headers.authorization;
   if (!apiKey || !auth?.startsWith('Bearer ')) {
     res.status(401).json({ error: 'Unauthorized' });
-    return;
+    return false;
   }
   try {
     if (!timingSafeEqual(Buffer.from(auth.slice(7)), Buffer.from(apiKey))) {
       res.status(401).json({ error: 'Unauthorized' });
-      return;
+      return false;
     }
   } catch {
     res.status(401).json({ error: 'Unauthorized' });
-    return;
+    return false;
   }
+  return true;
+}
+
+app.post('/admin/api/shutdown', (req, res) => {
+  if (!requireApiKey(req, res)) return;
   res.json({ status: 'shutting down' });
   setTimeout(() => shutdown('DEPLOY'), 500);
+});
+
+// Drain: reject new rooms/matchmaking while letting current games finish.
+// Deploy script polls /admin/api/drain-status and shuts down when activeGames = 0.
+app.post('/admin/api/drain', (req, res) => {
+  if (!requireApiKey(req, res)) return;
+  socketHandler.setDraining(true);
+  res.json({ status: 'draining', activeGames: socketHandler.getActiveGameCount() });
+});
+
+app.post('/admin/api/drain/cancel', (req, res) => {
+  if (!requireApiKey(req, res)) return;
+  socketHandler.setDraining(false);
+  res.json({ status: 'not draining' });
+});
+
+app.get('/admin/api/drain-status', (req, res) => {
+  if (!requireApiKey(req, res)) return;
+  res.json({
+    draining: socketHandler.isDraining(),
+    activeGames: socketHandler.getActiveGameCount(),
+    activeConnections: io.engine.clientsCount,
+  });
 });
 
 // Serve the client build (always — not just production)

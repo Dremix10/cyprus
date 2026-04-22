@@ -89,4 +89,6 @@ export interface ServerToClientEvents {
   'matchmaking:update': (data: { playersInQueue: number; elapsed: number }) => void;
   'matchmaking:found': (data: { roomCode: string; sessionId: string }) => void;
   'matchmaking:cancelled': () => void;
+
+  'server:maintenance': (data: { message: string }) => void;
 }

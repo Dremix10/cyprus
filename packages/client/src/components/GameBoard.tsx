@@ -385,6 +385,16 @@ function PlayingLayout({
     }
   }, [lastEvent]);
 
+  // Auto-pass when server says we have no legal play.
+  useEffect(() => {
+    if (!gameState?.mustPass) return;
+    if (gameState.currentPlayer !== gameState.myPosition) return;
+    const timer = setTimeout(() => {
+      if (useGameStore.getState().gameState?.mustPass) passTurn();
+    }, 900);
+    return () => clearTimeout(timer);
+  }, [gameState?.mustPass, gameState?.currentPlayer, gameState?.myPosition, passTurn]);
+
   const isMyTurn = gameState.currentPlayer === gameState.myPosition;
   const myInfo = gameState.players[gameState.myPosition];
   const isDragonGive = gameState.phase === GamePhase.DRAGON_GIVE;
