@@ -58,7 +58,7 @@ export class RoomManager {
     clearInterval(this.cleanupInterval);
   }
 
-  createRoom(socketId: string, nickname: string, targetScore: number = 1000, userId?: number, difficulty: BotDifficulty = 'medium'): { roomCode: string; sessionId: string } | { error: string } {
+  createRoom(socketId: string, nickname: string, targetScore: number = 1000, userId?: number, difficulty: BotDifficulty = 'medium', avatar?: string): { roomCode: string; sessionId: string } | { error: string } {
     const nickErr = this.validateNickname(nickname);
     if (nickErr) return { error: nickErr };
     if (targetScore < 250) targetScore = 250;
@@ -84,6 +84,7 @@ export class RoomManager {
       connected: true,
       sessionId,
       userId,
+      avatar,
     };
     room.players.set(0, player);
     this.socketToRoom.set(socketId, { roomCode: code, position: 0 });
@@ -97,7 +98,8 @@ export class RoomManager {
     nickname: string,
     targetScore: number = 1000,
     difficulty: BotDifficulty = 'medium',
-    userId?: number
+    userId?: number,
+    avatar?: string
   ): { roomCode: string; sessionId: string } | { error: string } {
     const nickErr = this.validateNickname(nickname);
     if (nickErr) return { error: nickErr };
@@ -126,6 +128,7 @@ export class RoomManager {
       connected: true,
       sessionId,
       userId,
+      avatar,
     };
     room.players.set(0, player);
     this.socketToRoom.set(socketId, { roomCode: code, position: 0 });
@@ -152,7 +155,8 @@ export class RoomManager {
     socketId: string,
     roomCode: string,
     nickname: string,
-    userId?: number
+    userId?: number,
+    avatar?: string
   ): { success: true; position: PlayerPosition; sessionId: string } | { error: string } {
     const nickErr = this.validateNickname(nickname);
     if (nickErr) return { error: nickErr };
@@ -166,6 +170,7 @@ export class RoomManager {
         // Reconnect — reuse existing session or create new one
         player.socketId = socketId;
         player.connected = true;
+        if (avatar !== undefined) player.avatar = avatar;
         delete player.disconnectedAt;
         if (!player.sessionId) {
           player.sessionId = randomUUID();
@@ -200,6 +205,7 @@ export class RoomManager {
       connected: true,
       sessionId,
       userId,
+      avatar,
     };
     room.players.set(openPos, player);
     this.socketToRoom.set(socketId, { roomCode: code, position: openPos });

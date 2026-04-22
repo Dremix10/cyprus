@@ -5,6 +5,7 @@ import type { PlayerPosition, RoundScoreBreakdown } from '@cyprus/shared';
 import { getCardPoints, getRankLabel } from '@cyprus/shared';
 import { CardComponent } from './CardComponent.js';
 import { PlayerHand } from './PlayerHand.js';
+import { PlayerAvatar } from './PlayerAvatar.js';
 import { ScoreHistory } from './ScoreHistory.js';
 import { useT } from '../i18n.js';
 
@@ -230,7 +231,7 @@ export function PassingView() {
           return (
             <div key={slot} className={`pass-zone ${teammate ? 'pass-zone-teammate' : 'pass-zone-opponent'} ${activeCard && !assignedId ? 'pass-zone-active' : ''}`} onClick={() => !assignedId && handleSlotClick(slot)}>
               <div className="pass-zone-header">
-                {player.avatar && <img className="pass-zone-avatar" src={player.avatar} alt={player.nickname} />}
+                {player.avatar && <PlayerAvatar avatar={player.avatar} alt={player.nickname} className="pass-zone-avatar" />}
                 <span className={`pass-zone-name ${teammate ? 'name-teammate' : 'name-opponent'}`}>{player.nickname}</span>
                 <span className="pass-zone-relation">{teammate ? t('phase.partner') : t('phase.opponent')}</span>
               </div>
