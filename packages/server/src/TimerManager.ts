@@ -4,7 +4,7 @@ import type { RoomManager, Room } from './RoomManager.js';
 import type { GameMonitor } from './GameMonitor.js';
 
 const TURN_TIMEOUT_MS = 60_000;
-const DISCONNECT_REPLACE_MS = 45_000;
+const DISCONNECT_REPLACE_MS = 30_000;
 
 
 type BroadcastFn = (roomCode: string) => void;
@@ -95,6 +95,23 @@ export class TimerManager {
     const currentPlayer = engine.state.currentPlayer;
     if (room.botPositions.has(currentPlayer)) { this.clearTurnTimer(roomCode); return; }
 
+    // Disconnect→bot replacement only counts down during the disconnected player's turn.
+    // Clear any timers for non-current disconnected players.
+    for (const pos of [0, 1, 2, 3] as PlayerPosition[]) {
+      if (pos !== currentPlayer) this.cancelDisconnectTimer(roomCode, pos);
+    }
+
+    const currentPlayerData = room.players.get(currentPlayer);
+    if (currentPlayerData && !currentPlayerData.connected) {
+      // Disconnected player's turn — start the 30s bot-replacement timer in parallel with
+      // the turn timer. Whichever fires first handles it. We preserve the turn timer so
+      // that on a quick reconnect (page refresh) the remaining time is unchanged.
+      this.scheduleDisconnectReplace(roomCode, currentPlayer, currentPlayerData.nickname);
+    } else {
+      // Connected player's turn — cancel any pending bot replacement for them.
+      this.cancelDisconnectTimer(roomCode, currentPlayer);
+    }
+
     // If a timer is already running for this same player, preserve its deadline.
     // Only reset when the turn actually advances to a different player.
     const existingPlayer = this.turnTimerPlayer.get(roomCode);
@@ -170,8 +187,9 @@ export class TimerManager {
 
   scheduleDisconnectReplace(roomCode: string, position: PlayerPosition, nickname: string): void {
     const timerKey = `${roomCode}-${position}`;
-    const existing = this.disconnectTimers.get(timerKey);
-    if (existing) clearTimeout(existing);
+    // Idempotent: if a timer is already running for this player, leave it alone so the
+    // countdown keeps advancing instead of restarting on every broadcast.
+    if (this.disconnectTimers.has(timerKey)) return;
 
     this.disconnectDeadlines.set(timerKey, Date.now() + DISCONNECT_REPLACE_MS);
 

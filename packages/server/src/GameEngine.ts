@@ -1073,6 +1073,15 @@ export class GameEngine {
         const playable = findPlayableFromHand(player.hand, currentTop, this.state.wish);
         return playable.some(cards => cards.some(c => c.type === 'normal' && c.rank === this.state.wish.wishedRank));
       })(),
+      mustPass: (() => {
+        if (this.state.phase !== GamePhase.PLAYING) return false;
+        if (this.state.currentPlayer !== position) return false;
+        if (this.state.currentTrick.plays.length === 0) return false;
+        if (this.state.wishPending !== null) return false;
+        if (this.state.dogPending || this.state.trickWonPending || this.state.roundEndPending) return false;
+        const currentTop = this.state.currentTrick.plays[this.state.currentTrick.plays.length - 1].combination;
+        return findPlayableFromHand(player.hand, currentTop, this.state.wish).length === 0;
+      })(),
     };
   }
 }

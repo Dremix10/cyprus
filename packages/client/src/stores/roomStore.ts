@@ -58,7 +58,9 @@ interface RoomStore {
   reconnecting: boolean;
   staleSession: { roomCode: string; nickname: string } | null;
   queueInfo: { playersInQueue: number; elapsed: number } | null;
+  maintenanceMessage: string | null;
 
+  setMaintenanceMessage: (msg: string | null) => void;
   setNickname: (name: string) => void;
   setTargetScore: (score: number) => void;
   setBotDifficulty: (difficulty: string) => void;
@@ -91,6 +93,7 @@ export const useRoomStore = create<RoomStore>((set, get) => ({
   reconnecting: false,
   staleSession: null,
   queueInfo: null,
+  maintenanceMessage: null,
 
   setNickname: (name) => set({ nickname: name }),
   setTargetScore: (score) => set({ targetScore: score }),
@@ -331,6 +334,7 @@ export const useRoomStore = create<RoomStore>((set, get) => ({
     socket.emit('room:start');
   },
 
+  setMaintenanceMessage: (msg) => set({ maintenanceMessage: msg }),
   setView: (view) => set({ view }),
   setRoomState: (state) => set({ roomState: state }),
   setError: (error) => set({ error }),

@@ -414,6 +414,10 @@ export class RoomManager {
     return null;
   }
 
+  getAllRoomCodes(): string[] {
+    return [...this.rooms.keys()];
+  }
+
   getActiveGames(): Array<{
     roomCode: string;
     players: Array<{ nickname: string; position: number; isBot: boolean }>;

@@ -112,10 +112,17 @@ export default function App() {
   return (
     <div className="app">
       <ConnectionStatus />
+      <MaintenanceBanner />
       {view === 'lobby' && <Lobby onTutorial={() => setShowTutorial(true)} onLeaderboard={() => setShowLeaderboard(true)} onProfile={() => setShowProfile(true)} onLiveGames={() => setShowLiveGames(true)} />}
       {view === 'queue' && <MatchmakingQueue />}
       {view === 'waiting' && <WaitingRoom />}
       {view === 'game' && <GameBoard />}
     </div>
   );
+}
+
+function MaintenanceBanner() {
+  const message = useRoomStore((s) => s.maintenanceMessage);
+  if (!message) return null;
+  return <div className="maintenance-banner">{message}</div>;
 }

@@ -2402,6 +2402,21 @@ body {
   font-variant-numeric: tabular-nums;
 }
 
+.maintenance-banner {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 1000;
+  background: linear-gradient(90deg, #b36b00, #d48a1a);
+  color: #fff;
+  text-align: center;
+  padding: 0.5rem 1rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+}
+
 .opponent-info {
   display: flex;
   align-items: center;

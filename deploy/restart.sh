@@ -16,15 +16,43 @@ git stash --include-untracked 2>/dev/null || true
 echo "Pulling latest from main..."
 git pull origin main
 
+# Load env for API key before drain + build.
+set -a; [ -f .env ] && source .env; set +a
+
+# Start draining on the old server NOW so active games have time to finish while we build.
+DRAIN_DEADLINE_SECS="${DRAIN_DEADLINE_SECS:-180}"
+if [ -n "${DATA_API_KEY:-}" ]; then
+  echo "Signalling drain to old server (block new games)..."
+  curl -s -X POST http://localhost:3001/admin/api/drain \
+    -H "Authorization: Bearer $DATA_API_KEY" \
+    --max-time 5 2>/dev/null || echo "  (drain signal failed — old server may already be down)"
+fi
+
 echo "Installing dependencies..."
 npm install
 
 echo "Building..."
 npm run build
 
+# Wait for active games to finish (bounded).
+if [ -n "${DATA_API_KEY:-}" ]; then
+  echo "Waiting for active games to finish (up to ${DRAIN_DEADLINE_SECS}s)..."
+  end=$(( $(date +%s) + DRAIN_DEADLINE_SECS ))
+  while [ "$(date +%s)" -lt "$end" ]; do
+    status=$(curl -s http://localhost:3001/admin/api/drain-status \
+      -H "Authorization: Bearer $DATA_API_KEY" --max-time 3 2>/dev/null || echo '{}')
+    active=$(echo "$status" | grep -o '"activeGames":[0-9]*' | cut -d: -f2 || echo 0)
+    active=${active:-0}
+    if [ "$active" = "0" ]; then
+      echo "  No active games — proceeding."
+      break
+    fi
+    echo "  $active active game(s) still running..."
+    sleep 5
+  done
+fi
+
 echo "Stopping old process..."
-# Ask the server to shut itself down gracefully (works even if process is owned by root)
-set -a; [ -f .env ] && source .env; set +a
 if [ -n "${DATA_API_KEY:-}" ]; then
   echo "Requesting graceful shutdown via API..."
   curl -s -X POST http://localhost:3001/admin/api/shutdown \

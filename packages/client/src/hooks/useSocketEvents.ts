@@ -61,9 +61,15 @@ export function useSocketEvents() {
       useRoomStore.setState({ view: 'lobby', queueInfo: null });
     };
 
+    const onMaintenance = (data: { message: string }) => {
+      useRoomStore.getState().setMaintenanceMessage(data.message);
+    };
+
     // On socket reconnect, try to rejoin via session
     const onReconnect = () => {
-      const { trySessionReconnect } = useRoomStore.getState();
+      const { trySessionReconnect, setMaintenanceMessage } = useRoomStore.getState();
+      // New server connection → clear any stale maintenance banner from the previous session.
+      setMaintenanceMessage(null);
       trySessionReconnect();
     };
 
@@ -76,6 +82,7 @@ export function useSocketEvents() {
     socket.on('matchmaking:update', onMatchmakingUpdate);
     socket.on('matchmaking:found', onMatchmakingFound);
     socket.on('matchmaking:cancelled', onMatchmakingCancelled);
+    socket.on('server:maintenance', onMaintenance);
     socket.io.on('reconnect', onReconnect);
 
     // Periodic resync: request fresh game state every 15s to recover from missed updates
@@ -95,6 +102,7 @@ export function useSocketEvents() {
       socket.off('matchmaking:update', onMatchmakingUpdate);
       socket.off('matchmaking:found', onMatchmakingFound);
       socket.off('matchmaking:cancelled', onMatchmakingCancelled);
+      socket.off('server:maintenance', onMaintenance);
       socket.io.off('reconnect', onReconnect);
       clearInterval(resyncInterval);
     };
