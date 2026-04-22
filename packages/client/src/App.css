@@ -165,6 +165,21 @@ body {
   background: rgba(255, 255, 255, 0.04);
 }
 
+/* Highlight pass when server says no legal play exists (multiplayer only —
+   client-only hint, opponents don't see it so no info leak). */
+.btn-pass-recommended {
+  border-color: #f39c12;
+  color: #f39c12;
+  background: rgba(243, 156, 18, 0.08);
+  box-shadow: 0 0 0 0 rgba(243, 156, 18, 0.5);
+  animation: pass-pulse 1.8s ease-in-out infinite;
+}
+
+@keyframes pass-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(243, 156, 18, 0.35); }
+  50%      { box-shadow: 0 0 0 6px rgba(243, 156, 18, 0); }
+}
+
 /* ─── Lobby (Greek Theme — Full Screen) ── */
 
 .lobby-fullscreen {

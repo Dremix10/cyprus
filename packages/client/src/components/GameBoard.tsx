@@ -385,15 +385,19 @@ function PlayingLayout({
     }
   }, [lastEvent]);
 
-  // Auto-pass when server says we have no legal play.
+  // Auto-pass when server says we have no legal play. Solo only — in multiplayer an
+  // instant pass would leak "I have no bomb" to opponents, since mustPass is only true
+  // when no bomb is available either.
   useEffect(() => {
     if (!gameState?.mustPass) return;
+    if (!gameState.isSolo) return;
     if (gameState.currentPlayer !== gameState.myPosition) return;
     const timer = setTimeout(() => {
-      if (useGameStore.getState().gameState?.mustPass) passTurn();
+      const s = useGameStore.getState().gameState;
+      if (s?.mustPass && s.isSolo) passTurn();
     }, 900);
     return () => clearTimeout(timer);
-  }, [gameState?.mustPass, gameState?.currentPlayer, gameState?.myPosition, passTurn]);
+  }, [gameState?.mustPass, gameState?.isSolo, gameState?.currentPlayer, gameState?.myPosition, passTurn]);
 
   const isMyTurn = gameState.currentPlayer === gameState.myPosition;
   const myInfo = gameState.players[gameState.myPosition];
@@ -574,7 +578,10 @@ function PlayingLayout({
               {t('game.play')}
             </button>
             {canPass && !mustPlayWish && (
-              <button className="btn btn-pass" onClick={passTurn}>
+              <button
+                className={`btn btn-pass ${gameState.mustPass && !gameState.isSolo ? 'btn-pass-recommended' : ''}`}
+                onClick={passTurn}
+              >
                 {t('game.pass')}
               </button>
             )}
