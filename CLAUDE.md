@@ -155,6 +155,7 @@ curl -s https://aegist.dev/admin/api/tables \
 
 ## Known Issues / Backlog
 
+- **Profile pic picker UX** — current section where players choose profile pics is not great; needs a better layout/flow (grid picker, categories, preview, or custom upload)
 - **Forgot password email not active** — SMTP not configured (needs SMTP_HOST/USER/PASS env vars)
 - **Google Sign-In not active** — needs GOOGLE_CLIENT_ID env var (Google Cloud Console setup)
 - **Waiting rooms lost on deploy** — only rooms with active games are persisted; waiting rooms are lost on server restart
