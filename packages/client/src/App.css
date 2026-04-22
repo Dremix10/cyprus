@@ -2416,6 +2416,15 @@ body {
   border: 2px solid rgba(255, 255, 255, 0.3);
 }
 
+span.player-avatar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 38px;
+  line-height: 1;
+  background: rgba(255, 255, 255, 0.08);
+}
+
 .opponent-name {
   font-weight: 600;
   font-size: 0.9rem;
@@ -2553,6 +2562,25 @@ body {
 .my-collected {
   margin-top: 0;
   flex-shrink: 0;
+}
+
+.my-player-info {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.25rem;
+  flex-shrink: 0;
+  margin-bottom: 0.3rem;
+}
+
+.my-name {
+  font-weight: 600;
+  font-size: 0.85rem;
+  color: var(--success);
+  max-width: 80px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 /* ─── Trick Area ────────────────────────── */
@@ -2985,6 +3013,15 @@ body {
   height: 36px;
   border-radius: 50%;
   object-fit: cover;
+}
+
+span.pass-zone-avatar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 22px;
+  line-height: 1;
+  background: rgba(255, 255, 255, 0.08);
 }
 
 .pass-zone-name {
@@ -3507,6 +3544,10 @@ body {
     height: 48px;
   }
 
+  span.player-avatar {
+    font-size: 28px;
+  }
+
   .opponent-panel {
     padding: 0.5rem 0.75rem;
     min-width: 80px;
@@ -3610,6 +3651,10 @@ body {
   .player-avatar {
     width: 28px;
     height: 28px;
+  }
+
+  span.player-avatar {
+    font-size: 16px;
   }
 
   .opponent-panel {
@@ -3915,6 +3960,10 @@ body {
   .player-avatar {
     width: 24px;
     height: 24px;
+  }
+
+  span.player-avatar {
+    font-size: 14px;
   }
 
   .opponent-name {

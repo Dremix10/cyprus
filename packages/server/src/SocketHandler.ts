@@ -105,6 +105,11 @@ export class SocketHandler {
       || null;
   }
 
+  private getUserAvatar(userId?: number): string | undefined {
+    if (!userId || !this.db) return undefined;
+    return this.db.getUserById(userId)?.avatar ?? undefined;
+  }
+
   private checkRate(socket: TypedSocket, action: string, limit: number = 20, windowMs: number = 5000): boolean {
     if (!this.rateLimiter.isAllowed(`${socket.id}:${action}`, limit, windowMs)) {
       socket.emit('game:error', 'Too many requests, slow down');
@@ -154,7 +159,8 @@ export class SocketHandler {
       const validDiffs: BotDifficulty[] = ['easy', 'medium', 'hard', 'extreme', 'unfair'];
       const diff: BotDifficulty = validDiffs.includes(difficulty as BotDifficulty) ? (difficulty as BotDifficulty) : 'medium';
       const nickWarning = this.rooms.checkNicknameWarning(nickname);
-      const result = this.rooms.createRoom(socket.id, nickname, targetScore, userId, diff);
+      const avatar = this.getUserAvatar(userId);
+      const result = this.rooms.createRoom(socket.id, nickname, targetScore, userId, diff, avatar);
       if ('error' in result) { callback({ error: result.error }); return; }
       socket.join(result.roomCode);
       this.socketToSession.set(socket.id, result.sessionId);
@@ -173,7 +179,8 @@ export class SocketHandler {
       const diff: BotDifficulty = validDifficulties.includes(difficulty as BotDifficulty) ? (difficulty as BotDifficulty) : 'medium';
       const userId = socket.data.userId as number | undefined;
       const nickWarning = this.rooms.checkNicknameWarning(nickname);
-      const result = this.rooms.createSoloRoom(socket.id, nickname, targetScore, diff, userId);
+      const avatar = this.getUserAvatar(userId);
+      const result = this.rooms.createSoloRoom(socket.id, nickname, targetScore, diff, userId, avatar);
       if ('error' in result) { callback({ error: result.error }); return; }
       socket.join(result.roomCode);
       this.socketToSession.set(socket.id, result.sessionId);
@@ -197,7 +204,8 @@ export class SocketHandler {
       if (!this.checkRate(socket, 'join', 10, 30_000)) return;
       const userId = socket.data.userId as number | undefined;
       const nickWarning = this.rooms.checkNicknameWarning(nickname);
-      const result = this.rooms.joinRoom(socket.id, roomCode, nickname, userId);
+      const avatar = this.getUserAvatar(userId);
+      const result = this.rooms.joinRoom(socket.id, roomCode, nickname, userId, avatar);
       if ('error' in result) { callback({ error: result.error }); return; }
       socket.join(roomCode.toUpperCase());
       this.socketToSession.set(socket.id, result.sessionId);
@@ -694,7 +702,7 @@ export class SocketHandler {
       }
 
       const isSolo = info.room.botPositions.size === 3;
-      if (!isSolo && this.db) {
+      if (!isSolo && this.db && this.hasActiveHuman(info.room)) {
         this.updateLeaderboardStats(info.room, engine, roundHistory);
       }
     });
@@ -703,6 +711,14 @@ export class SocketHandler {
     this.db?.queueGameForReview(gameId, roomCode);
 
     roomGameIds.delete(roomCode);
+  }
+
+  private hasActiveHuman(room: NonNullable<ReturnType<RoomManager['getRoom']>>): boolean {
+    for (const [pos, player] of room.players) {
+      if (room.botPositions.has(pos)) continue;
+      if (player.userId && player.connected) return true;
+    }
+    return false;
   }
 
   private updateLeaderboardStats(

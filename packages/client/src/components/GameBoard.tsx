@@ -20,12 +20,31 @@ function getPhoenixLabel(combo: Combination, prevRank?: number): string | null {
   const others = combo.cards.filter((c) => c !== phoenix);
   const ranks = others.map(getCardRank);
 
-  if (combo.type === CombinationType.STRAIGHT || combo.type === CombinationType.CONSECUTIVE_PAIRS) {
+  if (combo.type === CombinationType.STRAIGHT) {
+    const minRank = Math.min(...ranks);
+    const maxRank = Math.max(...ranks);
+    // Default: extend up, unless top is ACE (14) — then extend down
+    let phoenixRank = maxRank >= 14 ? minRank - 1 : maxRank + 1;
+    for (let r = minRank; r <= maxRank; r++) {
+      if (!ranks.includes(r)) { phoenixRank = r; break; }
+    }
+    return getRankLabel(phoenixRank);
+  }
+  if (combo.type === CombinationType.CONSECUTIVE_PAIRS) {
+    const rankCounts = new Map<number, number>();
+    for (const r of ranks) rankCounts.set(r, (rankCounts.get(r) ?? 0) + 1);
     const minRank = Math.min(...ranks);
     const maxRank = Math.max(...ranks);
     let phoenixRank = maxRank + 1;
-    for (let r = minRank; r <= maxRank + 1; r++) {
-      if (!ranks.includes(r)) { phoenixRank = r; break; }
+    // Prefer a rank missing from the run entirely
+    for (let r = minRank; r <= maxRank; r++) {
+      if (!rankCounts.has(r)) { phoenixRank = r; break; }
+    }
+    // Otherwise fill the rank that's only present once
+    if (phoenixRank === maxRank + 1) {
+      for (const [r, count] of rankCounts) {
+        if (count === 1) { phoenixRank = r; break; }
+      }
     }
     return getRankLabel(phoenixRank);
   }
@@ -33,6 +52,13 @@ function getPhoenixLabel(combo: Combination, prevRank?: number): string | null {
     // Phoenix matches the rank of the other cards in its group
     const rankCounts = new Map<number, number>();
     for (const r of ranks) rankCounts.set(r, (rankCounts.get(r) ?? 0) + 1);
+    // FULL_HOUSE 2+2+Phoenix tiebreaker: Phoenix joins the HIGHER pair (matches engine rule)
+    if (combo.type === CombinationType.FULL_HOUSE && rankCounts.size === 2) {
+      const [r1, r2] = [...rankCounts.keys()];
+      if (rankCounts.get(r1) === 2 && rankCounts.get(r2) === 2) {
+        return getRankLabel(Math.max(r1, r2));
+      }
+    }
     // Find the rank with fewer cards (Phoenix completes it)
     let minCount = Infinity;
     let phoenixRank = ranks[0];
@@ -56,15 +82,15 @@ function sortForDisplay(combo: Combination): Card[] {
       group.push(c);
       rankCounts.set(rank, group);
     }
-    // Phoenix completes whichever group is smaller (the pair needs one more)
+    // Phoenix completes whichever group is smaller (the pair needs one more).
+    // For 2+2+Phoenix, join the HIGHER-ranked pair to match engine rule.
     if (phoenix) {
-      let smallestGroup: Card[] | null = null;
-      for (const group of rankCounts.values()) {
-        if (!smallestGroup || group.length < smallestGroup.length) {
-          smallestGroup = group;
-        }
-      }
-      if (smallestGroup) smallestGroup.push(phoenix);
+      const entries = [...rankCounts.entries()];
+      const minLen = Math.min(...entries.map(([, g]) => g.length));
+      const candidates = entries.filter(([, g]) => g.length === minLen);
+      const targetRank = Math.max(...candidates.map(([r]) => r));
+      const targetGroup = rankCounts.get(targetRank);
+      if (targetGroup) targetGroup.push(phoenix);
     }
     const groups = [...rankCounts.values()].sort((a, b) => b.length - a.length);
     return groups.flat();
@@ -83,8 +109,11 @@ function sortForDisplay(combo: Combination): Card[] {
       const minRank = Math.min(...ranks);
       const maxRank = Math.max(...ranks);
 
-      // Find the gap rank that Phoenix fills
-      let phoenixRank = maxRank + 1; // default: extends at top
+      // Find the gap rank that Phoenix fills.
+      // Default: extend up, unless top is ACE (straights only) — then extend down.
+      let phoenixRank = combo.type === CombinationType.STRAIGHT && maxRank >= 14
+        ? minRank - 1
+        : maxRank + 1;
       if (combo.type === CombinationType.STRAIGHT) {
         for (let r = minRank; r <= maxRank; r++) {
           if (!ranks.includes(r)) { phoenixRank = r; break; }
@@ -125,6 +154,7 @@ function sortForDisplay(combo: Combination): Card[] {
 import { CardComponent } from './CardComponent.js';
 import { PlayerHand } from './PlayerHand.js';
 import { OpponentHand } from './OpponentHand.js';
+import { PlayerAvatar } from './PlayerAvatar.js';
 import { WishSelector } from './WishSelector.js';
 import { ScoreHistory } from './ScoreHistory.js';
 import { QuickGuideButton } from './QuickGuide.js';
@@ -468,6 +498,12 @@ function PlayingLayout({
 
       {/* My hand */}
       <div className="my-hand-row">
+        {myInfo?.avatar && (
+          <div className="my-player-info">
+            <PlayerAvatar avatar={myInfo.avatar} alt={myInfo.nickname} className="player-avatar" />
+            <span className="my-name">{myInfo.nickname}</span>
+          </div>
+        )}
         {myInfo?.tichuCall !== 'none' && (
           <span className={`tichu-badge ${myInfo.tichuCall === 'grand_tichu' ? 'tichu-badge-grand' : ''}`}>
             {myInfo.tichuCall === 'grand_tichu' ? 'GRAND TICHU' : 'TICHU'}
