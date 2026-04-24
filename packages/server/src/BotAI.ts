@@ -279,7 +279,7 @@ export interface BotConfig {
   bombEndgameCards: number;       // bomb any trick when hand <= this (default: 5)
 
   // Leading preferences
-  leadDragonAgainstTichu: boolean;  // lead Dragon when opponent called Tichu (default: true)
+  leadDragonAgainstTichu: boolean;  // lead Dragon when opponent called Tichu (default: false — burns the 25-pt Dragon for no benefit)
   leadAcesAgainstTichu: boolean;    // lead Aces when opponent called Tichu (default: true)
 
   // Dragon usage when following
@@ -310,7 +310,7 @@ export interface BotConfig {
 export const DEFAULT_BOT_CONFIG: BotConfig = {
   bombPointThreshold: 15,
   bombEndgameCards: 5,
-  leadDragonAgainstTichu: true,
+  leadDragonAgainstTichu: false,
   leadAcesAgainstTichu: true,
   dragonFollowMinPoints: 10,
   phoenixFollowMinRank: 13,   // King — only play Phoenix as single on King or Ace
@@ -678,19 +678,56 @@ export class BotAI {
       return this.chooseFollowMedium(hand, playable, currentTrick, botPosition, context);
     }
 
+    // Compute card tracker once — used by MC pre-filter and heuristic fallback
+    const cardInfo = context?.playedCards
+      ? analyzePlayedCards(context.playedCards, hand)
+      : null;
+
     // Hard mode — try Monte Carlo for both leading and following
     if (this.config.useMonteCarlo && !this.inRollout && mcEvaluate && hand.length >= 2 && playable.length >= 2) {
+      // Filter wasteful Phoenix-single candidates before handing off to MC.
+      // Phoenix as a single becomes rank = topRank + 0.5. If any remaining opponent card can
+      // beat that rank (Dragon or a higher normal card), we'll likely lose Phoenix (-25 pts
+      // goes to opponents) AND lose our strongest Ace-counter for nothing. MC rollouts can't
+      // reliably detect this, so strip the candidate here.
+      let filteredPlayable: Card[][] = playable;
+      if (!isLeading) {
+        const topRank = currentTrick.plays[currentTrick.plays.length - 1]?.combination?.rank ?? 0;
+        const oppAboutToOut = context ? this.isOpponentAboutToOut(botPosition, context) : false;
+        if (hand.length > this.config.phoenixFollowMaxCards && !oppAboutToOut) {
+          const phoenixResultingRank = topRank + 0.5;
+          const canBeBeaten = cardInfo
+            ? cardInfo.remainingCards.some((c) => {
+                if (isSpecial(c, SpecialCardType.DRAGON)) return true;
+                if (isNormalCard(c)) return c.rank > phoenixResultingRank;
+                return false;
+              })
+            : topRank < this.config.phoenixFollowMinRank; // fallback heuristic when no tracker
+          if (canBeBeaten) {
+            const withoutWastedPhoenix = filteredPlayable.filter(
+              (cards) => !(cards.length === 1 && isSpecial(cards[0], SpecialCardType.PHOENIX))
+            );
+            if (withoutWastedPhoenix.length > 0) filteredPlayable = withoutWastedPhoenix;
+          }
+        }
+
+        // Filter wasteful Dragon-single candidates. Dragon-win rule means we always give the
+        // trick pile to an opponent, so playing Dragon on a low-value trick is strictly a loss
+        // (−25 pts given + Dragon gone forever). Only makes sense on point-rich tricks or endgame.
+        const trickPoints = this.estimateTrickPoints(currentTrick);
+        if (hand.length > 3 && !oppAboutToOut && trickPoints < this.config.dragonFollowMinPoints) {
+          const withoutWastedDragon = filteredPlayable.filter(
+            (cards) => !(cards.length === 1 && isSpecial(cards[0], SpecialCardType.DRAGON))
+          );
+          if (withoutWastedDragon.length > 0) filteredPlayable = withoutWastedDragon;
+        }
+      }
       // For follow decisions, include "pass" as a candidate
-      const candidates: (Card[] | null)[] = [...playable];
+      const candidates: (Card[] | null)[] = [...filteredPlayable];
       if (!isLeading) candidates.push(null);
       const result = mcEvaluate(candidates);
       if (result !== undefined) return result;
     }
-
-    // Heuristic fallback
-    const cardInfo = context?.playedCards
-      ? analyzePlayedCards(context.playedCards, hand)
-      : null;
 
     if (isLeading) {
       return this.chooseLeadHard(hand, playable, botPosition, context, cardInfo);
@@ -870,27 +907,39 @@ export class BotAI {
       }
     }
 
-    // ── Counter opponent Tichu: lead high to steal tricks from them ──
+    // ── Counter opponent Tichu: force a pass or burn, without giving up the Dragon ──
     if (context && this.hasOpponentTichuCall(botPosition, context)) {
-      // Lead Dragon if configured (default: yes)
-      if (this.config.leadDragonAgainstTichu) {
-        const dragonPlay = combos.singles.find((c) => isSpecial(c[0], SpecialCardType.DRAGON));
-        if (dragonPlay) {
-          this.tag('lead:vs-tichu-dragon');
-          return dragonPlay.map((c) => c.id);
-        }
+      // 1. Lead strong multi-card combos first — much more likely to force a pass
+      //    (Tichu caller often can't match a high pair/trip/5+ straight)
+      const strongMulti = combos.multiCard.filter((combo) => {
+        const c = detectCombination(combo);
+        if (!c) return false;
+        // Pair of King+, any trip, any 5+ straight, any full house
+        if (combo.length === 2 && c.rank >= NR.KING) return true;
+        if (combo.length === 3) return true;
+        if (combo.length >= 5) return true;
+        return false;
+      });
+      if (strongMulti.length > 0) {
+        const sorted = [...strongMulti].sort((a, b) => {
+          if (b.length !== a.length) return b.length - a.length;
+          return (detectCombination(b)?.rank ?? 0) - (detectCombination(a)?.rank ?? 0);
+        });
+        this.tag('lead:vs-tichu-multi');
+        return sorted[0].map((c) => c.id);
       }
-      // Lead aces as singles if configured (default: yes)
+      // 2. Lead Aces as singles — if they burn Dragon, we get the 25pts back (Dragon rule).
+      //    Skip if we know nothing remaining can beat Ace (pure waste).
       if (this.config.leadAcesAgainstTichu) {
         const aceSingles = combos.nonSpecialSingles.filter(
           (c) => isNormalCard(c[0]) && c[0].rank === NR.ACE
         );
-        if (aceSingles.length > 0) {
+        if (aceSingles.length > 0 && !this.aceSingleIsUnbeatable(cardInfo)) {
           this.tag('lead:vs-tichu-ace');
           return aceSingles[0].map((c) => c.id);
         }
       }
-      // Lead high singles (King+) to pressure them
+      // 3. Lead King+ singles to pressure
       const highSingles = combos.nonSpecialSingles.filter(
         (c) => isNormalCard(c[0]) && c[0].rank >= NR.KING
       );
@@ -898,15 +947,13 @@ export class BotAI {
         this.tag('lead:vs-tichu-high');
         return this.pickHighestCombo(highSingles);
       }
-      // Lead strong multi-card combos (high rank, hard to beat)
-      if (combos.multiCard.length > 0) {
-        const sorted = [...combos.multiCard].sort((a, b) => {
-          const ra = detectCombination(a)?.rank ?? 0;
-          const rb = detectCombination(b)?.rank ?? 0;
-          return rb - ra; // highest rank first
-        });
-        this.tag('lead:vs-tichu-multi');
-        return sorted[0].map((c) => c.id);
+      // 4. Legacy Dragon-lead (off by default — Dragon rule gives 25pts to opp for free)
+      if (this.config.leadDragonAgainstTichu) {
+        const dragonPlay = combos.singles.find((c) => isSpecial(c[0], SpecialCardType.DRAGON));
+        if (dragonPlay) {
+          this.tag('lead:vs-tichu-dragon');
+          return dragonPlay.map((c) => c.id);
+        }
       }
     }
 
@@ -950,16 +997,26 @@ export class BotAI {
     }
 
     // ── Lead singleton low cards ──
-    const singletons = this.findSingletonCards(hand, combos.nonSpecialSingles);
+    let singletons = this.findSingletonCards(hand, combos.nonSpecialSingles);
+    // Avoid burning an Ace singleton when nothing remaining can beat it (pure waste)
+    if (singletons.length > 1 && this.aceSingleIsUnbeatable(cardInfo)) {
+      const nonAce = singletons.filter((p) => !this.isAceSingle(p));
+      if (nonAce.length > 0) singletons = nonAce;
+    }
     if (singletons.length > 0) {
       this.tag('lead:singleton');
       return this.pickLowestCombo(singletons);
     }
 
     // ── Lead lowest non-special single ──
-    if (combos.nonSpecialSingles.length > 0) {
+    let lowSingles = combos.nonSpecialSingles;
+    if (lowSingles.length > 1 && this.aceSingleIsUnbeatable(cardInfo)) {
+      const nonAce = lowSingles.filter((p) => !this.isAceSingle(p));
+      if (nonAce.length > 0) lowSingles = nonAce;
+    }
+    if (lowSingles.length > 0) {
       this.tag('lead:low-single');
-      return this.pickLowestCombo(combos.nonSpecialSingles);
+      return this.pickLowestCombo(lowSingles);
     }
 
     // ── Lead high single if it's safe (all higher cards played) ──
@@ -1009,10 +1066,18 @@ export class BotAI {
     const opponentTichuActive = context ? this.hasOpponentTichuCall(botPosition, context) : false;
 
     // ── Endgame urgency: play to go out ──
+    // Skip if partner is already winning — don't overtake partner, especially if they called Tichu.
+    // Exception: if *we* called Tichu/GT, we still need to race out.
     if (hand.length <= 3 && regular.length > 0) {
-      const sorted = this.sortByRank(regular);
-      this.tag('follow:endgame-urgency');
-      return sorted[0].map((c) => c.id);
+      const botCalledTichu = !!context && (
+        context.tichuCalls[botPosition] === 'tichu' ||
+        context.tichuCalls[botPosition] === 'grand_tichu'
+      );
+      if (!partnerWinning || botCalledTichu) {
+        const sorted = this.sortByRank(regular);
+        this.tag('follow:endgame-urgency');
+        return sorted[0].map((c) => c.id);
+      }
     }
 
     // ── Check if opponent is about to go out ──
@@ -1349,6 +1414,30 @@ export class BotAI {
       }
       return false;
     });
+  }
+
+  // True when no opponent card remaining could beat an Ace single (Dragon and Phoenix both out
+  // or in our hand, no bomb material plausibly out). Used to avoid burning an Ace on a 0-point
+  // trick where everyone would pass and we'd just lose our strongest single for nothing.
+  private aceSingleIsUnbeatable(cardInfo?: CardCountInfo | null): boolean {
+    if (!cardInfo) return false;
+    const rem = cardInfo.remainingCards;
+    const hasDragon = rem.some((c) => isSpecial(c, SpecialCardType.DRAGON));
+    const hasPhoenix = rem.some((c) => isSpecial(c, SpecialCardType.PHOENIX));
+    if (hasDragon || hasPhoenix) return false;
+    // Check any rank with 4 remaining (a bomb that would beat the single)
+    const rankCounts = new Map<number, number>();
+    for (const c of rem) {
+      if (isNormalCard(c)) rankCounts.set(c.rank, (rankCounts.get(c.rank) || 0) + 1);
+    }
+    for (const count of rankCounts.values()) {
+      if (count >= 4) return false;
+    }
+    return true;
+  }
+
+  private isAceSingle(play: Card[]): boolean {
+    return play.length === 1 && isNormalCard(play[0]) && play[0].rank === NR.ACE;
   }
 
   private findSingletonCards(hand: Card[], singles: Card[][]): Card[][] {

@@ -260,12 +260,20 @@ function evaluateOutcome(engine: GameEngine, botPosition: PlayerPosition): numbe
   const myCardsLeft = engine.state.players[botPosition].hand.length;
   score -= myCardsLeft * 3;
 
-  // Reward tichu success / penalize failure
-  const myCall = engine.state.players[botPosition].tichuCall;
-  if (myCall !== 'none' && finishOrder.length > 0) {
-    const succeeded = finishOrder[0] === botPosition;
-    const bonus = myCall === 'grand_tichu' ? 200 : 100;
-    score += succeeded ? bonus : -bonus;
+  // Reward/penalize ALL Tichu calls by outcome (own, partner, and opponents).
+  // This was previously only the bot's own call, which meant the bot had no incentive
+  // to help partner's Tichu succeed or block an opponent's Tichu.
+  if (finishOrder.length > 0) {
+    const firstOut = finishOrder[0];
+    for (let p = 0; p < 4; p++) {
+      const call = engine.state.players[p].tichuCall;
+      if (call === 'none') continue;
+      const bonus = call === 'grand_tichu' ? 200 : 100;
+      const callerSucceeded = firstOut === p;
+      const delta = callerSucceeded ? bonus : -bonus;
+      const callerTeam = p % 2;
+      score += callerTeam === myTeam ? delta : -delta;
+    }
   }
 
   return score;
