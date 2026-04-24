@@ -55,6 +55,18 @@ export function isUserOnline(userId: number): boolean {
   return !!sockets && sockets.size > 0;
 }
 
+// Pending friend invites: targetUserId -> invite. Each target has at most one pending invite.
+// Auto-expires after 5 minutes. New invite from a different inviter overrides the older one;
+// a duplicate from the same inviter+room is rejected.
+const INVITE_TTL_MS = 5 * 60_000;
+interface PendingInvite {
+  inviterUserId: number;
+  inviterName: string;
+  roomCode: string;
+  expireTimer: ReturnType<typeof setTimeout>;
+}
+const pendingInvites = new Map<number, PendingInvite>();
+
 export class SocketHandler {
   private socketToSession = new Map<string, string>();
   private spectators = new Map<string, string>(); // socketId -> roomCode
@@ -171,11 +183,25 @@ export class SocketHandler {
         if (displayName) this.db?.updateConnectionNickname(socket.id, displayName, null);
       }
 
+      // If this authenticated user has a pending friend invite (e.g. they just reconnected),
+      // re-emit it on this socket so the popup shows up again.
+      if (userId) {
+        const pending = pendingInvites.get(userId);
+        if (pending) {
+          (socket.emit as Function)('friend:invite:received', {
+            inviterId: pending.inviterUserId,
+            inviterName: pending.inviterName,
+            roomCode: pending.roomCode,
+          });
+        }
+      }
+
       this.registerRoomEvents(socket, ip);
       this.registerMatchmakingEvents(socket, ip);
       this.registerGameEvents(socket);
       this.registerSessionEvents(socket, ip);
       this.registerSpectate(socket);
+      this.registerFriendEvents(socket);
       this.registerDisconnect(socket, ip);
     });
   }
@@ -431,6 +457,113 @@ export class SocketHandler {
       const state = room.engine.getSpectatorState(code, avatars, disconnected);
       state.turnDeadline = this.timers.getTurnDeadline(code);
       socket.emit('game:state', state);
+    });
+  }
+
+  private emitToUserSockets(userId: number, event: string, ...args: unknown[]): void {
+    const sockets = onlineUsers.get(userId);
+    if (!sockets) return;
+    for (const sid of sockets) (this.io.to(sid).emit as Function)(event, ...args);
+  }
+
+  private clearPendingInvite(targetUserId: number, notifyTarget: boolean): void {
+    const invite = pendingInvites.get(targetUserId);
+    if (!invite) return;
+    clearTimeout(invite.expireTimer);
+    pendingInvites.delete(targetUserId);
+    if (notifyTarget) this.emitToUserSockets(targetUserId, 'friend:invite:cleared');
+  }
+
+  private registerFriendEvents(socket: TypedSocket): void {
+    socket.on('friend:invite:send', (friendUserId, callback) => {
+      if (!this.checkRate(socket, 'friend-invite', 5, 60_000)) return;
+      const userId = socket.data.userId as number | undefined;
+      const displayName = socket.data.displayName as string | undefined;
+      if (!userId || !displayName) return callback({ error: 'Sign in to invite friends' });
+      if (typeof friendUserId !== 'number' || friendUserId === userId) return callback({ error: 'Invalid target' });
+      if (!this.db) return callback({ error: 'Friends service unavailable' });
+      if (this.db.getFriendshipStatus(userId, friendUserId) !== 'friends') return callback({ error: 'Not friends' });
+      if (!isUserOnline(friendUserId)) return callback({ error: 'Friend is offline' });
+
+      const info = this.rooms.getRoomForSocket(socket.id);
+      if (!info) return callback({ error: 'You are not in a room' });
+      const room = info.room;
+      if (room.engine) return callback({ error: 'Game already started' });
+      if (room.players.size >= 4) return callback({ error: 'Room is full' });
+
+      const roomCode = room.code;
+      const existing = pendingInvites.get(friendUserId);
+      // Reject duplicate from the same inviter pointing at the same room
+      if (existing && existing.inviterUserId === userId && existing.roomCode === roomCode) {
+        return callback({ error: 'Invite already pending' });
+      }
+      // Any other existing invite (different inviter or different room): replace
+      if (existing) this.clearPendingInvite(friendUserId, false);
+
+      const expireTimer = setTimeout(() => {
+        const cur = pendingInvites.get(friendUserId);
+        if (cur && cur.inviterUserId === userId && cur.roomCode === roomCode) {
+          pendingInvites.delete(friendUserId);
+          this.emitToUserSockets(friendUserId, 'friend:invite:cleared');
+        }
+      }, INVITE_TTL_MS);
+
+      pendingInvites.set(friendUserId, {
+        inviterUserId: userId,
+        inviterName: displayName,
+        roomCode,
+        expireTimer,
+      });
+      this.emitToUserSockets(friendUserId, 'friend:invite:received', {
+        inviterId: userId,
+        inviterName: displayName,
+        roomCode,
+      });
+      callback({ success: true });
+    });
+
+    socket.on('friend:invite:accept', (callback) => {
+      if (!this.checkRate(socket, 'friend-invite-accept', 10, 60_000)) return;
+      const userId = socket.data.userId as number | undefined;
+      const displayName = socket.data.displayName as string | undefined;
+      if (!userId || !displayName) return callback({ error: 'Sign in required' });
+
+      const invite = pendingInvites.get(userId);
+      if (!invite) return callback({ error: 'No invite to accept' });
+
+      const room = this.rooms.getRoom(invite.roomCode);
+      if (!room || room.engine || room.players.size >= 4) {
+        this.clearPendingInvite(userId, true);
+        return callback({ error: 'Room no longer available' });
+      }
+
+      // If already in a different room, require a clean leave first (client handles it)
+      const currentRoom = this.rooms.getRoomForSocket(socket.id);
+      if (currentRoom && currentRoom.room.code !== invite.roomCode) {
+        return callback({ error: 'Leave your current room first' });
+      }
+
+      const avatar = this.getUserAvatar(userId);
+      const result = this.rooms.joinRoom(socket.id, invite.roomCode, displayName, userId, avatar);
+      if ('error' in result) return callback({ error: result.error });
+
+      socket.join(invite.roomCode);
+      this.socketToSession.set(socket.id, result.sessionId);
+      this.clearPendingInvite(userId, false);
+      // Notify other tabs so they dismiss the popup
+      for (const sid of onlineUsers.get(userId) ?? []) {
+        if (sid !== socket.id) (this.io.to(sid).emit as Function)('friend:invite:cleared');
+      }
+      callback({ success: true, roomCode: invite.roomCode, sessionId: result.sessionId });
+      this.broadcastRoomState(invite.roomCode);
+    });
+
+    socket.on('friend:invite:decline', (callback) => {
+      const userId = socket.data.userId as number | undefined;
+      if (!userId) return callback({ error: 'Sign in required' });
+      if (!pendingInvites.has(userId)) return callback({ error: 'No invite to decline' });
+      this.clearPendingInvite(userId, true);
+      callback({ success: true });
     });
   }
 

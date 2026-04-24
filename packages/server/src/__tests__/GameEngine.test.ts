@@ -923,7 +923,7 @@ describe('GameEngine', () => {
           nc(Suit.PAGODA, NormalRank.TWO),
           nc(Suit.JADE, NormalRank.SEVEN),
         ],
-        [nc(Suit.JADE, NormalRank.THREE), nc(Suit.PAGODA, NormalRank.ELEVEN)],
+        [nc(Suit.JADE, NormalRank.THREE), nc(Suit.PAGODA, NormalRank.JACK)],
       ]);
       engine.state.currentPlayer = 0;
 

@@ -4397,3 +4397,143 @@ span.pass-zone-avatar {
   margin: 0 auto 0.5rem;
   width: fit-content;
 }
+
+/* ─── Friend Invites ─────────────────────────────────────────────── */
+
+.friend-invite-popup {
+  position: fixed;
+  top: 1rem;
+  right: 1rem;
+  z-index: 1000;
+  animation: friend-invite-slide 0.25s ease-out;
+}
+
+@keyframes friend-invite-slide {
+  from { transform: translateX(110%); opacity: 0; }
+  to   { transform: translateX(0); opacity: 1; }
+}
+
+.friend-invite-card {
+  background: #1a1f2e;
+  border: 1px solid rgba(201, 168, 76, 0.35);
+  border-radius: 10px;
+  padding: 1rem 1.2rem;
+  min-width: 260px;
+  max-width: 340px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.45);
+}
+
+.friend-invite-title {
+  margin: 0 0 0.25rem;
+  font-size: 0.95rem;
+}
+
+.friend-invite-room {
+  margin: 0 0 0.75rem;
+  font-size: 0.85rem;
+  opacity: 0.75;
+}
+
+.friend-invite-room code {
+  background: rgba(255, 255, 255, 0.07);
+  padding: 0.1rem 0.4rem;
+  border-radius: 4px;
+  font-size: 0.85rem;
+}
+
+.friend-invite-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.friend-invite-error {
+  color: #e57373;
+  font-size: 0.85rem;
+  margin: 0 0 0.5rem;
+}
+
+.invite-picker-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+}
+
+.invite-picker {
+  background: #1a1f2e;
+  border: 1px solid rgba(201, 168, 76, 0.25);
+  border-radius: 10px;
+  padding: 1rem 1.2rem;
+  min-width: 300px;
+  max-width: 420px;
+  width: 100%;
+  max-height: 80vh;
+  overflow: auto;
+}
+
+.invite-picker-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.75rem;
+}
+
+.invite-picker-header h3 {
+  margin: 0;
+  font-size: 1.05rem;
+}
+
+.invite-picker-empty {
+  opacity: 0.7;
+  font-size: 0.9rem;
+  margin: 0.5rem 0 0;
+  text-align: center;
+}
+
+.invite-picker-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.invite-picker-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.4rem 0.6rem;
+  background: rgba(255, 255, 255, 0.03);
+  border-radius: 6px;
+}
+
+.invite-picker-row .friend-name {
+  flex: 1;
+  font-size: 0.9rem;
+}
+
+.invite-picker-row .friend-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+
+.invite-picker-row .friend-dot.online {
+  background: #4caf50;
+}
+
+.invite-sent {
+  color: #4caf50;
+  font-size: 0.85rem;
+}
+
+.invite-error {
+  color: #e57373;
+  font-size: 0.8rem;
+  margin-left: 0.5rem;
+}

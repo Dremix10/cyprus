@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useRoomStore } from '../stores/roomStore.js';
 import { useT } from '../i18n.js';
 import type { PlayerPosition } from '@cyprus/shared';
+import { InviteFriendButton } from './InviteFriendPicker.js';
 
 export function WaitingRoom() {
   const t = useT();
@@ -93,6 +94,7 @@ export function WaitingRoom() {
         {roomState.isStartable && roomState.players.length < 4 && (
           <p className="info">{t('waiting.emptySeats')}</p>
         )}
+        {roomState.players.length < 4 && <InviteFriendButton />}
       </div>
 
       {error && <p className="error">{error}</p>}
