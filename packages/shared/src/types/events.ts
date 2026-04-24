@@ -76,6 +76,17 @@ export interface ClientToServerEvents {
     roomCode: string,
     callback: (response: { success: true; roomCode: string } | { error: string }) => void
   ) => void;
+
+  'friend:invite:send': (
+    friendUserId: number,
+    callback: (response: { success: true } | { error: string }) => void
+  ) => void;
+  'friend:invite:accept': (
+    callback: (response: { success: true; roomCode: string; sessionId: string } | { error: string }) => void
+  ) => void;
+  'friend:invite:decline': (
+    callback: (response: { success: true } | { error: string }) => void
+  ) => void;
 }
 
 export interface ServerToClientEvents {
@@ -91,4 +102,11 @@ export interface ServerToClientEvents {
   'matchmaking:cancelled': () => void;
 
   'server:maintenance': (data: { message: string }) => void;
+
+  'friend:invite:received': (data: {
+    inviterId: number;
+    inviterName: string;
+    roomCode: string;
+  }) => void;
+  'friend:invite:cleared': () => void;
 }

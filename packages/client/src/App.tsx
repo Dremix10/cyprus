@@ -13,6 +13,7 @@ import { Profile } from './components/Profile.js';
 import { ConnectionStatus } from './components/ConnectionStatus.js';
 import { ResetPasswordForm } from './components/AuthForms.js';
 import { LiveGames } from './components/LiveGames.js';
+import { FriendInvitePopup } from './components/FriendInvitePopup.js';
 import './App.css';
 
 function getResetToken(): string | null {
@@ -117,6 +118,7 @@ export default function App() {
       {view === 'queue' && <MatchmakingQueue />}
       {view === 'waiting' && <WaitingRoom />}
       {view === 'game' && <GameBoard />}
+      <FriendInvitePopup />
     </div>
   );
 }

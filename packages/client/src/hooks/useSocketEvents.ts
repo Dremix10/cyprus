@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import { socket } from '../socket.js';
 import { useRoomStore } from '../stores/roomStore.js';
 import { useGameStore } from '../stores/gameStore.js';
+import { useFriendStore } from '../stores/friendStore.js';
 
 export function useSocketEvents() {
   const setRoomState = useRoomStore((s) => s.setRoomState);
@@ -65,6 +66,14 @@ export function useSocketEvents() {
       useRoomStore.getState().setMaintenanceMessage(data.message);
     };
 
+    const onFriendInviteReceived = (data: { inviterId: number; inviterName: string; roomCode: string }) => {
+      useFriendStore.getState().setIncomingInvite(data);
+    };
+
+    const onFriendInviteCleared = () => {
+      useFriendStore.getState().setIncomingInvite(null);
+    };
+
     // On socket reconnect, try to rejoin via session
     const onReconnect = () => {
       const { trySessionReconnect, setMaintenanceMessage } = useRoomStore.getState();
@@ -83,6 +92,8 @@ export function useSocketEvents() {
     socket.on('matchmaking:found', onMatchmakingFound);
     socket.on('matchmaking:cancelled', onMatchmakingCancelled);
     socket.on('server:maintenance', onMaintenance);
+    socket.on('friend:invite:received', onFriendInviteReceived);
+    socket.on('friend:invite:cleared', onFriendInviteCleared);
     socket.io.on('reconnect', onReconnect);
 
     // Periodic resync: request fresh game state every 15s to recover from missed updates
@@ -103,6 +114,8 @@ export function useSocketEvents() {
       socket.off('matchmaking:found', onMatchmakingFound);
       socket.off('matchmaking:cancelled', onMatchmakingCancelled);
       socket.off('server:maintenance', onMaintenance);
+      socket.off('friend:invite:received', onFriendInviteReceived);
+      socket.off('friend:invite:cleared', onFriendInviteCleared);
       socket.io.off('reconnect', onReconnect);
       clearInterval(resyncInterval);
     };

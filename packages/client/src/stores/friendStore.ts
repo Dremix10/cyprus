@@ -1,10 +1,18 @@
 import { create } from 'zustand';
 import type { Friend, FriendRequest, FriendStatus } from '@cyprus/shared';
+import { socket } from '../socket.js';
+
+export interface InviteFromFriend {
+  inviterId: number;
+  inviterName: string;
+  roomCode: string;
+}
 
 interface FriendStore {
   friends: Friend[];
   requests: FriendRequest[];
   loading: boolean;
+  incomingInvite: InviteFromFriend | null;
 
   fetchFriends: () => Promise<void>;
   fetchRequests: () => Promise<void>;
@@ -14,6 +22,13 @@ interface FriendStore {
   removeFriend: (friendId: number) => Promise<boolean>;
   searchUsers: (query: string) => Promise<Array<{ id: number; username: string; displayName: string; friendStatus: FriendStatus }>>;
   getFriendStatus: (userId: number) => Promise<FriendStatus>;
+
+  // Game invites
+  sendInvite: (friendUserId: number) => Promise<{ success: boolean; error?: string }>;
+  acceptInvite: () => Promise<{ success: boolean; roomCode?: string; sessionId?: string; error?: string }>;
+  declineInvite: () => Promise<boolean>;
+  setIncomingInvite: (invite: InviteFromFriend | null) => void;
+
   reset: () => void;
 }
 
@@ -29,6 +44,7 @@ export const useFriendStore = create<FriendStore>((set) => ({
   friends: [],
   requests: [],
   loading: false,
+  incomingInvite: null,
 
   fetchFriends: async () => {
     try {
@@ -123,5 +139,39 @@ export const useFriendStore = create<FriendStore>((set) => ({
     }
   },
 
-  reset: () => set({ friends: [], requests: [], loading: false }),
+  sendInvite: (friendUserId) =>
+    new Promise((resolve) => {
+      socket.emit('friend:invite:send', friendUserId, (response) => {
+        if ('error' in response) resolve({ success: false, error: response.error });
+        else resolve({ success: true });
+      });
+    }),
+
+  acceptInvite: () =>
+    new Promise((resolve) => {
+      socket.emit('friend:invite:accept', (response) => {
+        if ('error' in response) {
+          resolve({ success: false, error: response.error });
+        } else {
+          set({ incomingInvite: null });
+          resolve({ success: true, roomCode: response.roomCode, sessionId: response.sessionId });
+        }
+      });
+    }),
+
+  declineInvite: () =>
+    new Promise((resolve) => {
+      socket.emit('friend:invite:decline', (response) => {
+        if ('error' in response) {
+          resolve(false);
+        } else {
+          set({ incomingInvite: null });
+          resolve(true);
+        }
+      });
+    }),
+
+  setIncomingInvite: (invite) => set({ incomingInvite: invite }),
+
+  reset: () => set({ friends: [], requests: [], loading: false, incomingInvite: null }),
 }));
