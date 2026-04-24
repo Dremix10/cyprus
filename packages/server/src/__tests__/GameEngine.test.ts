@@ -907,6 +907,37 @@ describe('GameEngine', () => {
 
       expect(() => engine.passTurn(1)).toThrow('Mahjong wish');
     });
+
+    // Regression: wish used to auto-cancel when a play higher than the wished rank came
+    // down, on the incorrect assumption "nobody can satisfy it anymore". Bombs can satisfy
+    // any wish regardless of trick top, so the wish must stay active.
+    it('wish stays active after a higher-rank non-bomb play (bomb can still satisfy)', () => {
+      setupControlledPlaying(engine, [
+        [sc(SpecialCardType.MAHJONG), nc(Suit.JADE, NormalRank.EIGHT)],
+        [nc(Suit.JADE, NormalRank.FIVE), nc(Suit.STAR, NormalRank.NINE)],
+        // P2 (bot) holds a bomb of 2s
+        [
+          nc(Suit.JADE, NormalRank.TWO),
+          nc(Suit.STAR, NormalRank.TWO),
+          nc(Suit.SWORD, NormalRank.TWO),
+          nc(Suit.PAGODA, NormalRank.TWO),
+          nc(Suit.JADE, NormalRank.SEVEN),
+        ],
+        [nc(Suit.JADE, NormalRank.THREE), nc(Suit.PAGODA, NormalRank.ELEVEN)],
+      ]);
+      engine.state.currentPlayer = 0;
+
+      engine.playCards(0, [SpecialCardType.MAHJONG]);
+      engine.setWish(0, NormalRank.TWO);
+      // P1 plays a 5 — rank 5 > wished rank 2, but wish must stay active
+      engine.playCards(1, [`${Suit.JADE}_${NormalRank.FIVE}`]);
+
+      expect(engine.state.wish.active).toBe(true);
+      expect(engine.state.wish.wishedRank).toBe(NormalRank.TWO);
+
+      // P2 (with the bomb of 2s) must not be allowed to pass — the bomb is a forced play
+      expect(() => engine.passTurn(2)).toThrow('wished rank');
+    });
   });
 
   // ─── 12. Phoenix Single ────────────────────────────────────────────
@@ -1458,6 +1489,44 @@ describe('GameEngine', () => {
 
       const events = engine.playCards(0, [`${Suit.JADE}_${NormalRank.ACE}`]);
       expect(events.some((e) => e.type === 'PLAYER_OUT')).toBe(true);
+    });
+
+    // Regression: when the trick winner goes out by playing their last card, the remaining
+    // active players must each still get a chance to beat or pass. Previously the trick was
+    // resolving one turn too early because `activePlayers - 1` undercounted the passes needed.
+    it('all remaining players get a turn when trick winner goes out on last card', () => {
+      // P0 leads a 5. P1 plays a 7 (still has more). P2 plays their last card, an Ace, and
+      // goes out. Now the winner (P2) is out. P3 should still get a turn, then P0, then P1.
+      setupControlledPlaying(engine, [
+        [nc(Suit.JADE, NormalRank.FIVE), nc(Suit.STAR, NormalRank.TWO)],
+        [nc(Suit.PAGODA, NormalRank.SEVEN), nc(Suit.STAR, NormalRank.THREE)],
+        [nc(Suit.SWORD, NormalRank.ACE)], // only 1 card — will go out
+        [nc(Suit.JADE, NormalRank.KING), nc(Suit.STAR, NormalRank.FOUR)],
+      ]);
+      engine.state.currentPlayer = 0;
+
+      engine.playCards(0, [`${Suit.JADE}_${NormalRank.FIVE}`]);
+      engine.playCards(1, [`${Suit.PAGODA}_${NormalRank.SEVEN}`]);
+      engine.playCards(2, [`${Suit.SWORD}_${NormalRank.ACE}`]);
+
+      expect(engine.state.players[2].isOut).toBe(true);
+      expect(engine.state.currentTrick.currentWinner).toBe(2);
+
+      // P3 must get a turn
+      expect(engine.state.currentPlayer).toBe(3);
+      engine.passTurn(3);
+      expect(engine.state.trickWonPending).toBe(false);
+      // P0 must get a turn
+      expect(engine.state.currentPlayer).toBe(0);
+      engine.passTurn(0);
+      expect(engine.state.trickWonPending).toBe(false);
+      // P1 must get a turn — this is the one that was being skipped
+      expect(engine.state.currentPlayer).toBe(1);
+      const finalEvents = engine.passTurn(1);
+
+      // Now the trick should resolve (3 passes, winner is out, 3 active players all passed)
+      expect(finalEvents.some((e) => e.type === 'TRICK_WON')).toBe(true);
+      expect(engine.state.trickWonPending).toBe(true);
     });
   });
 

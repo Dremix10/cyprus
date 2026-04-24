@@ -414,19 +414,16 @@ export class GameEngine {
       data: { combination },
     });
 
-    // Cancel wish if the played rank is higher than the wished rank (no one can fulfill it now)
+    // Fulfil the wish only when a card of the wished rank is actually played.
+    // Do NOT auto-cancel when a higher-rank card is played — bombs can still satisfy
+    // the wish on top of any non-bomb, and straights/other multi-combos may also contain
+    // the wished rank. Per-player enforcement in findPlayableFromHand handles the rest.
     if (this.state.wish.active && this.state.wish.wishedRank !== null && !isBomb) {
       const wishedRank = this.state.wish.wishedRank;
-      // Check if the wish was fulfilled by this play
       const wishFulfilled = cards.some(
         (c) => c.type === 'normal' && c.rank === wishedRank
       );
       if (wishFulfilled) {
-        this.state.wish = { active: false, wishedRank: null, wishedBy: null };
-        this.emit({ type: 'WISH_FULFILLED' });
-      } else if (combination.rank > wishedRank) {
-        // The played card is higher than the wish — next player must beat this,
-        // so they can't play the wished rank anymore. Cancel the wish.
         this.state.wish = { active: false, wishedRank: null, wishedBy: null };
         this.emit({ type: 'WISH_FULFILLED' });
       }
@@ -511,9 +508,14 @@ export class GameEngine {
     this.state.currentTrick.passedPlayers.push(position);
     this.emit({ type: 'PASS', playerPosition: position });
 
-    // Check if trick is won (all other active players passed)
+    // Check if trick is won: every active player besides the winner must have passed.
+    // If the winner themselves went out (played their last card), ALL remaining active
+    // players need to pass — not activePlayers-1, which would skip someone's turn.
     const activePlayers = this.state.players.filter((p) => !p.isOut).length;
-    if (this.state.currentTrick.passCount >= activePlayers - 1) {
+    const winnerPos = this.state.currentTrick.currentWinner;
+    const winnerActive = winnerPos !== null && !this.state.players[winnerPos].isOut;
+    const passesNeeded = winnerActive ? activePlayers - 1 : activePlayers;
+    if (this.state.currentTrick.passCount >= passesNeeded) {
       this.resolveTrick();
     } else {
       this.state.currentPlayer = this.getNextActivePlayer(position);
