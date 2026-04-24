@@ -4,7 +4,7 @@ import type {
   TichuCall,
   Card,
 } from '@cyprus/shared';
-import { GamePhase, findPlayableFromHand } from '@cyprus/shared';
+import { GamePhase, findPlayableFromHand, getCardPoints } from '@cyprus/shared';
 import type { Room, RoomManager } from './RoomManager.js';
 import type { GameEngine } from './GameEngine.js';
 import { BotAI } from './BotAI.js';
@@ -87,6 +87,44 @@ export class BotController {
       played.push(...play.combination.cards);
     }
     return played;
+  }
+
+  private buildBotDecisionEnrichment(
+    tier: BotDifficulty,
+    hand: Card[],
+    engine: GameEngine,
+    branchTag: string | null,
+  ): Record<string, unknown> {
+    const trick = engine.state.currentTrick;
+    const top = trick.plays.length > 0 ? trick.plays[trick.plays.length - 1].combination : null;
+    let trickPoints = 0;
+    for (const play of trick.plays) {
+      for (const card of play.combination.cards) trickPoints += getCardPoints(card);
+    }
+    const oppCardCounts: Record<number, number> = {};
+    const tichuCalls: Record<number, TichuCall> = { 0: 'none', 1: 'none', 2: 'none', 3: 'none' };
+    for (const p of engine.state.players) {
+      oppCardCounts[p.position] = p.hand.length;
+      tichuCalls[p.position] = p.tichuCall;
+    }
+    return {
+      bot: {
+        tier,
+        branchTag,
+        hand: hand.map((c) => c.id),
+        trickTop: top ? { type: top.type, rank: top.rank, length: top.length } : null,
+        trickPoints,
+        oppCardCounts,
+        tichuCalls,
+      },
+    };
+  }
+
+  private attachBotDecision(events: GameEvent[], enrichment: Record<string, unknown>): void {
+    for (const ev of events) {
+      if (ev.type !== 'PLAY' && ev.type !== 'BOMB' && ev.type !== 'PASS') continue;
+      ev.data = { ...(ev.data ?? {}), ...enrichment };
+    }
   }
 
   private buildGameContext(engine: GameEngine): GameContext {
@@ -181,6 +219,7 @@ export class BotController {
         ? (candidates: (Card[] | null)[]) => monteCarloEvaluate(engine, currentPlayer, candidates, botAI.config.mcSims, botAI.config.mcTimeMs, this.monitor, room.code)
         : undefined;
 
+      botAI.lastBranch = null;
       let cardIds = botAI.choosePlay(
         hand,
         engine.state.currentTrick,
@@ -203,10 +242,21 @@ export class BotController {
         }
       }
 
+      const enrichment = this.buildBotDecisionEnrichment(room.botDifficulty, hand, engine, botAI.lastBranch);
+
       if (cardIds) {
-        return () => engine.playCards(currentPlayer, cardIds!);
+        const ids = cardIds;
+        return () => {
+          const events = engine.playCards(currentPlayer, ids);
+          this.attachBotDecision(events, enrichment);
+          return events;
+        };
       } else {
-        return () => engine.passTurn(currentPlayer);
+        return () => {
+          const events = engine.passTurn(currentPlayer);
+          this.attachBotDecision(events, enrichment);
+          return events;
+        };
       }
     }
 

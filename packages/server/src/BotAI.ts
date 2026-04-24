@@ -331,6 +331,7 @@ export const DEFAULT_BOT_CONFIG: BotConfig = {
 export class BotAI {
   public config: BotConfig;
   public inRollout: boolean = false; // true during MC rollouts (prevents recursion)
+  public lastBranch: string | null = null; // most recent branch tag (set by tag())
   private effectiveDifficulty: BotDifficulty;
   private recorder?: BotDecisionRecorder;
 
@@ -352,6 +353,7 @@ export class BotAI {
 
   private tag(branch: string): void {
     this.recorder?.record(branch);
+    this.lastBranch = branch;
   }
 
   // ─── Grand Tichu ────────────────────────────────────────────────────
