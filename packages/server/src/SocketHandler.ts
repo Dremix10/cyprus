@@ -16,6 +16,7 @@ import { TimerManager } from './TimerManager.js';
 import { GamePersistence } from './GamePersistence.js';
 import { BotController } from './BotController.js';
 import { BotAI } from './BotAI.js';
+import { monteCarloEvaluate } from './MonteCarloSim.js';
 import type { TichuCall, Card } from '@cyprus/shared';
 
 type TypedServer = Server<ClientToServerEvents, ServerToClientEvents>;
@@ -392,6 +393,10 @@ export class SocketHandler {
     socket.on('game:resync', () => {
       if (!this.checkRate(socket, 'action')) return;
       this.handleResync(socket);
+    });
+    socket.on('game:hint', (callback) => {
+      if (!this.checkRate(socket, 'hint', 30, 60_000)) return;
+      this.handleHintRequest(socket, callback);
     });
   }
 
@@ -867,6 +872,86 @@ export class SocketHandler {
       if (uid) p.userId = uid;
     }
     socket.emit('game:state', state);
+  }
+
+  private handleHintRequest(
+    socket: TypedSocket,
+    callback: (response: { play: string[] } | { pass: true } | { error: string }) => void,
+  ): void {
+    const info = this.rooms.getRoomForSocket(socket.id);
+    if (!info || !info.room.engine) {
+      callback({ error: 'Not in a game' });
+      return;
+    }
+    const room = info.room;
+    const engine = room.engine!;
+    // Solo only — 3 bot positions means 1 human, no information leak risk.
+    if (room.botPositions.size !== 3) {
+      callback({ error: 'Hints are only available in solo games' });
+      return;
+    }
+    if (engine.state.phase !== GamePhase.PLAYING) {
+      callback({ error: 'No hint available in this phase' });
+      return;
+    }
+    if (engine.state.currentPlayer !== info.position) {
+      callback({ error: 'Not your turn' });
+      return;
+    }
+
+    const player = engine.state.players[info.position];
+    const hand = player.hand;
+    if (hand.length === 0) {
+      callback({ error: 'No cards in hand' });
+      return;
+    }
+    const playable = findPlayableFromHand(hand, engine.state.currentTrick.plays.length > 0
+      ? engine.state.currentTrick.plays[engine.state.currentTrick.plays.length - 1].combination
+      : null, engine.state.wish);
+    if (playable.length === 0) {
+      callback({ pass: true });
+      return;
+    }
+
+    // Always use Unfair tier — strongest evaluator we have, regardless of bots in the room.
+    const hintBot = new BotAI('unfair');
+    const ctx = this.buildSimContext(engine);
+    const mcEval = (candidates: (Card[] | null)[]) =>
+      monteCarloEvaluate(engine, info.position, candidates, hintBot.config.mcSims, hintBot.config.mcTimeMs, this.monitor, room.code);
+
+    let cardIds: string[] | null;
+    try {
+      cardIds = hintBot.choosePlay(
+        hand,
+        engine.state.currentTrick,
+        engine.state.wish,
+        info.position,
+        ctx,
+        mcEval,
+      );
+    } catch (err) {
+      console.error(`Hint error in room ${room.code}:`, err);
+      callback({ error: 'Could not compute hint' });
+      return;
+    }
+
+    // Wish-fulfillment fallback (mirrors BotController): if the bot wanted to pass but a
+    // wish is active and we have a wish-satisfying play, force the wish play.
+    if (!cardIds && engine.state.wish.active && engine.state.wish.wishedRank !== null) {
+      const top = engine.state.currentTrick.plays.length > 0
+        ? engine.state.currentTrick.plays[engine.state.currentTrick.plays.length - 1].combination
+        : null;
+      const wishedPlay = findPlayableFromHand(hand, top, engine.state.wish).find((cards) =>
+        cards.some((c) => c.type === 'normal' && c.rank === engine.state.wish.wishedRank),
+      );
+      if (wishedPlay) cardIds = wishedPlay.map((c) => c.id);
+    }
+
+    if (cardIds && cardIds.length > 0) {
+      callback({ play: cardIds });
+    } else {
+      callback({ pass: true });
+    }
   }
 
   private buildSimContext(engine: GameEngine): { playerCardCounts: Map<PlayerPosition, number>; tichuCalls: Record<PlayerPosition, TichuCall>; finishOrder: PlayerPosition[]; playedCards: Card[]; scores: [number, number] } {

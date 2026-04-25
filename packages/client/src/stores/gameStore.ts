@@ -32,6 +32,8 @@ export interface ReportableBotPlay {
   errorMessage?: string;
 }
 
+export type HintStatus = 'idle' | 'loading' | 'used' | 'error';
+
 interface GameStore {
   gameState: ClientGameState | null;
   selectedCards: Set<string>;
@@ -39,10 +41,16 @@ interface GameStore {
   lastEvent: GameEvent | null;
   /** Bot plays from the current round that the user could flag as bad. Capped, FIFO. */
   reportableBotPlays: ReportableBotPlay[];
+  /** Hint UI state — resets each time it becomes the user's turn. */
+  hintStatus: HintStatus;
+  hintError: string | null;
+  /** Recommended pass message to show after a hint resolves to "pass". Cleared on next turn. */
+  hintRecommendedPass: boolean;
 
   setGameState: (state: ClientGameState) => void;
   handleEvent: (event: GameEvent) => void;
   reportBotPlay: (eventId: number) => Promise<void>;
+  requestHint: () => Promise<void>;
 
   toggleCard: (cardId: string) => void;
   setSelectedCards: (cards: Set<string>) => void;
@@ -79,16 +87,20 @@ export const useGameStore = create<GameStore>((set, get) => ({
   error: null,
   lastEvent: null,
   reportableBotPlays: [],
+  hintStatus: 'idle',
+  hintError: null,
+  hintRecommendedPass: false,
 
   setGameState: (state) => {
     const prev = get().gameState;
-    // Play "your turn" sound when turn changes to me during playing phase
-    if (
+    // Detect turn-becomes-mine transition: play sound + reset hint state.
+    const myTurnNow =
       state.phase === 'PLAYING' &&
       state.currentPlayer === state.myPosition &&
-      (!prev || prev.currentPlayer !== state.myPosition || prev.phase !== 'PLAYING')
-    ) {
+      (!prev || prev.currentPlayer !== state.myPosition || prev.phase !== 'PLAYING');
+    if (myTurnNow) {
       playYourTurnSound();
+      set({ hintStatus: 'idle', hintError: null, hintRecommendedPass: false });
     }
     set({ gameState: state, error: null });
   },
@@ -172,6 +184,27 @@ export const useGameStore = create<GameStore>((set, get) => ({
       });
     }),
 
+  requestHint: () =>
+    new Promise<void>((resolve) => {
+      const { hintStatus } = get();
+      if (hintStatus === 'loading' || hintStatus === 'used') {
+        resolve();
+        return;
+      }
+      set({ hintStatus: 'loading', hintError: null, hintRecommendedPass: false });
+      socket.emit('game:hint', (response) => {
+        if ('error' in response) {
+          set({ hintStatus: 'error', hintError: response.error });
+        } else if ('pass' in response) {
+          set({ hintStatus: 'used', hintRecommendedPass: true, selectedCards: new Set() });
+        } else {
+          // Auto-select the recommended cards (option (a)).
+          set({ hintStatus: 'used', hintRecommendedPass: false, selectedCards: new Set(response.play) });
+        }
+        resolve();
+      });
+    }),
+
   toggleCard: (() => {
     let lastToggleTime = 0;
     let lastToggleId = '';
@@ -240,5 +273,14 @@ export const useGameStore = create<GameStore>((set, get) => ({
   },
 
   setError: (error) => set({ error }),
-  reset: () => set({ gameState: null, selectedCards: new Set(), error: null, lastEvent: null, reportableBotPlays: [] }),
+  reset: () => set({
+    gameState: null,
+    selectedCards: new Set(),
+    error: null,
+    lastEvent: null,
+    reportableBotPlays: [],
+    hintStatus: 'idle',
+    hintError: null,
+    hintRecommendedPass: false,
+  }),
 }));

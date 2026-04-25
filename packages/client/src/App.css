@@ -4662,3 +4662,63 @@ span.pass-zone-avatar {
   font-size: 0.75rem;
   margin-left: 0.5rem;
 }
+
+/* ─── Hint Button ────────────────────────────────────────────────── */
+
+.hint-btn {
+  background: rgba(255, 215, 0, 0.12);
+  border: 1px solid rgba(255, 215, 0, 0.45);
+  color: #ffd700;
+  padding: 0.3rem 0.55rem;
+  border-radius: 6px;
+  font-size: 1rem;
+  line-height: 1;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  margin-right: 0.4rem;
+  transition: background 0.15s, border-color 0.15s, transform 0.15s;
+}
+
+.hint-btn:hover:not(:disabled) {
+  background: rgba(255, 215, 0, 0.22);
+  border-color: rgba(255, 215, 0, 0.7);
+  transform: scale(1.04);
+}
+
+.hint-btn:disabled {
+  cursor: default;
+  opacity: 0.55;
+}
+
+.hint-btn-loading .hint-bulb {
+  animation: hint-pulse 0.8s ease-in-out infinite;
+}
+
+.hint-btn-used {
+  border-color: rgba(120, 120, 120, 0.4);
+  background: rgba(120, 120, 120, 0.1);
+  color: #999;
+}
+
+.hint-bulb {
+  font-size: 1.05rem;
+  filter: drop-shadow(0 0 3px rgba(255, 215, 0, 0.6));
+}
+
+.hint-btn-used .hint-bulb {
+  filter: none;
+}
+
+.hint-label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+@keyframes hint-pulse {
+  0%, 100% { transform: scale(1); opacity: 1; }
+  50%      { transform: scale(1.15); opacity: 0.7; }
+}

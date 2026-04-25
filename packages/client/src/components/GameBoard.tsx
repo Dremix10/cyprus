@@ -160,6 +160,7 @@ import { ScoreHistory } from './ScoreHistory.js';
 import { QuickGuideButton } from './QuickGuide.js';
 import { GrandTichuView, PassingView, ScoringView, GameOverView, TichuCallBadges, PointCards, ScoreBreakdown } from './PhaseViews.js';
 import { ReportBotPlayButton } from './ReportBotPlayPanel.js';
+import { HintButton } from './HintButton.js';
 import { isMuted, setMuted } from '../sounds.js';
 
 function getRelativePositions(myPos: PlayerPosition) {
@@ -246,6 +247,7 @@ export function GameBoard() {
               {'\uD83D\uDCCA'}
             </button>
           )}
+          <HintButton />
           {!gameState.isSpectator && <ReportBotPlayButton />}
           <button className="leave-btn" onClick={() => gameState.isSpectator ? reset() : setLeaveConfirm(true)}>
             {gameState.isSpectator ? 'Exit' : t('game.exit')}
