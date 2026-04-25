@@ -1207,11 +1207,27 @@ export class BotAI {
       return null; // pass instead of wasting Dragon on a low-value trick
     }
 
-    // Save Phoenix for beating high cards (King/Ace) — don't waste on low singles
+    // Save Phoenix for beating high cards (King/Ace) — don't waste on low singles.
+    // Two reasons to save: (a) Phoenix can still be overtaken (Ace/Dragon/bomb out), in which
+    // case we'd lose Phoenix AND lose the trick to whoever overtakes — even when an opponent
+    // is "about to go out", they might just take it from us. (b) The trick is low-rank and
+    // there's no urgency. Endgame (hand <= phoenixFollowMaxCards) skips this save entirely.
     if (lowestBeat.length === 1 && isSpecial(lowestBeat[0], SpecialCardType.PHOENIX)) {
-      if (hand.length > this.config.phoenixFollowMaxCards && !opponentAboutToOut) {
+      if (hand.length > this.config.phoenixFollowMaxCards) {
         const topRank = currentTrick.plays[currentTrick.plays.length - 1]?.combination?.rank ?? 0;
-        if (topRank < this.config.phoenixFollowMinRank) {
+        const phoenixResultingRank = topRank + 0.5;
+        const canBeOvertaken = cardInfo
+          ? cardInfo.remainingCards.some((c) => {
+              if (isSpecial(c, SpecialCardType.DRAGON)) return true;
+              if (isNormalCard(c) && c.rank > phoenixResultingRank) return true;
+              return false;
+            })
+          : false;
+        if (canBeOvertaken) {
+          this.tag('follow:pass-phoenix-save');
+          return null;
+        }
+        if (!opponentAboutToOut && topRank < this.config.phoenixFollowMinRank) {
           this.tag('follow:pass-phoenix-save');
           return null;
         }
