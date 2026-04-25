@@ -18,6 +18,7 @@ export type GameEventType =
   | 'GAME_OVER';
 
 export type GameEvent = {
+  id?: number; // populated server-side after the event is persisted; lets clients reference it
   type: GameEventType;
   playerPosition?: PlayerPosition;
   data?: Record<string, unknown>;
@@ -85,6 +86,11 @@ export interface ClientToServerEvents {
     callback: (response: { success: true; roomCode: string; sessionId: string } | { error: string }) => void
   ) => void;
   'friend:invite:decline': (
+    callback: (response: { success: true } | { error: string }) => void
+  ) => void;
+
+  'bot:report-play': (
+    gameEventId: number,
     callback: (response: { success: true } | { error: string }) => void
   ) => void;
 }

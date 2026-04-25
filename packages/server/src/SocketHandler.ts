@@ -202,6 +202,7 @@ export class SocketHandler {
       this.registerSessionEvents(socket, ip);
       this.registerSpectate(socket);
       this.registerFriendEvents(socket);
+      this.registerBotReportEvents(socket);
       this.registerDisconnect(socket, ip);
     });
   }
@@ -567,6 +568,50 @@ export class SocketHandler {
     });
   }
 
+  private registerBotReportEvents(socket: TypedSocket): void {
+    socket.on('bot:report-play', (gameEventId, callback) => {
+      // Per-socket spam guard (separate from the 24h DB-backed quota below)
+      if (!this.checkRate(socket, 'bot-report', 10, 60_000)) return;
+      const userId = socket.data.userId as number | undefined;
+      if (!userId) return callback({ error: 'Sign in to report bot plays' });
+      if (typeof gameEventId !== 'number' || !Number.isFinite(gameEventId)) {
+        return callback({ error: 'Invalid event' });
+      }
+      if (!this.db) return callback({ error: 'Reports unavailable' });
+
+      // Daily quota — 20 confirmed reports per 24h per user
+      const recent = this.db.countBotReportsInWindow(userId, 24);
+      if (recent >= 20) return callback({ error: 'Daily report limit reached' });
+
+      // Validate the event: must exist, must be a bot PLAY/PASS/BOMB, reporter must have
+      // been a player in the same game
+      const ev = this.db.getGameEventById(gameEventId);
+      if (!ev) return callback({ error: 'Event not found' });
+      if (ev.event_type !== 'PLAY' && ev.event_type !== 'PASS' && ev.event_type !== 'BOMB') {
+        return callback({ error: 'Only bot plays can be reported' });
+      }
+      let parsed: Record<string, unknown> | null = null;
+      try { parsed = ev.data ? JSON.parse(ev.data) : null; } catch { parsed = null; }
+      const bot = parsed && typeof parsed === 'object'
+        ? (parsed as { bot?: { branchTag?: string | null; tier?: string | null } }).bot
+        : undefined;
+      if (!bot) return callback({ error: 'Only bot plays can be reported' });
+
+      if (!this.db.userWasInGameForEvent(gameEventId, userId)) {
+        return callback({ error: 'You were not in that game' });
+      }
+
+      const inserted = this.db.recordBotPlayReport(
+        gameEventId,
+        userId,
+        bot.branchTag ?? null,
+        bot.tier ?? null,
+      );
+      if (!inserted) return callback({ error: 'You already reported that play' });
+      callback({ success: true });
+    });
+  }
+
   private registerDisconnect(socket: TypedSocket, _ip: string | null): void {
     socket.on('disconnect', () => {
       this.db?.logDisconnection(socket.id);
@@ -672,7 +717,8 @@ export class SocketHandler {
       const gameId = roomGameIds.get(info.room.code) || null;
 
       for (const event of events) {
-        this.db?.logGameEvent(gameId, info.room.code, event.type, event.playerPosition ?? null, event.data);
+        const eventId = this.db?.logGameEvent(gameId, info.room.code, event.type, event.playerPosition ?? null, event.data);
+        if (eventId !== undefined) event.id = eventId;
         this.io.to(info.room.code).emit('game:event', event);
 
         if (event.type === 'GAME_OVER' && gameId) {
@@ -779,7 +825,8 @@ export class SocketHandler {
     // Log events
     const gameId = roomGameIds.get(info.room.code) || null;
     for (const event of allEvents) {
-      this.db?.logGameEvent(gameId, info.room.code, event.type, event.playerPosition ?? null, event.data);
+      const eventId = this.db?.logGameEvent(gameId, info.room.code, event.type, event.playerPosition ?? null, event.data);
+      if (eventId !== undefined) event.id = eventId;
       this.io.to(info.room.code).emit('game:event', event);
 
       if (event.type === 'GAME_OVER' && gameId) {
