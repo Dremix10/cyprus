@@ -199,6 +199,21 @@ export class TrackerDB {
       CREATE INDEX IF NOT EXISTS idx_user_sessions_user ON user_sessions(user_id);
       CREATE INDEX IF NOT EXISTS idx_user_sessions_expires ON user_sessions(expires_at);
       CREATE INDEX IF NOT EXISTS idx_reset_tokens_expires ON password_reset_tokens(expires_at);
+
+      CREATE TABLE IF NOT EXISTS bot_play_reports (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        game_event_id INTEGER NOT NULL REFERENCES game_events(id),
+        reporter_user_id INTEGER NOT NULL REFERENCES users(id),
+        branch_tag TEXT,
+        bot_tier TEXT,
+        mc_agrees INTEGER,
+        mc_picked TEXT,
+        created_at TEXT DEFAULT (datetime('now')),
+        UNIQUE(game_event_id, reporter_user_id)
+      );
+      CREATE INDEX IF NOT EXISTS idx_bot_reports_event ON bot_play_reports(game_event_id);
+      CREATE INDEX IF NOT EXISTS idx_bot_reports_branch ON bot_play_reports(branch_tag);
+      CREATE INDEX IF NOT EXISTS idx_bot_reports_at ON bot_play_reports(created_at);
     `);
 
     // ─── Migrations for existing databases ──────────────────────────
@@ -355,10 +370,136 @@ export class TrackerDB {
     eventType: string,
     playerPosition: number | null,
     data?: Record<string, unknown>
-  ): void {
-    this.db.prepare(
+  ): number {
+    const result = this.db.prepare(
       `INSERT INTO game_events (game_id, room_code, event_type, player_position, data) VALUES (?, ?, ?, ?, ?)`
     ).run(gameId, roomCode, eventType, playerPosition, data ? JSON.stringify(data) : null);
+    return Number(result.lastInsertRowid);
+  }
+
+  /** Fetch a game event by id (used by report validation). */
+  getGameEventById(id: number): {
+    id: number;
+    game_id: number | null;
+    room_code: string | null;
+    event_type: string;
+    player_position: number | null;
+    data: string | null;
+    created_at: string;
+  } | undefined {
+    return this.db.prepare(
+      `SELECT id, game_id, room_code, event_type, player_position, data, created_at
+       FROM game_events WHERE id = ?`
+    ).get(id) as {
+      id: number;
+      game_id: number | null;
+      room_code: string | null;
+      event_type: string;
+      player_position: number | null;
+      data: string | null;
+      created_at: string;
+    } | undefined;
+  }
+
+  // ─── Bot Play Reports ───────────────────────────────────────────────
+
+  /** Record a player's report that a bot's specific play was bad. Returns true if newly
+   * inserted, false if (event, reporter) was already reported. */
+  recordBotPlayReport(
+    gameEventId: number,
+    reporterUserId: number,
+    branchTag: string | null,
+    botTier: string | null,
+  ): boolean {
+    const result = this.db.prepare(
+      `INSERT OR IGNORE INTO bot_play_reports (game_event_id, reporter_user_id, branch_tag, bot_tier)
+       VALUES (?, ?, ?, ?)`
+    ).run(gameEventId, reporterUserId, branchTag, botTier);
+    return result.changes > 0;
+  }
+
+  /** Returns true if the user was a player in the game that owns this event. */
+  userWasInGameForEvent(gameEventId: number, userId: number): boolean {
+    const row = this.db.prepare(
+      `SELECT 1 FROM game_players gp
+       JOIN game_events ev ON ev.game_id = gp.game_id
+       WHERE ev.id = ? AND gp.user_id = ?
+       LIMIT 1`
+    ).get(gameEventId, userId);
+    return !!row;
+  }
+
+  /** Counts a user's reports in a sliding window (for rate limiting). */
+  countBotReportsInWindow(reporterUserId: number, windowHours: number): number {
+    const row = this.db.prepare(
+      `SELECT COUNT(*) AS c FROM bot_play_reports
+       WHERE reporter_user_id = ?
+         AND created_at >= datetime('now', '-' || ? || ' hours')`
+    ).get(reporterUserId, windowHours) as { c: number };
+    return row.c;
+  }
+
+  /** Reports grouped by branch tag, weighted by distinct reporter count. Used by admin. */
+  getBotReportsGrouped(limit: number = 50): Array<{
+    branch_tag: string | null;
+    bot_tier: string | null;
+    distinct_reporters: number;
+    total_reports: number;
+    last_reported_at: string;
+  }> {
+    return this.db.prepare(
+      `SELECT branch_tag, bot_tier,
+              COUNT(DISTINCT reporter_user_id) AS distinct_reporters,
+              COUNT(*) AS total_reports,
+              MAX(created_at) AS last_reported_at
+       FROM bot_play_reports
+       GROUP BY branch_tag, bot_tier
+       ORDER BY distinct_reporters DESC, total_reports DESC
+       LIMIT ?`
+    ).all(limit) as Array<{
+      branch_tag: string | null;
+      bot_tier: string | null;
+      distinct_reporters: number;
+      total_reports: number;
+      last_reported_at: string;
+    }>;
+  }
+
+  /** Recent individual reports with the underlying play context for admin drill-down. */
+  getRecentBotReports(limit: number = 50): Array<{
+    id: number;
+    game_event_id: number;
+    reporter_user_id: number;
+    reporter_name: string | null;
+    branch_tag: string | null;
+    bot_tier: string | null;
+    event_type: string;
+    event_data: string | null;
+    room_code: string | null;
+    created_at: string;
+  }> {
+    return this.db.prepare(
+      `SELECT r.id, r.game_event_id, r.reporter_user_id,
+              u.display_name AS reporter_name,
+              r.branch_tag, r.bot_tier, r.created_at,
+              ev.event_type, ev.data AS event_data, ev.room_code
+       FROM bot_play_reports r
+       LEFT JOIN users u ON u.id = r.reporter_user_id
+       LEFT JOIN game_events ev ON ev.id = r.game_event_id
+       ORDER BY r.created_at DESC
+       LIMIT ?`
+    ).all(limit) as Array<{
+      id: number;
+      game_event_id: number;
+      reporter_user_id: number;
+      reporter_name: string | null;
+      branch_tag: string | null;
+      bot_tier: string | null;
+      event_type: string;
+      event_data: string | null;
+      room_code: string | null;
+      created_at: string;
+    }>;
   }
 
   // ─── HTTP Requests ──────────────────────────────────────────────────

@@ -4541,3 +4541,124 @@ span.pass-zone-avatar {
   font-size: 0.8rem;
   margin-left: 0.5rem;
 }
+
+/* ─── Report Bot Play ────────────────────────────────────────────── */
+
+.btn-report-bot {
+  margin-right: 0.5rem;
+}
+
+.report-bot-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+}
+
+.report-bot-modal {
+  background: #1a1f2e;
+  border: 1px solid rgba(201, 168, 76, 0.25);
+  border-radius: 10px;
+  padding: 1rem 1.2rem;
+  min-width: 320px;
+  max-width: 520px;
+  width: 100%;
+  max-height: 80vh;
+  overflow: auto;
+}
+
+.report-bot-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.5rem;
+}
+
+.report-bot-header h3 {
+  margin: 0;
+  font-size: 1.05rem;
+}
+
+.report-bot-hint {
+  font-size: 0.85rem;
+  opacity: 0.75;
+  margin: 0 0 0.75rem;
+}
+
+.report-bot-empty {
+  opacity: 0.7;
+  font-size: 0.9rem;
+  margin: 0.5rem 0;
+  text-align: center;
+}
+
+.report-bot-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.report-bot-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.45rem 0.6rem;
+  background: rgba(255, 255, 255, 0.03);
+  border-radius: 6px;
+  font-size: 0.9rem;
+}
+
+.report-bot-name {
+  font-weight: 600;
+  min-width: 90px;
+}
+
+.report-bot-summary {
+  flex: 1;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.8rem;
+  opacity: 0.85;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.report-bot-time {
+  font-size: 0.75rem;
+  opacity: 0.6;
+  min-width: 60px;
+  text-align: right;
+}
+
+.btn-flag {
+  background: transparent;
+  border: 1px solid rgba(201, 168, 76, 0.4);
+  color: #c9a84c;
+  padding: 0.2rem 0.55rem;
+  font-size: 0.95rem;
+  line-height: 1;
+}
+
+.report-bot-flagged {
+  color: #4caf50;
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.report-bot-confirm {
+  display: flex;
+  gap: 0.3rem;
+}
+
+.report-bot-error {
+  color: #e57373;
+  font-size: 0.75rem;
+  margin-left: 0.5rem;
+}

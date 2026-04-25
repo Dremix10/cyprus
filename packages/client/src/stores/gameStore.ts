@@ -19,14 +19,30 @@ import {
   playYourTurnSound,
 } from '../sounds.js';
 
+export interface ReportableBotPlay {
+  eventId: number;
+  position: PlayerPosition;
+  type: 'PLAY' | 'PASS' | 'BOMB';
+  // Display-only summary; full card data is in event.data.combination
+  combinationSummary: string;
+  branchTag: string | null;
+  tier: string | null;
+  at: number;
+  reportStatus: 'idle' | 'sending' | 'reported' | 'error';
+  errorMessage?: string;
+}
+
 interface GameStore {
   gameState: ClientGameState | null;
   selectedCards: Set<string>;
   error: string | null;
   lastEvent: GameEvent | null;
+  /** Bot plays from the current round that the user could flag as bad. Capped, FIFO. */
+  reportableBotPlays: ReportableBotPlay[];
 
   setGameState: (state: ClientGameState) => void;
   handleEvent: (event: GameEvent) => void;
+  reportBotPlay: (eventId: number) => Promise<void>;
 
   toggleCard: (cardId: string) => void;
   setSelectedCards: (cards: Set<string>) => void;
@@ -47,11 +63,22 @@ interface GameStore {
   reset: () => void;
 }
 
+function summarizeBotPlay(event: GameEvent): string {
+  if (event.type === 'PASS') return 'pass';
+  const combo = (event.data as { combination?: { type?: string; cards?: Array<{ id?: string }> } } | undefined)?.combination;
+  if (!combo || !combo.cards) return event.type.toLowerCase();
+  const ids = combo.cards.map((c) => c.id ?? '?');
+  return `${combo.type ?? '?'} [${ids.join(', ')}]`;
+}
+
+const MAX_REPORTABLE = 25;
+
 export const useGameStore = create<GameStore>((set, get) => ({
   gameState: null,
   selectedCards: new Set<string>(),
   error: null,
   lastEvent: null,
+  reportableBotPlays: [],
 
   setGameState: (state) => {
     const prev = get().gameState;
@@ -68,6 +95,30 @@ export const useGameStore = create<GameStore>((set, get) => ({
 
   handleEvent: (event) => {
     set({ lastEvent: event });
+
+    // Track bot PLAY/PASS/BOMB events as reportable (only if event has the bot decision context)
+    if (event.id !== undefined && (event.type === 'PLAY' || event.type === 'PASS' || event.type === 'BOMB')) {
+      const data = event.data as { bot?: { branchTag?: string | null; tier?: string | null } } | undefined;
+      if (data?.bot && event.playerPosition !== undefined) {
+        const entry: ReportableBotPlay = {
+          eventId: event.id,
+          position: event.playerPosition,
+          type: event.type,
+          combinationSummary: summarizeBotPlay(event),
+          branchTag: data.bot.branchTag ?? null,
+          tier: data.bot.tier ?? null,
+          at: Date.now(),
+          reportStatus: 'idle',
+        };
+        const next = [entry, ...get().reportableBotPlays].slice(0, MAX_REPORTABLE);
+        set({ reportableBotPlays: next });
+      }
+    }
+    // New round / game over: reset the reportable list
+    if (event.type === 'ROUND_END' || event.type === 'GAME_OVER') {
+      set({ reportableBotPlays: [] });
+    }
+
     switch (event.type) {
       case 'PLAY':
         playCardSound();
@@ -100,6 +151,26 @@ export const useGameStore = create<GameStore>((set, get) => ({
         break;
     }
   },
+
+  reportBotPlay: (eventId) =>
+    new Promise<void>((resolve) => {
+      const updateStatus = (status: ReportableBotPlay['reportStatus'], errorMessage?: string) => {
+        set((state) => ({
+          reportableBotPlays: state.reportableBotPlays.map((p) =>
+            p.eventId === eventId ? { ...p, reportStatus: status, errorMessage } : p,
+          ),
+        }));
+      };
+      updateStatus('sending');
+      socket.emit('bot:report-play', eventId, (response) => {
+        if ('error' in response) {
+          updateStatus('error', response.error);
+        } else {
+          updateStatus('reported');
+        }
+        resolve();
+      });
+    }),
 
   toggleCard: (() => {
     let lastToggleTime = 0;
@@ -169,5 +240,5 @@ export const useGameStore = create<GameStore>((set, get) => ({
   },
 
   setError: (error) => set({ error }),
-  reset: () => set({ gameState: null, selectedCards: new Set(), error: null, lastEvent: null }),
+  reset: () => set({ gameState: null, selectedCards: new Set(), error: null, lastEvent: null, reportableBotPlays: [] }),
 }));

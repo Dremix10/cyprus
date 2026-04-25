@@ -65,7 +65,8 @@ export class BotController {
         const events = action();
         const gameId = this.getGameId(roomCode);
         for (const event of events) {
-          this.db?.logGameEvent(gameId, roomCode, event.type, event.playerPosition ?? null, event.data);
+          const eventId = this.db?.logGameEvent(gameId, roomCode, event.type, event.playerPosition ?? null, event.data);
+          if (eventId !== undefined) event.id = eventId;
           this.emit(roomCode, 'game:event', event);
         }
         this.broadcastGameState(roomCode);
@@ -107,6 +108,17 @@ export class BotController {
       oppCardCounts[p.position] = p.hand.length;
       tichuCalls[p.position] = p.tichuCall;
     }
+    // Capture every play in the current trick (not just the top) — needed for full
+    // engine-state reconstruction in future MC cross-check work.
+    const currentTrickPlays = trick.plays.map((p) => ({
+      position: p.playerPosition,
+      cards: p.combination.cards.map((c) => c.id),
+      comboType: p.combination.type,
+      rank: p.combination.rank,
+    }));
+    const wish = engine.state.wish.active
+      ? { active: true, wishedRank: engine.state.wish.wishedRank }
+      : { active: false, wishedRank: null };
     return {
       bot: {
         tier,
@@ -116,6 +128,13 @@ export class BotController {
         trickPoints,
         oppCardCounts,
         tichuCalls,
+        // Enrichments for future MC cross-check
+        currentTrickPlays,
+        currentWinner: trick.currentWinner,
+        passCount: trick.passCount,
+        wish,
+        finishOrder: [...engine.state.finishOrder],
+        scores: [...engine.state.scores] as [number, number],
       },
     };
   }

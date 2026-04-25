@@ -149,6 +149,14 @@ export function createAdminRouter(db: TrackerDB): express.Router {
     res.json(db.getTopIPs(limit));
   });
 
+  router.get('/api/bot-reports', requireAuth, (req, res) => {
+    const limit = Math.min(Number(req.query.limit) || 50, 500);
+    res.json({
+      grouped: db.getBotReportsGrouped(limit),
+      recent: db.getRecentBotReports(Math.min(limit, 100)),
+    });
+  });
+
   router.get('/api/audit', requireAuth, (_req, res) => {
     const now = new Date().toISOString();
     const stats = db.getStats();
