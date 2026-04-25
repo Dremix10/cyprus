@@ -50,7 +50,7 @@ export class BotController {
     );
     const humanIsOut = humanPositions.every((p) => room.engine!.state.players[p].isOut);
     const isSolo = room.botPositions.size === 3;
-    const delay = (isSolo && humanIsOut) ? 50 : botAI.getDelay(humanIsOut);
+    const delay = (isSolo && humanIsOut) ? 1500 : botAI.getDelay(humanIsOut);
 
     setTimeout(() => {
       // Re-fetch room and re-compute action — phase may have changed during the delay
