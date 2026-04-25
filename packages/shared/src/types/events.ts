@@ -93,6 +93,10 @@ export interface ClientToServerEvents {
     gameEventId: number,
     callback: (response: { success: true } | { error: string }) => void
   ) => void;
+
+  'game:hint': (
+    callback: (response: { play: string[] } | { pass: true } | { error: string }) => void
+  ) => void;
 }
 
 export interface ServerToClientEvents {
