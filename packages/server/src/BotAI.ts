@@ -271,6 +271,65 @@ function analyzePlayedCards(playedCards: Card[], myHand: Card[]): CardCountInfo 
   };
 }
 
+/**
+ * Strip lead candidates that waste Aces in multi-card combos.
+ *
+ * Rule: when leading, don't embed an Ace pair or triple inside a multi-card combo.
+ * Aces are most valuable as singles (or as the top of a long straight). Burning three
+ * Aces to lead an AAA-99 full house is a classic over-commit — it wins a zero-point
+ * trick at the cost of three top-tier defensive cards.
+ *
+ * - 2+ Aces in any multi-card combo → filter (AA pair, AAA triple, AAA-XX full house,
+ *   KK-AA consecutive pairs, 4-of-Aces bomb-as-lead).
+ * - 1 Ace in a combo of length ≤ 4 → filter (Phoenix-A pairs, etc.).
+ * - 1 Ace in a length ≥ 5 combo → keep (Ace-ending straights are the legitimate use).
+ *
+ * Falls back to the unfiltered list if filtering would leave no legal play.
+ */
+function filterAceWasteInLeads(playable: Card[][]): Card[][] {
+  const filtered = playable.filter((cards) => {
+    if (cards.length <= 1) return true;
+    let aceCount = 0;
+    for (const c of cards) if (isNormalCard(c) && c.rank === NR.ACE) aceCount++;
+    if (aceCount === 0) return true;
+    if (aceCount >= 2) return false;
+    if (cards.length <= 4) return false;
+    return true;
+  });
+  return filtered.length > 0 ? filtered : playable;
+}
+
+/**
+ * Strip any play that would break up a 4-of-a-kind in hand.
+ *
+ * Hard rule, no exceptions: if the hand has all 4 cards of some rank, the only play
+ * that's allowed to touch those cards is the bomb itself (using all 4). A play that
+ * uses 1-3 of them (e.g. a triple or pair from those 4 cards, or a single) destroys
+ * the bomb — one of the strongest assets in the game — for a moderate immediate gain.
+ *
+ * Falls back to the unfiltered list if filtering would leave no legal play (defensive;
+ * shouldn't happen since the bomb itself always survives the filter).
+ */
+function filterBombPreserving(playable: Card[][], hand: Card[]): Card[][] {
+  const handCounts = new Map<number, number>();
+  for (const c of hand) {
+    if (isNormalCard(c)) handCounts.set(c.rank, (handCounts.get(c.rank) ?? 0) + 1);
+  }
+  const bombRanks = new Set<number>();
+  for (const [rank, count] of handCounts) if (count === 4) bombRanks.add(rank);
+  if (bombRanks.size === 0) return playable;
+
+  const filtered = playable.filter((cards) => {
+    for (const rank of bombRanks) {
+      let used = 0;
+      for (const c of cards) if (isNormalCard(c) && c.rank === rank) used++;
+      if (used > 0 && used < 4) return false;
+    }
+    return true;
+  });
+  return filtered.length > 0 ? filtered : playable;
+}
+
 // ─── Bot Config (tunable parameters for hard mode) ─────────────────────
 
 export interface BotConfig {
@@ -666,8 +725,21 @@ export class BotAI {
       ? null
       : currentTrick.plays[currentTrick.plays.length - 1].combination;
 
-    const playable = findPlayableFromHand(hand, trickTop, wish);
+    let playable = findPlayableFromHand(hand, trickTop, wish);
     if (playable.length === 0) return null;
+
+    // Hard rule: never break a bomb. Strip any play that uses 1-3 cards of a rank where
+    // we hold all 4 — bombs are too valuable to trade for a moderate full house / straight.
+    // The bomb itself (all 4 cards) stays as a valid candidate.
+    playable = filterBombPreserving(playable, hand);
+    if (playable.length === 0) return null;
+
+    // Don't lead Ace pairs/triples embedded in multi-card combos — Aces shine as singles.
+    // Only on lead; in follow situations combo-type matching limits the choice anyway.
+    if (isLeading) {
+      playable = filterAceWasteInLeads(playable);
+      if (playable.length === 0) return null;
+    }
 
     if (this.effectiveDifficulty === 'easy') {
       return this.choosePlayEasy(playable, isLeading);
@@ -976,10 +1048,14 @@ export class BotAI {
     }
 
     // ── Prefer aces as singles — filter out non-straight combos containing aces ──
+    // Matches the choosePlay-level filter (filterAceWasteInLeads): an Ace pair or triple
+    // inside any multi-card combo is filtered (covers AAA-XX full houses, KK-AA consecutive
+    // pairs, etc.); a single Ace is only allowed in length-5+ combos (Ace-ending straights).
     const noAceCombos = combos.multiCard.filter((combo) => {
       const aceCount = combo.filter((c) => isNormalCard(c) && c.rank === NR.ACE).length;
-      // Allow aces in straights (5+ cards), but not in pairs/trips/full houses
-      if (aceCount > 0 && combo.length <= 4) return false;
+      if (aceCount === 0) return true;
+      if (aceCount >= 2) return false;
+      if (combo.length <= 4) return false;
       return true;
     });
 
