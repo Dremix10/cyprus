@@ -683,8 +683,25 @@ export class BotAI {
       ? analyzePlayedCards(context.playedCards, hand)
       : null;
 
+    // Defer to the heuristic when LEADING with partner mid-Tichu/GT. The heuristic has an
+    // explicit "lead low for partner" branch; MC's rollouts use generic hard-tier rollout
+    // bots that don't reliably support partner Tichu, so MC can pick high singles (e.g. Ace)
+    // that block the Tichu caller from winning their own setup tricks.
+    const partnerPos = ((botPosition + 2) % 4) as PlayerPosition;
+    const partnerHasLiveTichu = !!context && (
+      context.tichuCalls[partnerPos] === 'tichu' ||
+      context.tichuCalls[partnerPos] === 'grand_tichu'
+    ) && !context.finishOrder.includes(partnerPos);
+
     // Hard mode — try Monte Carlo for both leading and following
-    if (this.config.useMonteCarlo && !this.inRollout && mcEvaluate && hand.length >= 2 && playable.length >= 2) {
+    if (
+      this.config.useMonteCarlo &&
+      !this.inRollout &&
+      mcEvaluate &&
+      hand.length >= 2 &&
+      playable.length >= 2 &&
+      !(isLeading && partnerHasLiveTichu)
+    ) {
       // Filter wasteful Phoenix-single candidates before handing off to MC.
       // Phoenix as a single becomes rank = topRank + 0.5. If any remaining opponent card can
       // beat that rank (Dragon or a higher normal card), we'll likely lose Phoenix (-25 pts
@@ -890,16 +907,17 @@ export class BotAI {
       return mahjongPlay.map((c) => c.id);
     }
 
-    // ── Lead-back: lead low when partner called Tichu and has fewer cards ──
+    // ── Partner called Tichu/GT: lead low to let them beat us and take the lead ──
+    // (Earlier this was gated on partnerCards < hand.length, which was backwards — leading
+    // low helps the Tichu caller regardless of relative hand sizes. With the gate, the bot
+    // would happily lead an Ace when its own hand was small, blocking the partner's run.)
     if (context) {
       const partnerPos2 = ((botPosition + 2) % 4) as PlayerPosition;
-      const partnerCards2 = context.playerCardCounts.get(partnerPos2) ?? 14;
       const partnerOut2 = context.finishOrder.includes(partnerPos2);
       const partnerCalledTichu2 = context.tichuCalls[partnerPos2] === 'tichu' ||
         context.tichuCalls[partnerPos2] === 'grand_tichu';
 
-      // If partner called Tichu, isn't out, and has fewer cards: lead low to let them win
-      if (!partnerOut2 && partnerCalledTichu2 && partnerCards2 < hand.length) {
+      if (!partnerOut2 && partnerCalledTichu2) {
         if (combos.nonSpecialSingles.length > 0) {
           this.tag('lead:partner-tichu-low');
           return this.pickLowestCombo(combos.nonSpecialSingles);
@@ -1325,21 +1343,19 @@ export class BotAI {
     if (hand.length <= 6) return true;
     // Bomb to prevent opponent from going out
     if (opponentAboutToOut) return true;
-    // Bomb high-value tricks
-    if (trickPoints >= 10) return true;
+    // Bomb high-value tricks (≥15 pts — matches the proactive-bomb threshold).
+    // Below this, the bomb's strategic worth (defending a 25-pt Dragon trick later,
+    // disrupting a Tichu, going out fast in endgame) exceeds the pts we'd win now.
+    if (trickPoints >= this.config.bombPointThreshold) return true;
 
-    // If opponent has Tichu, bomb more aggressively to deny them tricks
+    // Opponent Tichu: bomb more aggressively to deny tricks
     if (opponentTichuActive) {
-      // Always bomb if trick has any points
-      if (trickPoints >= 5) return true;
-      // Bomb even pointless tricks if we have multiple bombs (can afford to spend one)
+      // Lower bar (≥10) when there's a Tichu to disrupt
+      if (trickPoints >= 10) return true;
+      // With multiple bombs we can afford a more speculative one
       if (bombCount >= 2) return true;
-      // With 1 bomb, bomb if opponent is getting close (but not yet "about to out")
       return false;
     }
-
-    // Bomb moderate-value tricks if no reason to save
-    if (trickPoints >= 5) return true;
 
     return false;
   }
