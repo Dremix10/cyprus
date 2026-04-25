@@ -388,6 +388,8 @@ function PlayingLayout({
   // Auto-pass when server says we have no legal play. Solo only — in multiplayer an
   // instant pass would leak "I have no bomb" to opponents, since mustPass is only true
   // when no bomb is available either.
+  // 5s delay so the player can still hit Pass manually if they want to skip the wait;
+  // any manual pass advances the turn, which re-runs this effect and cancels the timer.
   useEffect(() => {
     if (!gameState?.mustPass) return;
     if (!gameState.isSolo) return;
@@ -395,7 +397,7 @@ function PlayingLayout({
     const timer = setTimeout(() => {
       const s = useGameStore.getState().gameState;
       if (s?.mustPass && s.isSolo) passTurn();
-    }, 900);
+    }, 5000);
     return () => clearTimeout(timer);
   }, [gameState?.mustPass, gameState?.isSolo, gameState?.currentPlayer, gameState?.myPosition, passTurn]);
 
