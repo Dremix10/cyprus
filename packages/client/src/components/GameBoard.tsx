@@ -389,22 +389,6 @@ function PlayingLayout({
     }
   }, [lastEvent]);
 
-  // Auto-pass when server says we have no legal play. Solo only — in multiplayer an
-  // instant pass would leak "I have no bomb" to opponents, since mustPass is only true
-  // when no bomb is available either.
-  // 5s delay so the player can still hit Pass manually if they want to skip the wait;
-  // any manual pass advances the turn, which re-runs this effect and cancels the timer.
-  useEffect(() => {
-    if (!gameState?.mustPass) return;
-    if (!gameState.isSolo) return;
-    if (gameState.currentPlayer !== gameState.myPosition) return;
-    const timer = setTimeout(() => {
-      const s = useGameStore.getState().gameState;
-      if (s?.mustPass && s.isSolo) passTurn();
-    }, 5000);
-    return () => clearTimeout(timer);
-  }, [gameState?.mustPass, gameState?.isSolo, gameState?.currentPlayer, gameState?.myPosition, passTurn]);
-
   const isMyTurn = gameState.currentPlayer === gameState.myPosition;
   const myInfo = gameState.players[gameState.myPosition];
   const isDragonGive = gameState.phase === GamePhase.DRAGON_GIVE;
@@ -585,7 +569,7 @@ function PlayingLayout({
             </button>
             {canPass && !mustPlayWish && (
               <button
-                className={`btn btn-pass ${gameState.mustPass && !gameState.isSolo ? 'btn-pass-recommended' : ''}`}
+                className={`btn btn-pass ${gameState.mustPass ? 'btn-pass-recommended' : ''}`}
                 onClick={passTurn}
               >
                 {t('game.pass')}
