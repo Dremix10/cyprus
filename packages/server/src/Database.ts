@@ -6,6 +6,17 @@ import { fileURLToPath } from 'node:url';
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const DATA_DIR = join(__dirname, '..', 'data');
 
+export const BOT_REPORT_REVIEW_STATUSES = [
+  'unreviewed',
+  'valid_mistake',
+  'probably_ok',
+  'unclear',
+  'needs_replay',
+  'duplicate',
+] as const;
+
+export type BotReportReviewStatus = typeof BOT_REPORT_REVIEW_STATUSES[number];
+
 export class TrackerDB {
   private db: BetterSqlite3.Database;
 
@@ -208,12 +219,17 @@ export class TrackerDB {
         bot_tier TEXT,
         mc_agrees INTEGER,
         mc_picked TEXT,
+        review_status TEXT NOT NULL DEFAULT 'unreviewed',
+        review_note TEXT,
+        reviewed_at TEXT,
+        reviewed_by TEXT,
         created_at TEXT DEFAULT (datetime('now')),
         UNIQUE(game_event_id, reporter_user_id)
       );
       CREATE INDEX IF NOT EXISTS idx_bot_reports_event ON bot_play_reports(game_event_id);
       CREATE INDEX IF NOT EXISTS idx_bot_reports_branch ON bot_play_reports(branch_tag);
       CREATE INDEX IF NOT EXISTS idx_bot_reports_at ON bot_play_reports(created_at);
+      CREATE INDEX IF NOT EXISTS idx_bot_reports_review_status ON bot_play_reports(review_status);
     `);
 
     // ─── Migrations for existing databases ──────────────────────────
@@ -229,6 +245,10 @@ export class TrackerDB {
       `ALTER TABLE user_stats ADD COLUMN elo INTEGER NOT NULL DEFAULT 1000`,
       `ALTER TABLE user_stats ADD COLUMN elo_peak INTEGER DEFAULT 1000`,
       `ALTER TABLE user_stats ADD COLUMN elo_games INTEGER DEFAULT 0`,
+      `ALTER TABLE bot_play_reports ADD COLUMN review_status TEXT NOT NULL DEFAULT 'unreviewed'`,
+      `ALTER TABLE bot_play_reports ADD COLUMN review_note TEXT`,
+      `ALTER TABLE bot_play_reports ADD COLUMN reviewed_at TEXT`,
+      `ALTER TABLE bot_play_reports ADD COLUMN reviewed_by TEXT`,
     ];
     for (const sql of addColumnMigrations) {
       try { this.db.exec(sql); } catch { /* column already exists */ }
@@ -238,6 +258,7 @@ export class TrackerDB {
     this.db.exec(`
       CREATE UNIQUE INDEX IF NOT EXISTS idx_users_email ON users(email);
       CREATE UNIQUE INDEX IF NOT EXISTS idx_users_google ON users(google_id);
+      CREATE INDEX IF NOT EXISTS idx_bot_reports_review_status ON bot_play_reports(review_status);
     `);
 
     // Seed bot_elo rows for each difficulty tier (no-op if already present)
@@ -445,24 +466,27 @@ export class TrackerDB {
     bot_tier: string | null;
     distinct_reporters: number;
     total_reports: number;
+    unreviewed_reports: number;
     last_reported_at: string;
   }> {
     return this.db.prepare(
       `SELECT branch_tag, bot_tier,
               COUNT(DISTINCT reporter_user_id) AS distinct_reporters,
               COUNT(*) AS total_reports,
+              SUM(CASE WHEN COALESCE(review_status, 'unreviewed') = 'unreviewed' THEN 1 ELSE 0 END) AS unreviewed_reports,
               MAX(created_at) AS last_reported_at
        FROM bot_play_reports
        GROUP BY branch_tag, bot_tier
        ORDER BY distinct_reporters DESC, total_reports DESC
        LIMIT ?`
     ).all(limit) as Array<{
-      branch_tag: string | null;
-      bot_tier: string | null;
-      distinct_reporters: number;
-      total_reports: number;
-      last_reported_at: string;
-    }>;
+    branch_tag: string | null;
+    bot_tier: string | null;
+    distinct_reporters: number;
+    total_reports: number;
+    unreviewed_reports: number;
+    last_reported_at: string;
+  }>;
   }
 
   /** Recent individual reports with the underlying play context for admin drill-down. */
@@ -473,16 +497,26 @@ export class TrackerDB {
     reporter_name: string | null;
     branch_tag: string | null;
     bot_tier: string | null;
+    review_status: BotReportReviewStatus;
+    review_note: string | null;
+    reviewed_at: string | null;
+    reviewed_by: string | null;
+    game_id: number | null;
     event_type: string;
     event_data: string | null;
     room_code: string | null;
+    event_created_at: string | null;
     created_at: string;
   }> {
     return this.db.prepare(
       `SELECT r.id, r.game_event_id, r.reporter_user_id,
               u.display_name AS reporter_name,
-              r.branch_tag, r.bot_tier, r.created_at,
-              ev.event_type, ev.data AS event_data, ev.room_code
+              r.branch_tag, r.bot_tier,
+              COALESCE(r.review_status, 'unreviewed') AS review_status,
+              r.review_note, r.reviewed_at, r.reviewed_by,
+              r.created_at,
+              ev.game_id, ev.event_type, ev.data AS event_data, ev.room_code,
+              ev.created_at AS event_created_at
        FROM bot_play_reports r
        LEFT JOIN users u ON u.id = r.reporter_user_id
        LEFT JOIN game_events ev ON ev.id = r.game_event_id
@@ -495,11 +529,149 @@ export class TrackerDB {
       reporter_name: string | null;
       branch_tag: string | null;
       bot_tier: string | null;
+      review_status: BotReportReviewStatus;
+      review_note: string | null;
+      reviewed_at: string | null;
+      reviewed_by: string | null;
+      game_id: number | null;
       event_type: string;
       event_data: string | null;
       room_code: string | null;
+      event_created_at: string | null;
       created_at: string;
     }>;
+  }
+
+  /** Update an admin classification for a reported bot play. */
+  updateBotReportReview(
+    reportId: number,
+    status: BotReportReviewStatus,
+    note: string | null,
+    reviewedBy: string = 'admin',
+  ): boolean {
+    const result = this.db.prepare(
+      `UPDATE bot_play_reports
+       SET review_status = ?, review_note = ?, reviewed_at = datetime('now'), reviewed_by = ?
+       WHERE id = ?`
+    ).run(status, note, reviewedBy, reportId);
+    return result.changes > 0;
+  }
+
+  /** Fetch one report plus the surrounding game events for human review. */
+  getBotReportContext(reportId: number, radius: number = 3): {
+    report: {
+      id: number;
+      game_event_id: number;
+      reporter_user_id: number;
+      reporter_name: string | null;
+      branch_tag: string | null;
+      bot_tier: string | null;
+      review_status: BotReportReviewStatus;
+      review_note: string | null;
+      reviewed_at: string | null;
+      reviewed_by: string | null;
+      game_id: number | null;
+      event_type: string;
+      event_data: string | null;
+      room_code: string | null;
+      event_created_at: string | null;
+      created_at: string;
+    };
+    events: Array<{
+      id: number;
+      game_id: number | null;
+      room_code: string | null;
+      event_type: string;
+      player_position: number | null;
+      data: string | null;
+      created_at: string;
+      offset: number;
+    }>;
+  } | undefined {
+    const report = this.db.prepare(
+      `SELECT r.id, r.game_event_id, r.reporter_user_id,
+              u.display_name AS reporter_name,
+              r.branch_tag, r.bot_tier,
+              COALESCE(r.review_status, 'unreviewed') AS review_status,
+              r.review_note, r.reviewed_at, r.reviewed_by,
+              r.created_at,
+              ev.game_id, ev.event_type, ev.data AS event_data, ev.room_code,
+              ev.created_at AS event_created_at
+       FROM bot_play_reports r
+       LEFT JOIN users u ON u.id = r.reporter_user_id
+       LEFT JOIN game_events ev ON ev.id = r.game_event_id
+       WHERE r.id = ?`
+    ).get(reportId) as {
+      id: number;
+      game_event_id: number;
+      reporter_user_id: number;
+      reporter_name: string | null;
+      branch_tag: string | null;
+      bot_tier: string | null;
+      review_status: BotReportReviewStatus;
+      review_note: string | null;
+      reviewed_at: string | null;
+      reviewed_by: string | null;
+      game_id: number | null;
+      event_type: string;
+      event_data: string | null;
+      room_code: string | null;
+      event_created_at: string | null;
+      created_at: string;
+    } | undefined;
+
+    if (!report) return undefined;
+
+    const boundedRadius = Math.max(0, Math.min(radius, 10));
+    const events = report.game_id !== null
+      ? this.db.prepare(
+        `WITH ordered AS (
+           SELECT id, game_id, room_code, event_type, player_position, data, created_at,
+                  ROW_NUMBER() OVER (ORDER BY id ASC) AS rn
+           FROM game_events
+           WHERE game_id = ?
+         ),
+         target AS (
+           SELECT rn AS target_rn FROM ordered WHERE id = ?
+         )
+         SELECT ordered.id, ordered.game_id, ordered.room_code, ordered.event_type,
+                ordered.player_position, ordered.data, ordered.created_at,
+                ordered.rn - target.target_rn AS offset
+         FROM ordered, target
+         WHERE ordered.rn BETWEEN target.target_rn - ? AND target.target_rn + ?
+         ORDER BY ordered.rn ASC`
+      ).all(report.game_id, report.game_event_id, boundedRadius, boundedRadius)
+      : this.db.prepare(
+        `WITH ordered AS (
+           SELECT id, game_id, room_code, event_type, player_position, data, created_at,
+                  ROW_NUMBER() OVER (ORDER BY id ASC) AS rn
+           FROM game_events
+           WHERE room_code = ?
+         ),
+         target AS (
+           SELECT rn AS target_rn FROM ordered WHERE id = ?
+         )
+         SELECT ordered.id, ordered.game_id, ordered.room_code, ordered.event_type,
+                ordered.player_position, ordered.data, ordered.created_at,
+                ordered.rn - target.target_rn AS offset
+         FROM ordered, target
+         WHERE ordered.rn BETWEEN target.target_rn - ? AND target.target_rn + ?
+         ORDER BY ordered.rn ASC`
+      ).all(report.room_code, report.game_event_id, boundedRadius, boundedRadius);
+
+    return {
+      report,
+      events: events as Array<{
+        id: number;
+        game_id: number | null;
+        room_code: string | null;
+        event_type: string;
+        player_position: number | null;
+        data: string | null;
+        created_at: string;
+        offset: number;
+      }>,
+    };
   }
 
   // ─── HTTP Requests ──────────────────────────────────────────────────

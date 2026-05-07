@@ -296,10 +296,15 @@ Player flags for "this bot play looked wrong."
 | `bot_tier` | TEXT NULL | denormalized from event.data.bot.tier |
 | `mc_agrees` | INTEGER NULL | reserved for future MC cross-check (0/1/null) |
 | `mc_picked` | TEXT NULL | reserved for future MC cross-check (JSON of card ids) |
+| `review_status` | TEXT | admin classification: `unreviewed`, `valid_mistake`, `probably_ok`, `unclear`, `needs_replay`, or `duplicate` |
+| `review_note` | TEXT NULL | optional admin note explaining the classification |
+| `reviewed_at` | TEXT NULL | timestamp when the report was classified |
+| `reviewed_by` | TEXT NULL | admin identifier, currently `admin` |
 | `created_at` | TEXT | |
 | UNIQUE | `(game_event_id, reporter_user_id)` | dedup |
 
-Indexes: `idx_bot_reports_event`, `idx_bot_reports_branch`, `idx_bot_reports_at`.
+Indexes: `idx_bot_reports_event`, `idx_bot_reports_branch`, `idx_bot_reports_at`,
+`idx_bot_reports_review_status`.
 
 ## Migrations
 

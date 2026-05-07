@@ -3,7 +3,7 @@ import { createHash, timingSafeEqual, randomBytes, scrypt } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import type { TrackerDB } from './Database.js';
+import { BOT_REPORT_REVIEW_STATUSES, type TrackerDB } from './Database.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -152,9 +152,54 @@ export function createAdminRouter(db: TrackerDB): express.Router {
   router.get('/api/bot-reports', requireAuth, (req, res) => {
     const limit = Math.min(Number(req.query.limit) || 50, 500);
     res.json({
+      reviewStatuses: BOT_REPORT_REVIEW_STATUSES,
       grouped: db.getBotReportsGrouped(limit),
       recent: db.getRecentBotReports(Math.min(limit, 100)),
     });
+  });
+
+  router.get('/api/bot-reports/:id/context', requireAuth, (req, res) => {
+    const reportId = Number(req.params.id);
+    const radius = Math.min(Math.max(Number(req.query.radius) || 3, 0), 10);
+    if (!Number.isInteger(reportId) || reportId <= 0) {
+      res.status(400).json({ error: 'Invalid report id' });
+      return;
+    }
+
+    const context = db.getBotReportContext(reportId, radius);
+    if (!context) {
+      res.status(404).json({ error: 'Report not found' });
+      return;
+    }
+    res.json(context);
+  });
+
+  router.post('/api/bot-reports/:id/review', requireAuth, express.json({ limit: '16kb' }), (req, res) => {
+    const reportId = Number(req.params.id);
+    if (!Number.isInteger(reportId) || reportId <= 0) {
+      res.status(400).json({ error: 'Invalid report id' });
+      return;
+    }
+
+    const status = req.body?.status;
+    if (!BOT_REPORT_REVIEW_STATUSES.includes(status)) {
+      res.status(400).json({ error: 'Invalid review status' });
+      return;
+    }
+
+    const rawNote = typeof req.body?.note === 'string' ? req.body.note.trim() : '';
+    if (rawNote.length > 1000) {
+      res.status(400).json({ error: 'Review note must be at most 1000 characters' });
+      return;
+    }
+
+    const updated = db.updateBotReportReview(reportId, status, rawNote || null);
+    if (!updated) {
+      res.status(404).json({ error: 'Report not found' });
+      return;
+    }
+
+    res.json({ success: true });
   });
 
   router.get('/api/audit', requireAuth, (_req, res) => {
