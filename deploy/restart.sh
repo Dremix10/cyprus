@@ -23,6 +23,19 @@ service_exists() {
   command -v systemctl >/dev/null 2>&1 && systemctl cat "$SERVICE_NAME" >/dev/null 2>&1
 }
 
+can_manage_service() {
+  [ "$(id -u)" -eq 0 ] && return 0
+  command -v sudo >/dev/null 2>&1 && sudo -n true 2>/dev/null
+}
+
+systemctl_cmd() {
+  if [ "$(id -u)" -eq 0 ]; then
+    systemctl "$@"
+  else
+    sudo systemctl "$@"
+  fi
+}
+
 port_in_use() {
   ss -tlnp 2>/dev/null | grep -q ":3001 "
 }
@@ -108,9 +121,29 @@ fi
 
 echo "Stopping old process..."
 if service_exists; then
-  echo "Stopping $SERVICE_NAME..."
-  systemctl stop "$SERVICE_NAME"
-  sleep 2
+  if can_manage_service; then
+    echo "Stopping $SERVICE_NAME..."
+    systemctl_cmd stop "$SERVICE_NAME"
+    sleep 2
+  else
+    echo "$SERVICE_NAME exists, but this user cannot manage systemd directly."
+    if [ -z "${DATA_API_KEY:-}" ]; then
+      echo "ERROR: DATA_API_KEY is required to trigger an application restart without systemd permissions."
+      exit 1
+    fi
+    echo "Requesting graceful shutdown; systemd will auto-restart the service..."
+    curl -s -X POST http://localhost:3001/admin/api/shutdown \
+      -H "Authorization: Bearer $DATA_API_KEY" \
+      -H "Content-Type: application/json" \
+      --max-time 5 2>/dev/null || true
+    echo ""
+    if wait_for_health; then
+      exit 0
+    fi
+    echo "ERROR: Service did not become healthy after application restart. Check $LOG_FILE for details."
+    tail -20 "$LOG_FILE"
+    exit 1
+  fi
 fi
 if port_in_use && [ -n "${DATA_API_KEY:-}" ]; then
   echo "Requesting graceful shutdown via API..."
@@ -134,13 +167,13 @@ echo "Starting new process..."
 set -a; [ -f .env ] && source .env; set +a
 if service_exists; then
   echo "Starting $SERVICE_NAME..."
-  systemctl reset-failed "$SERVICE_NAME" 2>/dev/null || true
-  systemctl start "$SERVICE_NAME"
+  systemctl_cmd reset-failed "$SERVICE_NAME" 2>/dev/null || true
+  systemctl_cmd start "$SERVICE_NAME"
   if wait_for_health; then
     exit 0
   fi
   echo "ERROR: $SERVICE_NAME started but health check failed. Check $LOG_FILE for details."
-  systemctl status "$SERVICE_NAME" --no-pager -l || true
+  systemctl_cmd status "$SERVICE_NAME" --no-pager -l || true
   tail -20 "$LOG_FILE"
   exit 1
 fi
