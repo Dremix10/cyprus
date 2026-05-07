@@ -298,6 +298,21 @@ app.get('*', (_req, res) => {
 });
 
 // ─── Start Server ───────────────────────────────────────────────────
+httpServer.on('error', (err: NodeJS.ErrnoException) => {
+  console.error('HTTP server error:', err);
+  monitor.uncaughtError(err.message, err.stack);
+
+  if (err.code === 'EADDRINUSE' || err.code === 'EACCES') {
+    socketHandler.destroy();
+    roomManager.destroy();
+    monitor.destroy();
+    auditor.destroy();
+    aiReviewer.destroy();
+    db.close();
+    process.exit(1);
+  }
+});
+
 httpServer.listen(PORT, '0.0.0.0', () => {
   console.log(`Server running on 0.0.0.0:${PORT}`);
 });
