@@ -4,8 +4,15 @@ set -euo pipefail
 APP_DIR="/home/dev/cyprus"
 ENTRY="packages/server/dist/index.js"
 LOG_FILE="server.log"
+LOCK_FILE="/tmp/cyprus-deploy.lock"
 
 echo "=== Deploy started at $(date) ==="
+
+exec 9>"$LOCK_FILE"
+if ! flock -w 300 9; then
+  echo "ERROR: Another deploy is still running; could not acquire $LOCK_FILE"
+  exit 1
+fi
 
 cd "$APP_DIR"
 
@@ -92,7 +99,19 @@ echo "New process started (PID: $NEW_PID)"
 # Brief pause to catch immediate crashes
 sleep 2
 if kill -0 "$NEW_PID" 2>/dev/null; then
-  echo "=== Deploy successful ==="
+  echo "Waiting for health check..."
+  for i in $(seq 1 20); do
+    if curl -fsS http://localhost:3001/health >/tmp/cyprus-health.json 2>/dev/null; then
+      cat /tmp/cyprus-health.json
+      echo ""
+      echo "=== Deploy successful ==="
+      exit 0
+    fi
+    sleep 1
+  done
+  echo "ERROR: New process stayed up but health check failed. Check $LOG_FILE for details."
+  tail -20 "$LOG_FILE"
+  exit 1
 else
   echo "ERROR: Process exited immediately. Check $LOG_FILE for details."
   tail -20 "$LOG_FILE"

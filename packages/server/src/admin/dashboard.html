@@ -34,6 +34,7 @@
   .refresh-info { color: #555; font-size: 0.75rem; }
   #last-refresh { color: #888; }
   .empty { padding: 2rem; text-align: center; color: #555; }
+  .empty a { color: #c9a84c; font-weight: 700; }
   .query-wrap { padding: 1rem; }
   .query-wrap textarea { width: 100%; min-height: 80px; background: #12121f; color: #e0e0e0; border: 1px solid #333; border-radius: 6px; padding: 0.7rem; font-family: 'SF Mono', 'Fira Code', monospace; font-size: 0.85rem; resize: vertical; }
   .query-wrap textarea:focus { outline: none; border-color: #c9a84c; }
@@ -107,7 +108,7 @@
     <button class="tab" data-tab="players" onclick="showTab('players')">Players</button>
     <button class="tab" data-tab="games" onclick="showTab('games')">Games</button>
     <button class="tab" data-tab="events" onclick="showTab('events')">Events</button>
-    <button class="tab" data-tab="botreports" onclick="showTab('botreports')">Bot Reports</button>
+    <button class="tab" data-tab="botreports" onclick="showTab('botreports')">Reported Plays</button>
     <button class="tab" data-tab="requests" onclick="showTab('requests')">HTTP Requests</button>
     <button class="tab" data-tab="ips" onclick="showTab('ips')">Top IPs</button>
     <button class="tab" data-tab="users" onclick="showTab('users')">Users</button>
@@ -135,6 +136,8 @@ const api = async path => {
   return data;
 };
 let currentTab = 'connections';
+const LIVE_ADMIN_URL = 'https://aegist.dev/admin';
+const isFilePreview = window.location.protocol === 'file:';
 const REVIEW_LABELS = {
   unreviewed: 'Unreviewed',
   valid_mistake: 'Valid mistake',
@@ -200,6 +203,13 @@ function renderReviewOptions(statuses, selected) {
   return statuses.map(s => '<option value="' + esc(s) + '"' + (s === selected ? ' selected' : '') + '>' + esc(REVIEW_LABELS[s] || s) + '</option>').join('');
 }
 
+function renderFilePreviewNotice() {
+  const message = '<div class="empty">This is only the local dashboard HTML file. Open <a href="' + LIVE_ADMIN_URL + '">the live admin dashboard</a> to load player data and reported plays.</div>';
+  document.getElementById('stats').innerHTML = '';
+  document.querySelectorAll('.panel').forEach(p => { p.innerHTML = message; });
+  document.getElementById('last-refresh').textContent = 'open live admin';
+}
+
 async function loadStats() {
   const s = await api('stats');
   document.getElementById('stats').innerHTML = [
@@ -263,7 +273,7 @@ function renderBotReports(data) {
     : '<div class="empty">No individual reports yet</div>';
 
   return '<div class="reports-wrap">' +
-    '<div class="reports-heading"><h2>Bot Play Reports</h2><div class="reports-hint">' + totalReports + ' total · ' + unreviewed + ' unreviewed · click a report for surrounding play context</div></div>' +
+    '<div class="reports-heading"><h2>Reported Bot Plays</h2><div class="reports-hint">' + totalReports + ' total · ' + unreviewed + ' unreviewed · use Show ±3 plays for surrounding context</div></div>' +
     '<div class="reports-summary">' + groupedHtml + '</div>' +
     cardsHtml +
   '</div>';
@@ -467,6 +477,10 @@ async function resetUserPassword() {
 }
 
 async function refresh() {
+  if (isFilePreview) {
+    renderFilePreviewNotice();
+    return;
+  }
   await loadStats();
   await loadTab(currentTab);
   document.getElementById('last-refresh').textContent = new Date().toLocaleTimeString();
