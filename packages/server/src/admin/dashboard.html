@@ -15,7 +15,7 @@
   .stat-card { background: #1a1a2e; border: 1px solid #2a2a4a; border-radius: 10px; padding: 1.2rem; }
   .stat-card .label { font-size: 0.75rem; color: #888; text-transform: uppercase; letter-spacing: 0.5px; }
   .stat-card .value { font-size: 1.8rem; font-weight: 700; color: #c9a84c; margin-top: 0.3rem; }
-  .tabs { display: flex; gap: 0; margin-bottom: 0; border-bottom: 1px solid #2a2a4a; }
+  .tabs { display: flex; gap: 0; margin-bottom: 0; border-bottom: 1px solid #2a2a4a; flex-wrap: wrap; }
   .tab { padding: 0.7rem 1.2rem; background: transparent; border: none; color: #888; cursor: pointer; font-size: 0.9rem; border-bottom: 2px solid transparent; }
   .tab:hover { color: #ccc; }
   .tab.active { color: #c9a84c; border-bottom-color: #c9a84c; }
@@ -57,6 +57,39 @@
   .form-msg { margin-top: 0.5rem; padding: 0.6rem 0.8rem; border-radius: 6px; font-size: 0.85rem; }
   .form-msg.success { background: #1a3a2a; color: #4caf50; }
   .form-msg.error { background: #2a1515; color: #e74c3c; }
+  .reports-wrap { padding: 1rem; display: grid; gap: 1rem; }
+  .reports-summary { display: grid; grid-template-columns: minmax(0, 1fr); gap: 0.8rem; }
+  .reports-heading { display: flex; justify-content: space-between; align-items: center; gap: 1rem; flex-wrap: wrap; }
+  .reports-heading h2 { color: #c9a84c; font-size: 1.05rem; }
+  .reports-hint { color: #888; font-size: 0.8rem; }
+  .report-card { background: #12121f; border: 1px solid #2a2a4a; border-radius: 8px; padding: 1rem; display: grid; gap: 0.8rem; }
+  .report-card-header { display: flex; justify-content: space-between; align-items: flex-start; gap: 1rem; flex-wrap: wrap; }
+  .report-title { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; }
+  .report-title strong { color: #f0f0f0; }
+  .report-meta { color: #888; font-size: 0.78rem; margin-top: 0.25rem; }
+  .report-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 0.6rem; }
+  .report-field { background: #18182a; border: 1px solid #24243e; border-radius: 6px; padding: 0.55rem 0.65rem; min-width: 0; }
+  .report-field-label { color: #777; font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.4px; margin-bottom: 0.25rem; }
+  .report-field-value { color: #ddd; font-size: 0.82rem; overflow-wrap: anywhere; }
+  .report-review { display: grid; grid-template-columns: minmax(150px, 220px) minmax(240px, 1fr) auto; gap: 0.6rem; align-items: start; }
+  .report-review select, .report-review textarea { width: 100%; background: #0f0f1a; color: #e0e0e0; border: 1px solid #333; border-radius: 6px; padding: 0.55rem 0.65rem; font-size: 0.82rem; }
+  .report-review textarea { min-height: 38px; resize: vertical; }
+  .report-review button, .report-context-btn { background: #c9a84c; color: #0f0f1a; border: none; border-radius: 6px; padding: 0.55rem 0.9rem; cursor: pointer; font-weight: 600; }
+  .report-context-btn { width: fit-content; }
+  .review-msg { color: #888; font-size: 0.75rem; min-height: 1rem; }
+  .report-context { border-top: 1px solid #2a2a4a; padding-top: 0.8rem; }
+  .timeline { display: grid; gap: 0.45rem; }
+  .timeline-event { display: grid; grid-template-columns: 3.5rem 7rem minmax(0, 1fr); gap: 0.6rem; align-items: start; background: #18182a; border: 1px solid #24243e; border-radius: 6px; padding: 0.65rem; }
+  .timeline-event.reported { border-color: #c9a84c; background: #211d12; }
+  .timeline-offset { color: #888; font-size: 0.75rem; font-weight: 700; }
+  .timeline-type { color: #c9a84c; font-size: 0.78rem; font-weight: 700; }
+  .timeline-body { min-width: 0; }
+  .timeline-main { color: #e0e0e0; font-size: 0.84rem; overflow-wrap: anywhere; }
+  .timeline-sub { color: #888; font-size: 0.74rem; margin-top: 0.25rem; overflow-wrap: anywhere; }
+  @media (max-width: 760px) {
+    .report-review { grid-template-columns: 1fr; }
+    .timeline-event { grid-template-columns: 1fr; }
+  }
 </style>
 </head><body>
 <div class="topbar">
@@ -70,20 +103,22 @@
 <div class="container">
   <div class="stats" id="stats"></div>
   <div class="tabs">
-    <button class="tab active" onclick="showTab('connections')">Connections</button>
-    <button class="tab" onclick="showTab('players')">Players</button>
-    <button class="tab" onclick="showTab('games')">Games</button>
-    <button class="tab" onclick="showTab('events')">Events</button>
-    <button class="tab" onclick="showTab('requests')">HTTP Requests</button>
-    <button class="tab" onclick="showTab('ips')">Top IPs</button>
-    <button class="tab" onclick="showTab('users')">Users</button>
-    <button class="tab" onclick="showTab('query')">Query</button>
+    <button class="tab active" data-tab="connections" onclick="showTab('connections')">Connections</button>
+    <button class="tab" data-tab="players" onclick="showTab('players')">Players</button>
+    <button class="tab" data-tab="games" onclick="showTab('games')">Games</button>
+    <button class="tab" data-tab="events" onclick="showTab('events')">Events</button>
+    <button class="tab" data-tab="botreports" onclick="showTab('botreports')">Bot Reports</button>
+    <button class="tab" data-tab="requests" onclick="showTab('requests')">HTTP Requests</button>
+    <button class="tab" data-tab="ips" onclick="showTab('ips')">Top IPs</button>
+    <button class="tab" data-tab="users" onclick="showTab('users')">Users</button>
+    <button class="tab" data-tab="query" onclick="showTab('query')">Query</button>
   </div>
   <div class="table-wrap">
     <div id="panel-connections" class="panel active"></div>
     <div id="panel-players" class="panel"></div>
     <div id="panel-games" class="panel"></div>
     <div id="panel-events" class="panel"></div>
+    <div id="panel-botreports" class="panel"></div>
     <div id="panel-requests" class="panel"></div>
     <div id="panel-ips" class="panel"></div>
     <div id="panel-users" class="panel"></div>
@@ -93,16 +128,25 @@
 <script>
 const api = path => fetch('/admin/api/' + path).then(r => r.json());
 let currentTab = 'connections';
+const REVIEW_LABELS = {
+  unreviewed: 'Unreviewed',
+  valid_mistake: 'Valid mistake',
+  probably_ok: 'Probably OK',
+  unclear: 'Unclear',
+  needs_replay: 'Needs replay',
+  duplicate: 'Duplicate',
+};
 
 function showTab(name) {
   currentTab = name;
-  document.querySelectorAll('.tab').forEach((t,i) => t.classList.toggle('active', t.textContent.toLowerCase().replace(' ','').includes(name.slice(0,4))));
+  document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.dataset.tab === name));
   document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
   document.getElementById('panel-' + name).classList.add('active');
   loadTab(name);
 }
 
 function esc(s) { if (s == null) return '-'; const d = document.createElement('div'); d.textContent = String(s); return d.innerHTML; }
+function parseJson(raw) { try { return raw ? JSON.parse(raw) : null; } catch(e) { return null; } }
 function ago(dt) {
   if (!dt) return '-';
   const ms = Date.now() - new Date(dt + 'Z').getTime();
@@ -110,6 +154,43 @@ function ago(dt) {
   if (ms < 3600000) return Math.floor(ms/60000) + 'm ago';
   if (ms < 86400000) return Math.floor(ms/3600000) + 'h ago';
   return Math.floor(ms/86400000) + 'd ago';
+}
+
+function reviewBadgeClass(status) {
+  if (status === 'valid_mistake') return 'badge-red';
+  if (status === 'probably_ok') return 'badge-green';
+  if (status === 'unclear' || status === 'needs_replay') return 'badge-blue';
+  if (status === 'duplicate') return 'badge-red';
+  return 'badge-yellow';
+}
+
+function cardsText(cards) {
+  return Array.isArray(cards) ? cards.map(c => c?.id || '?').join(' ') : '';
+}
+
+function summarizeEventRow(row) {
+  const raw = row.event_data ?? row.data;
+  const data = parseJson(raw);
+  if (row.event_type === 'PASS') return 'Pass';
+  if (data?.combination) {
+    return (data.combination.type || row.event_type) + ': ' + cardsText(data.combination.cards);
+  }
+  if (row.event_type === 'WISH_MADE') return 'Wish ' + esc(data?.rank ?? '?');
+  if (row.event_type === 'WISH_FULFILLED') return 'Wish fulfilled';
+  if (row.event_type === 'DRAGON_GIVEN') return 'Dragon given to P' + esc(data?.to ?? '?');
+  if (row.event_type === 'PLAYER_OUT') return 'Player out' + (data?.place ? ' #' + data.place : '');
+  if (row.event_type === 'ROUND_END') return 'Round ended ' + esc(data?.roundScores ? data.roundScores.join(' - ') : '');
+  if (row.event_type === 'GAME_OVER') return 'Game over';
+  return row.event_type;
+}
+
+function botInfoFromRow(row) {
+  const data = parseJson(row.event_data ?? row.data);
+  return data?.bot || null;
+}
+
+function renderReviewOptions(statuses, selected) {
+  return statuses.map(s => '<option value="' + esc(s) + '"' + (s === selected ? ' selected' : '') + '>' + esc(REVIEW_LABELS[s] || s) + '</option>').join('');
 }
 
 async function loadStats() {
@@ -123,6 +204,62 @@ async function loadStats() {
     ['Unique IPs', s.uniqueIPs, 'yellow'],
     ['HTTP Requests', s.totalHttpRequests, 'blue'],
   ].map(([l,v]) => '<div class="stat-card"><div class="label">' + l + '</div><div class="value">' + v + '</div></div>').join('');
+}
+
+function renderBotReports(data) {
+  const statuses = data.reviewStatuses || Object.keys(REVIEW_LABELS);
+  const grouped = data.grouped || [];
+  const recent = data.recent || [];
+  const totalReports = grouped.reduce((sum, g) => sum + Number(g.total_reports || 0), 0);
+  const unreviewed = grouped.reduce((sum, g) => sum + Number(g.unreviewed_reports || 0), 0);
+
+  const groupedHtml = grouped.length
+    ? '<table><tr><th>Branch</th><th>Tier</th><th>Reporters</th><th>Total</th><th>Unreviewed</th><th>Last</th></tr>' +
+      grouped.map(g => '<tr><td>' + esc(g.branch_tag || '(MC/no tag)') + '</td><td>' + esc(g.bot_tier) + '</td><td>' + g.distinct_reporters + '</td><td>' + g.total_reports + '</td><td>' + g.unreviewed_reports + '</td><td title="'+esc(g.last_reported_at)+'">' + ago(g.last_reported_at) + '</td></tr>').join('') +
+      '</table>'
+    : '<div class="empty">No grouped reports yet</div>';
+
+  const cardsHtml = recent.length
+    ? recent.map(r => {
+      const bot = botInfoFromRow(r);
+      const status = r.review_status || 'unreviewed';
+      const branch = r.branch_tag || bot?.branchTag || '(MC/no tag)';
+      const hand = bot?.hand ? bot.hand.join(' ') : '-';
+      const note = r.review_note || '';
+      return '<div class="report-card" id="report-card-' + r.id + '">' +
+        '<div class="report-card-header">' +
+          '<div>' +
+            '<div class="report-title">' +
+              '<strong>Report #' + r.id + '</strong>' +
+              '<span class="badge ' + reviewBadgeClass(status) + '" id="review-badge-' + r.id + '">' + esc(REVIEW_LABELS[status] || status) + '</span>' +
+              '<span class="badge badge-blue">' + esc(r.event_type) + '</span>' +
+              '<span class="badge badge-yellow">' + esc(r.room_code) + '</span>' +
+            '</div>' +
+            '<div class="report-meta">Reported by ' + esc(r.reporter_name || ('User ' + r.reporter_user_id)) + ' ' + ago(r.created_at) + ' · event #' + r.game_event_id + '</div>' +
+          '</div>' +
+          '<button class="report-context-btn" onclick="loadReportContext(' + r.id + ')">Show ±3 plays</button>' +
+        '</div>' +
+        '<div class="report-grid">' +
+          '<div class="report-field"><div class="report-field-label">Branch</div><div class="report-field-value">' + esc(branch) + '</div></div>' +
+          '<div class="report-field"><div class="report-field-label">Tier</div><div class="report-field-value">' + esc(r.bot_tier || bot?.tier || '-') + '</div></div>' +
+          '<div class="report-field"><div class="report-field-label">Reported move</div><div class="report-field-value">' + esc(summarizeEventRow(r)) + '</div></div>' +
+          '<div class="report-field"><div class="report-field-label">Bot hand</div><div class="report-field-value">' + esc(hand) + '</div></div>' +
+        '</div>' +
+        '<div class="report-review">' +
+          '<select id="review-status-' + r.id + '">' + renderReviewOptions(statuses, status) + '</select>' +
+          '<textarea id="review-note-' + r.id + '" maxlength="1000" placeholder="Classification note">' + esc(note) + '</textarea>' +
+          '<div><button onclick="saveReportReview(' + r.id + ')">Save review</button><div class="review-msg" id="review-msg-' + r.id + '"></div></div>' +
+        '</div>' +
+        '<div class="report-context" id="report-context-' + r.id + '"></div>' +
+      '</div>';
+    }).join('')
+    : '<div class="empty">No individual reports yet</div>';
+
+  return '<div class="reports-wrap">' +
+    '<div class="reports-heading"><h2>Bot Play Reports</h2><div class="reports-hint">' + totalReports + ' total · ' + unreviewed + ' unreviewed · click a report for surrounding play context</div></div>' +
+    '<div class="reports-summary">' + groupedHtml + '</div>' +
+    cardsHtml +
+  '</div>';
 }
 
 async function loadTab(name) {
@@ -151,6 +288,10 @@ async function loadTab(name) {
       if (!data.length) { panel.innerHTML = '<div class="empty">No events yet</div>'; return; }
       panel.innerHTML = '<table><tr><th>Time</th><th>Room</th><th>Event</th><th>Player</th><th>Data</th></tr>' +
         data.map(r => '<tr><td title="'+esc(r.created_at)+'">' + ago(r.created_at) + '</td><td>' + esc(r.room_code) + '</td><td><span class="badge badge-blue">' + esc(r.event_type) + '</span></td><td>' + (r.player_position!=null ? 'P'+r.player_position : '-') + '</td><td title="'+esc(r.data)+'">' + esc(r.data?.slice(0,80)) + '</td></tr>').join('') + '</table>';
+    }
+    else if (name === 'botreports') {
+      const data = await api('bot-reports?limit=100');
+      panel.innerHTML = renderBotReports(data);
     }
     else if (name === 'requests') {
       const data = await api('requests?limit=200');
@@ -189,6 +330,70 @@ async function loadTab(name) {
         '<div id="query-result"></div></div>';
     }
   } catch(e) { panel.innerHTML = '<div class="empty">Error loading data</div>'; }
+}
+
+function renderTimelineEvent(ev) {
+  const data = parseJson(ev.data);
+  const bot = data?.bot || null;
+  const offsetLabel = ev.offset === 0 ? 'Reported' : (ev.offset > 0 ? '+' + ev.offset : String(ev.offset));
+  const branch = bot?.branchTag ? ' · ' + bot.branchTag : '';
+  const hand = bot?.hand ? ' · hand: ' + bot.hand.join(' ') : '';
+  const trick = bot?.currentTrickPlays ? ' · trick: ' + bot.currentTrickPlays.map(p => 'P' + p.position + '[' + p.cards.join(' ') + ']').join(' → ') : '';
+  const scores = bot?.scores ? ' · score: ' + bot.scores.join(' - ') : '';
+  return '<div class="timeline-event ' + (ev.offset === 0 ? 'reported' : '') + '">' +
+    '<div class="timeline-offset">' + esc(offsetLabel) + '</div>' +
+    '<div class="timeline-type">' + esc(ev.event_type) + '<div class="timeline-sub">P' + esc(ev.player_position ?? '-') + '</div></div>' +
+    '<div class="timeline-body">' +
+      '<div class="timeline-main">' + esc(summarizeEventRow(ev)) + '</div>' +
+      '<div class="timeline-sub">' + esc('event #' + ev.id + ' · ' + ago(ev.created_at) + branch + scores) + '</div>' +
+      (hand !== '' || trick !== '' ? '<div class="timeline-sub">' + esc((hand + trick).replace(/^ · /, '')) + '</div>' : '') +
+    '</div>' +
+  '</div>';
+}
+
+function renderReportContext(data) {
+  if (data.error) return '<div class="query-error">' + esc(data.error) + '</div>';
+  if (!data.events || !data.events.length) return '<div class="empty">No surrounding events found</div>';
+  return '<div class="timeline">' + data.events.map(renderTimelineEvent).join('') + '</div>';
+}
+
+async function loadReportContext(reportId) {
+  const target = document.getElementById('report-context-' + reportId);
+  if (!target) return;
+  target.innerHTML = '<div class="empty">Loading surrounding plays...</div>';
+  try {
+    const data = await api('bot-reports/' + reportId + '/context?radius=3');
+    target.innerHTML = renderReportContext(data);
+  } catch(e) {
+    target.innerHTML = '<div class="query-error">Could not load context</div>';
+  }
+}
+
+async function saveReportReview(reportId) {
+  const status = document.getElementById('review-status-' + reportId)?.value;
+  const note = document.getElementById('review-note-' + reportId)?.value || '';
+  const msg = document.getElementById('review-msg-' + reportId);
+  if (msg) msg.textContent = 'Saving...';
+  try {
+    const res = await fetch('/admin/api/bot-reports/' + reportId + '/review', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ status, note }),
+    });
+    const data = await res.json();
+    if (data.error) {
+      if (msg) msg.textContent = data.error;
+      return;
+    }
+    const badge = document.getElementById('review-badge-' + reportId);
+    if (badge) {
+      badge.className = 'badge ' + reviewBadgeClass(status);
+      badge.textContent = REVIEW_LABELS[status] || status;
+    }
+    if (msg) msg.textContent = 'Saved';
+  } catch(e) {
+    if (msg) msg.textContent = 'Save failed';
+  }
 }
 
 let lastQueryResult = null;
