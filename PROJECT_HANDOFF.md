@@ -7,6 +7,24 @@
 > Repo: https://github.com/Dremix10/cyprus.git
 > Primary working dir: `/Users/christos/Documents/GitHub/cyprus`
 
+## Companion docs (read alongside this file)
+
+- [`docs/FIRST_30_MINUTES.md`](docs/FIRST_30_MINUTES.md) — concrete onboarding sequence.
+- [`docs/BOT_CONFIG.md`](docs/BOT_CONFIG.md) — `DEFAULT_BOT_CONFIG` defaults + flags
+  that have been tested-and-rejected (do NOT enable).
+- [`docs/BRANCH_TAGS.md`](docs/BRANCH_TAGS.md) — every `lead:` and `follow:` tag in the
+  bot AI.
+- [`docs/SOCKET_EVENTS.md`](docs/SOCKET_EVENTS.md) — every Socket.IO event with payload
+  shape and rate-limit table.
+- [`docs/DATABASE_SCHEMA.md`](docs/DATABASE_SCHEMA.md) — column-level documentation of
+  every table + the `ALTER TABLE` migration approach.
+- [`docs/notes/bot_ai_tuning_results.md`](docs/notes/bot_ai_tuning_results.md) — full
+  record of the 10K-game tuning experiments and tier ladder measurements.
+- [`docs/notes/bot_never_break_bomb.md`](docs/notes/bot_never_break_bomb.md) — the hard
+  rule. No exceptions.
+- [`docs/notes/feedback_simulations.md`](docs/notes/feedback_simulations.md) —
+  workflow lessons for simulation work.
+
 ---
 
 ## 1. Project Overview
@@ -1303,7 +1321,9 @@ curl https://aegist.dev/health
 3. For UI changes: build the client and click through Lobby → Solo game → first round.
 4. For server changes: build, restart, hit `/health`.
 5. Push only to `dev` first if you're nervous; merge to `main` to deploy.
-6. Memory exists at `/Users/christos/.claude/projects/-Users-christos-Documents-GitHub-cyprus/memory/`. **Read those files** before starting on bot work — they encode prior tuning experiments and a hard rule about bombs.
+6. **Read [`docs/notes/`](docs/notes/) before starting on bot work** — those three
+   files (copied from prior assistant memory) encode every tuning experiment, the
+   hard "never break a bomb" rule, and the simulation workflow lessons.
 
 ---
 
