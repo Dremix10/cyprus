@@ -2,6 +2,11 @@
 
 Online multiplayer Tichu card game with bot opponents.
 
+> **Read first**: [`PROJECT_HANDOFF.md`](PROJECT_HANDOFF.md) (master handoff) and
+> [`docs/FIRST_30_MINUTES.md`](docs/FIRST_30_MINUTES.md) (concrete onboarding).
+> Reference docs live in [`docs/`](docs/) — bot config, branch tags, socket events,
+> DB schema, tuning history, and the hard "never break a bomb" rule.
+
 ## Stack
 
 - **Monorepo** with npm workspaces: `packages/client`, `packages/server`, `packages/shared`
