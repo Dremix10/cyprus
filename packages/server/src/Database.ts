@@ -229,6 +229,12 @@ export class TrackerDB {
       CREATE INDEX IF NOT EXISTS idx_bot_reports_event ON bot_play_reports(game_event_id);
       CREATE INDEX IF NOT EXISTS idx_bot_reports_branch ON bot_play_reports(branch_tag);
       CREATE INDEX IF NOT EXISTS idx_bot_reports_at ON bot_play_reports(created_at);
+
+      CREATE TABLE IF NOT EXISTS game_event_snapshots (
+        game_event_id INTEGER PRIMARY KEY REFERENCES game_events(id) ON DELETE CASCADE,
+        snapshot TEXT NOT NULL,
+        created_at TEXT DEFAULT (datetime('now'))
+      );
     `);
 
     // ─── Migrations for existing databases ──────────────────────────
@@ -395,6 +401,16 @@ export class TrackerDB {
       `INSERT INTO game_events (game_id, room_code, event_type, player_position, data) VALUES (?, ?, ?, ?, ?)`
     ).run(gameId, roomCode, eventType, playerPosition, data ? JSON.stringify(data) : null);
     return Number(result.lastInsertRowid);
+  }
+
+  logGameEventSnapshot(gameEventId: number, snapshot: unknown): void {
+    try {
+      this.db.prepare(
+        `INSERT OR REPLACE INTO game_event_snapshots (game_event_id, snapshot) VALUES (?, ?)`
+      ).run(gameEventId, JSON.stringify(snapshot));
+    } catch {
+      // Replay snapshots are admin-only diagnostics; game flow must not depend on them.
+    }
   }
 
   /** Fetch a game event by id (used by report validation). */
@@ -585,6 +601,7 @@ export class TrackerDB {
       data: string | null;
       created_at: string;
       offset: number;
+      snapshot: string | null;
     }>;
   } | undefined {
     const report = this.db.prepare(
@@ -635,8 +652,11 @@ export class TrackerDB {
          )
          SELECT ordered.id, ordered.game_id, ordered.room_code, ordered.event_type,
                 ordered.player_position, ordered.data, ordered.created_at,
+                snapshots.snapshot,
                 ordered.rn - target.target_rn AS offset
-         FROM ordered, target
+         FROM ordered
+         CROSS JOIN target
+         LEFT JOIN game_event_snapshots snapshots ON snapshots.game_event_id = ordered.id
          WHERE ordered.rn BETWEEN target.target_rn - ? AND target.target_rn + ?
          ORDER BY ordered.rn ASC`
       ).all(report.game_id, report.game_event_id, boundedRadius, boundedRadius)
@@ -652,8 +672,11 @@ export class TrackerDB {
          )
          SELECT ordered.id, ordered.game_id, ordered.room_code, ordered.event_type,
                 ordered.player_position, ordered.data, ordered.created_at,
+                snapshots.snapshot,
                 ordered.rn - target.target_rn AS offset
-         FROM ordered, target
+         FROM ordered
+         CROSS JOIN target
+         LEFT JOIN game_event_snapshots snapshots ON snapshots.game_event_id = ordered.id
          WHERE ordered.rn BETWEEN target.target_rn - ? AND target.target_rn + ?
          ORDER BY ordered.rn ASC`
       ).all(report.room_code, report.game_event_id, boundedRadius, boundedRadius);
@@ -669,6 +692,104 @@ export class TrackerDB {
         data: string | null;
         created_at: string;
         offset: number;
+        snapshot: string | null;
+      }>,
+    };
+  }
+
+  /** Fetch replayable move events around one bot report. Uses PLAY/PASS/BOMB only. */
+  getBotReportReplay(reportId: number, radius: number = 3): {
+    report: {
+      id: number;
+      game_event_id: number;
+      reporter_user_id: number;
+      reporter_name: string | null;
+      branch_tag: string | null;
+      bot_tier: string | null;
+      review_status: BotReportReviewStatus;
+      review_note: string | null;
+      reviewed_at: string | null;
+      reviewed_by: string | null;
+      game_id: number | null;
+      event_type: string;
+      event_data: string | null;
+      room_code: string | null;
+      event_created_at: string | null;
+      created_at: string;
+    };
+    events: Array<{
+      id: number;
+      game_id: number | null;
+      room_code: string | null;
+      event_type: string;
+      player_position: number | null;
+      data: string | null;
+      created_at: string;
+      offset: number;
+      snapshot: string | null;
+    }>;
+  } | undefined {
+    const context = this.getBotReportContext(reportId, 0);
+    if (!context) return undefined;
+
+    const report = context.report;
+    const boundedRadius = Math.max(0, Math.min(radius, 10));
+    const events = report.game_id !== null
+      ? this.db.prepare(
+        `WITH ordered AS (
+           SELECT id, game_id, room_code, event_type, player_position, data, created_at,
+                  ROW_NUMBER() OVER (ORDER BY id ASC) AS rn
+           FROM game_events
+           WHERE game_id = ?
+             AND event_type IN ('PLAY', 'PASS', 'BOMB')
+         ),
+         target AS (
+           SELECT rn AS target_rn FROM ordered WHERE id = ?
+         )
+         SELECT ordered.id, ordered.game_id, ordered.room_code, ordered.event_type,
+                ordered.player_position, ordered.data, ordered.created_at,
+                snapshots.snapshot,
+                ordered.rn - target.target_rn AS offset
+         FROM ordered
+         CROSS JOIN target
+         LEFT JOIN game_event_snapshots snapshots ON snapshots.game_event_id = ordered.id
+         WHERE ordered.rn BETWEEN target.target_rn - ? AND target.target_rn + ?
+         ORDER BY ordered.rn ASC`
+      ).all(report.game_id, report.game_event_id, boundedRadius, boundedRadius)
+      : this.db.prepare(
+        `WITH ordered AS (
+           SELECT id, game_id, room_code, event_type, player_position, data, created_at,
+                  ROW_NUMBER() OVER (ORDER BY id ASC) AS rn
+           FROM game_events
+           WHERE room_code = ?
+             AND event_type IN ('PLAY', 'PASS', 'BOMB')
+         ),
+         target AS (
+           SELECT rn AS target_rn FROM ordered WHERE id = ?
+         )
+         SELECT ordered.id, ordered.game_id, ordered.room_code, ordered.event_type,
+                ordered.player_position, ordered.data, ordered.created_at,
+                snapshots.snapshot,
+                ordered.rn - target.target_rn AS offset
+         FROM ordered
+         CROSS JOIN target
+         LEFT JOIN game_event_snapshots snapshots ON snapshots.game_event_id = ordered.id
+         WHERE ordered.rn BETWEEN target.target_rn - ? AND target.target_rn + ?
+         ORDER BY ordered.rn ASC`
+      ).all(report.room_code, report.game_event_id, boundedRadius, boundedRadius);
+
+    return {
+      report,
+      events: events as Array<{
+        id: number;
+        game_id: number | null;
+        room_code: string | null;
+        event_type: string;
+        player_position: number | null;
+        data: string | null;
+        created_at: string;
+        offset: number;
+        snapshot: string | null;
       }>,
     };
   }

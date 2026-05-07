@@ -306,6 +306,20 @@ Player flags for "this bot play looked wrong."
 Indexes: `idx_bot_reports_event`, `idx_bot_reports_branch`, `idx_bot_reports_at`,
 `idx_bot_reports_review_status`.
 
+### `game_event_snapshots`
+
+Private admin replay snapshots for bot-report testing. These are keyed by event id and
+are **not** sent through Socket.IO to players.
+
+| Column | Type | Notes |
+|---|---|---|
+| `game_event_id` | INTEGER PK FK → game_events.id | event whose pre-action state was captured |
+| `snapshot` | TEXT NOT NULL | JSON: phase, scores, trick state, all player hands, tichu calls, pending flags |
+| `created_at` | TEXT | |
+
+Only events logged after this table was added have full-hand snapshots. Older bot reports
+fall back to the reported bot's hand from `game_events.data.bot.hand`.
+
 ## Migrations
 
 Migrations are appended to the `addColumnMigrations` list in `Database.init`:
