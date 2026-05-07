@@ -300,6 +300,17 @@ function filterAceWasteInLeads(playable: Card[][]): Card[][] {
 }
 
 /**
+ * Phoenix is too valuable to open a trick as a bare single unless it is the only
+ * playable lead. It is still allowed inside real combinations and as the final card.
+ */
+function filterPhoenixSingleWasteInLeads(playable: Card[][]): Card[][] {
+  const filtered = playable.filter(
+    (cards) => !(cards.length === 1 && isSpecial(cards[0], SpecialCardType.PHOENIX))
+  );
+  return filtered.length > 0 ? filtered : playable;
+}
+
+/**
  * Strip any play that would break up a 4-of-a-kind in hand.
  *
  * Hard rule, no exceptions: if the hand has all 4 cards of some rank, the only play
@@ -413,6 +424,69 @@ export class BotAI {
   private tag(branch: string): void {
     this.recorder?.record(branch);
     this.lastBranch = branch;
+  }
+
+  private isPlayerOut(position: PlayerPosition, context?: GameContext): boolean {
+    if (!context) return false;
+    return context.finishOrder.includes(position) || (context.playerCardCounts.get(position) ?? 14) <= 0;
+  }
+
+  private isPartnerMahjongWish(currentTrick: TrickState, wish: WishState, partnerPos: PlayerPosition): boolean {
+    if (!wish.active || wish.wishedRank === null) return false;
+    const leadPlay = currentTrick.plays[0];
+    if (!leadPlay || leadPlay.playerPosition !== partnerPos) return false;
+    return leadPlay.combination.type === CombinationType.SINGLE &&
+      leadPlay.combination.cards.length === 1 &&
+      isSpecial(leadPlay.combination.cards[0], SpecialCardType.MAHJONG);
+  }
+
+  private pickLowestNormalSingle(playable: Card[][]): string[] | null {
+    const singles = playable.filter((cards) => cards.length === 1 && isNormalCard(cards[0]));
+    if (singles.length === 0) return null;
+    const sorted = this.sortByRank(singles);
+    return sorted[0].map((c) => c.id);
+  }
+
+  private filterWastefulPhoenixFollowSingles(
+    playable: Card[][],
+    hand: Card[],
+    currentTrick: TrickState,
+    opponentAboutToOut: boolean,
+    cardInfo?: CardCountInfo | null,
+  ): Card[][] {
+    const hasPhoenixSingle = playable.some(
+      (cards) => cards.length === 1 && isSpecial(cards[0], SpecialCardType.PHOENIX)
+    );
+    if (!hasPhoenixSingle || hand.length <= this.config.phoenixFollowMaxCards) {
+      return playable;
+    }
+
+    const normalAlternatives = playable.filter((cards) => cards.length === 1 && isNormalCard(cards[0]));
+    if (normalAlternatives.length === 0) return playable;
+    if (opponentAboutToOut) {
+      const filtered = playable.filter(
+        (cards) => !(cards.length === 1 && isSpecial(cards[0], SpecialCardType.PHOENIX))
+      );
+      return filtered.length > 0 ? filtered : playable;
+    }
+
+    const topRank = currentTrick.plays[currentTrick.plays.length - 1]?.combination?.rank ?? 0;
+    const phoenixResultingRank = topRank + 0.5;
+    const canBeOvertaken = cardInfo
+      ? cardInfo.remainingCards.some((c) => {
+          if (isSpecial(c, SpecialCardType.DRAGON)) return true;
+          if (isNormalCard(c) && c.rank > phoenixResultingRank) return true;
+          return false;
+        })
+      : false;
+    const lowValuePhoenix = topRank < this.config.phoenixFollowMinRank;
+
+    if (!canBeOvertaken && !lowValuePhoenix) return playable;
+
+    const filtered = playable.filter(
+      (cards) => !(cards.length === 1 && isSpecial(cards[0], SpecialCardType.PHOENIX))
+    );
+    return filtered.length > 0 ? filtered : playable;
   }
 
   // ─── Grand Tichu ────────────────────────────────────────────────────
@@ -739,6 +813,8 @@ export class BotAI {
     if (isLeading) {
       playable = filterAceWasteInLeads(playable);
       if (playable.length === 0) return null;
+      playable = filterPhoenixSingleWasteInLeads(playable);
+      if (playable.length === 0) return null;
     }
 
     if (this.effectiveDifficulty === 'easy') {
@@ -747,7 +823,7 @@ export class BotAI {
 
     if (this.effectiveDifficulty === 'medium') {
       if (isLeading) return this.chooseLeadMedium(hand, playable, botPosition, context);
-      return this.chooseFollowMedium(hand, playable, currentTrick, botPosition, context);
+      return this.chooseFollowMedium(hand, playable, currentTrick, wish, botPosition, context);
     }
 
     // Compute card tracker once — used by MC pre-filter and heuristic fallback
@@ -821,7 +897,7 @@ export class BotAI {
     if (isLeading) {
       return this.chooseLeadHard(hand, playable, botPosition, context, cardInfo);
     }
-    return this.chooseFollowHard(hand, playable, currentTrick, botPosition, context, cardInfo);
+    return this.chooseFollowHard(hand, playable, currentTrick, wish, botPosition, context, cardInfo);
   }
 
   // ─── Easy ────────────────────────────────────────────────────────
@@ -835,18 +911,21 @@ export class BotAI {
   // ─── Medium Leading ──────────────────────────────────────────────
 
   private chooseLeadMedium(hand: Card[], playable: Card[][], botPosition?: PlayerPosition, context?: GameContext): string[] {
+    const { bombs, regular } = this.splitBombs(playable);
+
     // Filter out multi-card combos that waste aces (pairs/trips/full houses of aces)
-    const multiCard = playable.filter((c) => c.length > 1).filter((combo) => {
+    const multiCard = regular.filter((c) => c.length > 1).filter((combo) => {
       const aceCount = combo.filter((c) => isNormalCard(c) && c.rank === NR.ACE).length;
       // Don't lead pairs/trips/full houses containing aces (save aces as singles)
       if (aceCount > 0 && combo.length <= 5) return false;
       return true;
     });
-    const singles = playable.filter((c) => c.length === 1);
+    const singles = regular.filter((c) => c.length === 1);
     const nonSpecialSingles = singles.filter(
       (c) =>
         !isSpecial(c[0], SpecialCardType.DOG) &&
-        !isSpecial(c[0], SpecialCardType.DRAGON)
+        !isSpecial(c[0], SpecialCardType.DRAGON) &&
+        !isSpecial(c[0], SpecialCardType.PHOENIX)
     );
 
     // Counter opponent Tichu: lead high to steal tricks
@@ -867,7 +946,11 @@ export class BotAI {
       return this.pickLowestCombo(nonSpecialSingles);
     }
 
-    return this.pickLowestCombo(playable);
+    if (regular.length > 0) {
+      return this.pickLowestCombo(regular);
+    }
+
+    return this.pickLowestCombo(bombs);
   }
 
   // ─── Medium Following ────────────────────────────────────────────
@@ -876,15 +959,18 @@ export class BotAI {
     hand: Card[],
     playable: Card[][],
     currentTrick: TrickState,
+    wish: WishState,
     botPosition: PlayerPosition,
     context?: GameContext
   ): string[] | null {
     const partnerPos = ((botPosition + 2) % 4) as PlayerPosition;
     const partnerWinning = currentTrick.currentWinner === partnerPos;
+    const partnerOut = this.isPlayerOut(partnerPos, context);
 
     const { bombs, regular } = this.splitBombs(playable);
 
     const trickPoints = this.estimateTrickPoints(currentTrick);
+    const opponentAboutToOut = context ? this.isOpponentAboutToOut(botPosition, context) : false;
 
     // Bomb if opponent called Tichu and is winning this trick with few cards left
     if (bombs.length > 0 && !partnerWinning && context) {
@@ -908,8 +994,23 @@ export class BotAI {
       }
     }
 
-    // Partner is winning — don't play on top of them
-    if (partnerWinning) return null;
+    // Partner is winning — don't play on top of them, unless they are already out
+    // and we can advance our own endgame with a regular play.
+    if (partnerWinning) {
+      if (partnerOut && hand.length <= 3 && regular.length > 0) {
+        this.tag('follow:endgame-partner-out');
+        const sorted = this.sortByRank(regular);
+        return sorted[0].map((c) => c.id);
+      }
+      if (this.isPartnerMahjongWish(currentTrick, wish, partnerPos)) {
+        const play = this.pickLowestNormalSingle(regular);
+        if (play) {
+          this.tag('follow:protect-partner-mahjong-wish');
+          return play;
+        }
+      }
+      return null;
+    }
 
     if (regular.length === 0) {
       if (hand.length <= this.config.bombEndgameCards && bombs.length > 0) {
@@ -918,7 +1019,14 @@ export class BotAI {
       return null;
     }
 
-    const sorted = this.sortByRank(regular);
+    const followChoices = this.filterWastefulPhoenixFollowSingles(
+      regular,
+      hand,
+      currentTrick,
+      opponentAboutToOut,
+      null,
+    );
+    const sorted = this.sortByRank(followChoices);
     const lowestBeat = sorted[0];
     const lowestCombo = detectCombination(lowestBeat);
 
@@ -947,6 +1055,8 @@ export class BotAI {
   ): string[] {
     const combos = this.categorizeCombos(playable);
     const plan = planHand(hand);
+    const opponentTichuActive = context ? this.hasOpponentTichuCall(botPosition, context) : false;
+    const opponentAboutToOut = context ? this.isOpponentAboutToOut(botPosition, context) : false;
 
     // ── Endgame: 1-3 cards left, just go out ──
     if (hand.length <= 3) {
@@ -998,7 +1108,7 @@ export class BotAI {
     }
 
     // ── Counter opponent Tichu: force a pass or burn, without giving up the Dragon ──
-    if (context && this.hasOpponentTichuCall(botPosition, context)) {
+    if (opponentTichuActive) {
       // 1. Lead strong multi-card combos first — much more likely to force a pass
       //    (Tichu caller often can't match a high pair/trip/5+ straight)
       const strongMulti = combos.multiCard.filter((combo) => {
@@ -1045,6 +1155,18 @@ export class BotAI {
           return dragonPlay.map((c) => c.id);
         }
       }
+    }
+
+    const leadBombReason = this.getLeadBombReason(
+      hand,
+      combos.regular.length,
+      opponentAboutToOut,
+      opponentTichuActive,
+      combos.bombs.length,
+    );
+    if (leadBombReason) {
+      this.tag(`lead:bomb-${leadBombReason}`);
+      return this.pickLowestCombo(combos.bombs);
     }
 
     // ── Prefer aces as singles — filter out non-straight combos containing aces ──
@@ -1132,7 +1254,10 @@ export class BotAI {
     }
 
     this.tag('lead:fallback');
-    return this.pickLowestCombo(playable);
+    if (combos.regular.length > 0) {
+      return this.pickLowestCombo(combos.regular);
+    }
+    return this.pickLowestCombo(combos.bombs);
   }
 
   // ─── Hard Following ──────────────────────────────────────────────
@@ -1141,12 +1266,14 @@ export class BotAI {
     hand: Card[],
     playable: Card[][],
     currentTrick: TrickState,
+    wish: WishState,
     botPosition: PlayerPosition,
     context?: GameContext,
     cardInfo?: CardCountInfo | null
   ): string[] | null {
     const partnerPos = ((botPosition + 2) % 4) as PlayerPosition;
     const partnerWinning = currentTrick.currentWinner === partnerPos;
+    const partnerOut = this.isPlayerOut(partnerPos, context);
     const trickPoints = this.estimateTrickPoints(currentTrick);
     const { bombs, regular } = this.splitBombs(playable);
 
@@ -1161,15 +1288,15 @@ export class BotAI {
 
     // ── Endgame urgency: play to go out ──
     // Skip if partner is already winning — don't overtake partner, especially if they called Tichu.
-    // Exception: if *we* called Tichu/GT, we still need to race out.
+    // Exceptions: if *we* called Tichu/GT or partner is already out, we still need to race out.
     if (hand.length <= 3 && regular.length > 0) {
       const botCalledTichu = !!context && (
         context.tichuCalls[botPosition] === 'tichu' ||
         context.tichuCalls[botPosition] === 'grand_tichu'
       );
-      if (!partnerWinning || botCalledTichu) {
+      if (!partnerWinning || botCalledTichu || partnerOut) {
         const sorted = this.sortByRank(regular);
-        this.tag('follow:endgame-urgency');
+        this.tag(partnerWinning && partnerOut ? 'follow:endgame-partner-out' : 'follow:endgame-urgency');
         return sorted[0].map((c) => c.id);
       }
     }
@@ -1197,6 +1324,13 @@ export class BotAI {
       if (opponentAboutToOut && bombs.length > 0) {
         this.tag('follow:bomb-block-opp-out');
         return this.pickLowestCombo(bombs);
+      }
+      if (this.isPartnerMahjongWish(currentTrick, wish, partnerPos)) {
+        const play = this.pickLowestNormalSingle(regular);
+        if (play) {
+          this.tag('follow:protect-partner-mahjong-wish');
+          return play;
+        }
       }
       // Partner is winning — let them have it
       this.tag('follow:pass-partner-winning');
@@ -1263,7 +1397,14 @@ export class BotAI {
       return null;
     }
 
-    const sorted = this.sortByRank(regular);
+    const followChoices = this.filterWastefulPhoenixFollowSingles(
+      regular,
+      hand,
+      currentTrick,
+      opponentAboutToOut,
+      cardInfo,
+    );
+    const sorted = this.sortByRank(followChoices);
 
     // ── Smart card selection ──
     const bestPlay = this.findBestFollowCard(hand, sorted, trickPoints, cardInfo);
@@ -1290,6 +1431,10 @@ export class BotAI {
     // there's no urgency. Endgame (hand <= phoenixFollowMaxCards) skips this save entirely.
     if (lowestBeat.length === 1 && isSpecial(lowestBeat[0], SpecialCardType.PHOENIX)) {
       if (hand.length > this.config.phoenixFollowMaxCards) {
+        if (opponentAboutToOut) {
+          this.tag('follow:play-opp-about-out');
+          return lowestBeat.map((c) => c.id);
+        }
         const topRank = currentTrick.plays[currentTrick.plays.length - 1]?.combination?.rank ?? 0;
         const phoenixResultingRank = topRank + 0.5;
         const canBeOvertaken = cardInfo
@@ -1452,6 +1597,21 @@ export class BotAI {
     return false;
   }
 
+  private getLeadBombReason(
+    hand: Card[],
+    regularCount: number,
+    opponentAboutToOut: boolean,
+    opponentTichuActive: boolean,
+    bombCount: number,
+  ): 'only' | 'endgame' | 'block-opp-out' | 'opp-tichu' | null {
+    if (bombCount === 0) return null;
+    if (regularCount === 0) return 'only';
+    if (hand.length <= this.config.bombEndgameCards) return 'endgame';
+    if (opponentAboutToOut) return 'block-opp-out';
+    if (opponentTichuActive && bombCount >= 2) return 'opp-tichu';
+    return null;
+  }
+
   private hasOpponentTichuCall(botPosition: PlayerPosition, context: GameContext): boolean {
     for (const pos of [0, 1, 2, 3] as PlayerPosition[]) {
       if (pos % 2 === botPosition % 2) continue; // skip teammates
@@ -1490,14 +1650,16 @@ export class BotAI {
   // ─── Utility Methods ─────────────────────────────────────────────
 
   private categorizeCombos(playable: Card[][]) {
-    const singles = playable.filter((c) => c.length === 1);
+    const { bombs, regular } = this.splitBombs(playable);
+    const singles = regular.filter((c) => c.length === 1);
     const nonSpecialSingles = singles.filter(
       (c) =>
         !isSpecial(c[0], SpecialCardType.DOG) &&
-        !isSpecial(c[0], SpecialCardType.DRAGON)
+        !isSpecial(c[0], SpecialCardType.DRAGON) &&
+        !isSpecial(c[0], SpecialCardType.PHOENIX)
     );
-    const multiCard = playable.filter((c) => c.length > 1);
-    return { singles, nonSpecialSingles, multiCard };
+    const multiCard = regular.filter((c) => c.length > 1);
+    return { bombs, regular, singles, nonSpecialSingles, multiCard };
   }
 
   private findIsolatedMultiCardCombos(hand: Card[], multiCard: Card[][]): Card[][] {

@@ -389,8 +389,89 @@ function renderReviewOptions(statuses, selected) {
   return statuses.map(s => '<option value="' + esc(s) + '"' + (s === selected ? ' selected' : '') + '>' + esc(REVIEW_LABELS[s] || s) + '</option>').join('');
 }
 
+function reportStatusPriority(status) {
+  const s = status || 'unreviewed';
+  if (s === 'valid_mistake') return 5;
+  if (s === 'unclear') return 4;
+  if (s === 'unreviewed') return 3;
+  if (s === 'not_bug') return 2;
+  if (s === 'duplicate') return 1;
+  return 0;
+}
+
+function reportTimestamp(report) {
+  const time = Date.parse(report?.created_at || '');
+  return Number.isFinite(time) ? time : 0;
+}
+
+function reporterName(report) {
+  return report?.reporter_name || ('User ' + report?.reporter_user_id);
+}
+
+function uniqueValues(values) {
+  const seen = new Set();
+  const out = [];
+  values.forEach(value => {
+    if (value == null || value === '') return;
+    const key = String(value);
+    if (seen.has(key)) return;
+    seen.add(key);
+    out.push(key);
+  });
+  return out;
+}
+
+function reportIdLabel(report) {
+  const ids = report.report_ids || [report.id];
+  return ids.map(id => '#' + id).join('/');
+}
+
+function groupReportsByEvent(reports) {
+  const groups = new Map();
+  reports.forEach(report => {
+    const key = report.game_event_id || report.id;
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key).push(report);
+  });
+
+  return Array.from(groups.values()).map(groupReports => {
+    const sortedReports = [...groupReports].sort((a, b) => reportTimestamp(b) - reportTimestamp(a));
+    const canonical = [...groupReports].sort((a, b) => {
+      const priorityDiff = reportStatusPriority(b.review_status) - reportStatusPriority(a.review_status);
+      if (priorityDiff !== 0) return priorityDiff;
+      return reportTimestamp(b) - reportTimestamp(a);
+    })[0];
+    const reporterNames = uniqueValues(sortedReports.map(reporterName));
+    const statuses = uniqueValues(sortedReports.map(r => r.review_status || 'unreviewed'))
+      .sort((a, b) => reportStatusPriority(b) - reportStatusPriority(a));
+    const notes = sortedReports
+      .filter(r => r.review_note)
+      .map(r => reportIdLabel({ report_ids: [r.id], id: r.id }) + ' ' + (REVIEW_LABELS[r.review_status] || r.review_status || 'unreviewed') + ': ' + r.review_note);
+
+    return {
+      ...canonical,
+      created_at: sortedReports[0]?.created_at || canonical.created_at,
+      report_count: sortedReports.length,
+      report_ids: sortedReports.map(r => r.id),
+      reporter_names: reporterNames,
+      review_statuses: statuses,
+      review_notes: notes,
+      reports: sortedReports,
+    };
+  }).sort((a, b) => reportTimestamp(b) - reportTimestamp(a));
+}
+
+function renderStatusBadges(report) {
+  const statuses = report.review_statuses?.length ? report.review_statuses : [report.review_status || 'unreviewed'];
+  return statuses.map((status, index) =>
+    '<span class="badge ' + reviewBadgeClass(status) + '" ' + (index === 0 ? 'id="review-badge-' + report.id + '"' : '') + '>' + esc(REVIEW_LABELS[status] || status) + '</span>'
+  ).join('');
+}
+
 function renderReportOption(r) {
-  const label = '#' + r.id + ' · ' + (r.branch_tag || r.event_type || 'report') + ' · ' + ago(r.created_at);
+  const reporters = r.reporter_names?.length ? ' · ' + r.reporter_names.join(', ') : '';
+  const count = Number(r.report_count) > 1 ? ' · ' + r.report_count + ' reports' : '';
+  const label = reportIdLabel(r) + ' · ' + (r.branch_tag || r.event_type || 'report') + count + reporters + ' · ' + ago(r.created_at);
   return '<option value="' + r.id + '">' + esc(label) + '</option>';
 }
 
@@ -445,9 +526,10 @@ async function loadStats() {
 function renderBotReports(data) {
   const statuses = data.reviewStatuses || Object.keys(REVIEW_LABELS);
   const grouped = data.grouped || [];
-  const recent = data.recent || [];
+  const recent = groupReportsByEvent(data.recent || []);
   const totalReports = grouped.reduce((sum, g) => sum + Number(g.total_reports || 0), 0);
   const unreviewed = grouped.reduce((sum, g) => sum + Number(g.unreviewed_reports || 0), 0);
+  const duplicateCount = recent.reduce((sum, r) => sum + Math.max(0, Number(r.report_count || 1) - 1), 0);
 
   const groupedHtml = grouped.length
     ? '<table><tr><th>Branch</th><th>Tier</th><th>Reporters</th><th>Total</th><th>Unreviewed</th><th>Last</th></tr>' +
@@ -462,37 +544,44 @@ function renderBotReports(data) {
       const branch = r.branch_tag || bot?.branchTag || '(MC/no tag)';
       const hand = bot?.hand ? bot.hand.join(' ') : '-';
       const note = r.review_note || '';
+      const reporterText = r.reporter_names?.length ? r.reporter_names.join(', ') : reporterName(r);
+      const statusText = r.review_statuses?.length ? r.review_statuses.map(s => REVIEW_LABELS[s] || s).join(', ') : (REVIEW_LABELS[status] || status);
+      const notesText = r.review_notes?.length ? r.review_notes.join(' | ') : '-';
       return '<div class="report-card" id="report-card-' + r.id + '">' +
         '<div class="report-card-header">' +
           '<div>' +
             '<div class="report-title">' +
-              '<strong>Report #' + r.id + '</strong>' +
-              '<span class="badge ' + reviewBadgeClass(status) + '" id="review-badge-' + r.id + '">' + esc(REVIEW_LABELS[status] || status) + '</span>' +
+              '<strong>Report ' + esc(reportIdLabel(r)) + '</strong>' +
+              (Number(r.report_count) > 1 ? '<span class="badge badge-blue">' + r.report_count + ' reports</span>' : '') +
+              '<span id="review-badges-' + r.id + '">' + renderStatusBadges(r) + '</span>' +
               '<span class="badge badge-blue">' + esc(r.event_type) + '</span>' +
               '<span class="badge badge-yellow">' + esc(r.room_code) + '</span>' +
             '</div>' +
-            '<div class="report-meta">Reported by ' + esc(r.reporter_name || ('User ' + r.reporter_user_id)) + ' ' + ago(r.created_at) + ' · event #' + r.game_event_id + '</div>' +
+            '<div class="report-meta">Reported by ' + esc(reporterText) + ' · latest ' + ago(r.created_at) + ' · event #' + r.game_event_id + '</div>' +
           '</div>' +
           '<button class="report-context-btn" onclick="loadReportContext(' + r.id + ')">Show ±3 plays</button>' +
         '</div>' +
         '<div class="report-grid">' +
+          '<div class="report-field"><div class="report-field-label">Reporters</div><div class="report-field-value">' + esc(reporterText) + '</div></div>' +
+          '<div class="report-field"><div class="report-field-label">Review statuses</div><div class="report-field-value">' + esc(statusText) + '</div></div>' +
           '<div class="report-field"><div class="report-field-label">Branch</div><div class="report-field-value">' + esc(branch) + '</div></div>' +
           '<div class="report-field"><div class="report-field-label">Tier</div><div class="report-field-value">' + esc(r.bot_tier || bot?.tier || '-') + '</div></div>' +
           '<div class="report-field"><div class="report-field-label">Reported move</div><div class="report-field-value">' + esc(summarizeEventRow(r)) + '</div></div>' +
           '<div class="report-field"><div class="report-field-label">Bot hand</div><div class="report-field-value">' + esc(hand) + '</div></div>' +
+          '<div class="report-field"><div class="report-field-label">Review notes</div><div class="report-field-value">' + esc(notesText) + '</div></div>' +
         '</div>' +
         '<div class="report-review">' +
           '<select id="review-status-' + r.id + '">' + renderReviewOptions(statuses, status) + '</select>' +
           '<textarea id="review-note-' + r.id + '" maxlength="1000" placeholder="Classification note">' + esc(note) + '</textarea>' +
-          '<div><button onclick="saveReportReview(' + r.id + ')">Save review</button><div class="review-msg" id="review-msg-' + r.id + '"></div></div>' +
+          '<div><button onclick="saveReportReview(' + r.id + ', [' + r.report_ids.join(',') + '])">Save review</button><div class="review-msg" id="review-msg-' + r.id + '"></div></div>' +
         '</div>' +
         '<div class="report-context" id="report-context-' + r.id + '"></div>' +
       '</div>';
     }).join('')
-    : '<div class="empty">No individual reports yet</div>';
+    : '<div class="empty">No reported plays yet</div>';
 
   return '<div class="reports-wrap">' +
-    '<div class="reports-heading"><h2>Reported Bot Plays</h2><div class="reports-hint">' + totalReports + ' total · ' + unreviewed + ' unreviewed · use Show ±3 plays for surrounding context</div></div>' +
+    '<div class="reports-heading"><h2>Reported Bot Plays</h2><div class="reports-hint">' + totalReports + ' total · ' + recent.length + ' unique plays · ' + duplicateCount + ' duplicate reports grouped · ' + unreviewed + ' unreviewed</div></div>' +
     renderReportTestPanel(recent) +
     '<div class="reports-summary">' + groupedHtml + '</div>' +
     cardsHtml +
@@ -866,28 +955,33 @@ async function loadReportContext(reportId) {
   }
 }
 
-async function saveReportReview(reportId) {
+async function saveReportReview(reportId, reportIds) {
   const status = document.getElementById('review-status-' + reportId)?.value;
   const note = document.getElementById('review-note-' + reportId)?.value || '';
   const msg = document.getElementById('review-msg-' + reportId);
+  const ids = Array.isArray(reportIds) && reportIds.length ? reportIds : [reportId];
   if (msg) msg.textContent = 'Saving...';
   try {
-    const res = await fetch('/admin/api/bot-reports/' + reportId + '/review', {
-      method: 'POST',
-      headers: {'Content-Type':'application/json'},
-      body: JSON.stringify({ status, note }),
-    });
-    const data = await res.json();
-    if (data.error) {
-      if (msg) msg.textContent = data.error;
-      return;
+    for (const id of ids) {
+      const res = await fetch('/admin/api/bot-reports/' + id + '/review', {
+        method: 'POST',
+        headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({ status, note }),
+      });
+      const data = await res.json();
+      if (data.error) {
+        if (msg) msg.textContent = data.error;
+        return;
+      }
     }
+    const badges = document.getElementById('review-badges-' + reportId);
+    if (badges) badges.innerHTML = '<span class="badge ' + reviewBadgeClass(status) + '" id="review-badge-' + reportId + '">' + esc(REVIEW_LABELS[status] || status) + '</span>';
     const badge = document.getElementById('review-badge-' + reportId);
     if (badge) {
       badge.className = 'badge ' + reviewBadgeClass(status);
       badge.textContent = REVIEW_LABELS[status] || status;
     }
-    if (msg) msg.textContent = 'Saved';
+    if (msg) msg.textContent = ids.length > 1 ? 'Saved ' + ids.length + ' reports' : 'Saved';
   } catch(e) {
     if (msg) msg.textContent = 'Save failed';
   }
