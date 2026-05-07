@@ -113,6 +113,10 @@ export class GameEngine {
     };
   }
 
+  getTargetScore(): number {
+    return this.targetScore;
+  }
+
   /** Start a new round: deal initial 8 cards, enter Grand Tichu phase. */
   startRound(): GameEvent[] {
     this.events = [];

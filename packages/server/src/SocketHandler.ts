@@ -17,6 +17,7 @@ import { GamePersistence } from './GamePersistence.js';
 import { BotController } from './BotController.js';
 import { BotAI } from './BotAI.js';
 import { monteCarloEvaluate } from './MonteCarloSim.js';
+import { buildReplaySnapshot, type ReplaySnapshot } from './ReplaySnapshot.js';
 import type { TichuCall, Card } from '@cyprus/shared';
 
 type TypedServer = Server<ClientToServerEvents, ServerToClientEvents>;
@@ -718,12 +719,14 @@ export class SocketHandler {
     }
 
     try {
+      const replaySnapshot = buildReplaySnapshot(info.room.engine);
       const events = action(info.room.engine, info.position);
       const gameId = roomGameIds.get(info.room.code) || null;
 
       for (const event of events) {
         const eventId = this.db?.logGameEvent(gameId, info.room.code, event.type, event.playerPosition ?? null, event.data);
         if (eventId !== undefined) event.id = eventId;
+        if (eventId !== undefined) this.db?.logGameEventSnapshot(eventId, replaySnapshot);
         this.io.to(info.room.code).emit('game:event', event);
 
         if (event.type === 'GAME_OVER' && gameId) {
@@ -769,7 +772,10 @@ export class SocketHandler {
 
     // Run the engine to completion instantly
     const botAI = new BotAI(room.botDifficulty);
-    const allEvents: GameEvent[] = [];
+    const allEvents: Array<{ event: GameEvent; snapshot: ReplaySnapshot }> = [];
+    const pushEvents = (events: GameEvent[], snapshot: ReplaySnapshot) => {
+      for (const event of events) allEvents.push({ event, snapshot });
+    };
     let safety = 0;
 
     while (
@@ -780,7 +786,11 @@ export class SocketHandler {
 
       if (engine.state.dogPending) { engine.resolveDog(); continue; }
       if (engine.state.trickWonPending) { engine.completeTrickWon(); continue; }
-      if (engine.state.roundEndPending) { allEvents.push(...engine.completeRoundEnd()); continue; }
+      if (engine.state.roundEndPending) {
+        const snapshot = buildReplaySnapshot(engine);
+        pushEvents(engine.completeRoundEnd(), snapshot);
+        continue;
+      }
 
       if (engine.state.wishPending !== null) {
         const wp = engine.state.wishPending;
@@ -796,7 +806,8 @@ export class SocketHandler {
           .map((p) => p.position as PlayerPosition);
         const cc = new Map(opps.map((p) => [p, engine.state.players[p].hand.length] as [PlayerPosition, number]));
         const ctx = this.buildSimContext(engine);
-        allEvents.push(...engine.dragonGive(w, botAI.chooseDragonGiveTarget(opps, cc, ctx)));
+        const snapshot = buildReplaySnapshot(engine);
+        pushEvents(engine.dragonGive(w, botAI.chooseDragonGiveTarget(opps, cc, ctx)), snapshot);
         continue;
       }
 
@@ -820,18 +831,20 @@ export class SocketHandler {
         if (wishedPlay) cardIds = wishedPlay.map((c) => c.id);
       }
 
+      const snapshot = buildReplaySnapshot(engine);
       if (cardIds) {
-        allEvents.push(...engine.playCards(cp, cardIds));
+        pushEvents(engine.playCards(cp, cardIds), snapshot);
       } else {
-        allEvents.push(...engine.passTurn(cp));
+        pushEvents(engine.passTurn(cp), snapshot);
       }
     }
 
     // Log events
     const gameId = roomGameIds.get(info.room.code) || null;
-    for (const event of allEvents) {
+    for (const { event, snapshot } of allEvents) {
       const eventId = this.db?.logGameEvent(gameId, info.room.code, event.type, event.playerPosition ?? null, event.data);
       if (eventId !== undefined) event.id = eventId;
+      if (eventId !== undefined) this.db?.logGameEventSnapshot(eventId, snapshot);
       this.io.to(info.room.code).emit('game:event', event);
 
       if (event.type === 'GAME_OVER' && gameId) {

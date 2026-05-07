@@ -12,6 +12,7 @@ import type { BotDifficulty, GameContext } from './BotAI.js';
 import { monteCarloEvaluate } from './MonteCarloSim.js';
 import type { TrackerDB } from './Database.js';
 import type { GameMonitor } from './GameMonitor.js';
+import { buildReplaySnapshot } from './ReplaySnapshot.js';
 
 type EmitFn = (roomCode: string, event: string, ...args: unknown[]) => void;
 type BroadcastFn = (roomCode: string) => void;
@@ -62,11 +63,13 @@ export class BotController {
       if (!action) return;
 
       try {
+        const replaySnapshot = buildReplaySnapshot(currentRoom.engine);
         const events = action();
         const gameId = this.getGameId(roomCode);
         for (const event of events) {
           const eventId = this.db?.logGameEvent(gameId, roomCode, event.type, event.playerPosition ?? null, event.data);
           if (eventId !== undefined) event.id = eventId;
+          if (eventId !== undefined) this.db?.logGameEventSnapshot(eventId, replaySnapshot);
           this.emit(roomCode, 'game:event', event);
         }
         this.broadcastGameState(roomCode);

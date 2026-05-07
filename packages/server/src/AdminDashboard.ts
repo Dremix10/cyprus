@@ -174,6 +174,23 @@ export function createAdminRouter(db: TrackerDB): express.Router {
     res.json(context);
   });
 
+  router.get('/api/bot-reports/:id/replay', requireAuth, (req, res) => {
+    const reportId = Number(req.params.id);
+    const radius = Math.min(Math.max(Number(req.query.radius) || 3, 0), 10);
+    if (!Number.isInteger(reportId) || reportId <= 0) {
+      res.status(400).json({ error: 'Invalid report id' });
+      return;
+    }
+
+    const replay = db.getBotReportReplay(reportId, radius);
+    if (!replay) {
+      res.status(404).json({ error: 'Report not found' });
+      return;
+    }
+
+    res.json(replay);
+  });
+
   router.post('/api/bot-reports/:id/review', requireAuth, express.json({ limit: '16kb' }), (req, res) => {
     const reportId = Number(req.params.id);
     if (!Number.isInteger(reportId) || reportId <= 0) {
