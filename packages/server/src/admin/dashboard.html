@@ -166,7 +166,7 @@
   <h1>Cyprus Admin</h1>
   <div class="links">
     <span class="refresh-info">Updated: <span id="last-refresh">-</span></span>
-    <a href="#" onclick="refresh()">Refresh</a>
+    <a href="#" onclick="refresh(true); return false;">Refresh</a>
     <a href="/admin/logout">Logout</a>
   </div>
 </div>
@@ -415,6 +415,11 @@ function toggleReportTester() {
   const chooser = document.getElementById('report-test-chooser');
   if (!chooser) return;
   chooser.hidden = !chooser.hidden;
+}
+
+function isReportTesterOpen() {
+  const chooser = document.getElementById('report-test-chooser');
+  return currentTab === 'botreports' && !!chooser && chooser.hidden === false;
 }
 
 function renderFilePreviewNotice() {
@@ -948,14 +953,18 @@ async function resetUserPassword() {
   btn.disabled = false;
 }
 
-async function refresh() {
+async function refresh(forcePanel = false) {
   if (isFilePreview) {
     renderFilePreviewNotice();
     return;
   }
   await loadStats();
-  await loadTab(currentTab);
-  document.getElementById('last-refresh').textContent = new Date().toLocaleTimeString();
+  if (!isReportTesterOpen() || forcePanel) {
+    await loadTab(currentTab);
+    document.getElementById('last-refresh').textContent = new Date().toLocaleTimeString();
+  } else {
+    document.getElementById('last-refresh').textContent = 'stats only ' + new Date().toLocaleTimeString();
+  }
 }
 
 refresh();
