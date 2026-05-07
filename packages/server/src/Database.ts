@@ -229,7 +229,6 @@ export class TrackerDB {
       CREATE INDEX IF NOT EXISTS idx_bot_reports_event ON bot_play_reports(game_event_id);
       CREATE INDEX IF NOT EXISTS idx_bot_reports_branch ON bot_play_reports(branch_tag);
       CREATE INDEX IF NOT EXISTS idx_bot_reports_at ON bot_play_reports(created_at);
-      CREATE INDEX IF NOT EXISTS idx_bot_reports_review_status ON bot_play_reports(review_status);
     `);
 
     // ─── Migrations for existing databases ──────────────────────────
