@@ -97,11 +97,46 @@
   .replay-controls { display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap; }
   .replay-move { background: #18182a; border: 1px solid #24243e; border-radius: 6px; padding: 0.75rem; }
   .replay-meta-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 0.5rem; }
-  .replay-hands { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 0.6rem; }
-  .replay-player { background: #18182a; border: 1px solid #24243e; border-radius: 6px; padding: 0.65rem; display: grid; gap: 0.45rem; }
-  .replay-player.current { border-color: #42a5f5; }
-  .replay-player.reported-player { border-color: #c9a84c; }
-  .replay-player-head { display: flex; justify-content: space-between; gap: 0.5rem; align-items: center; font-size: 0.8rem; color: #ddd; }
+  .replay-game-room { background: radial-gradient(circle at center, #1d5137 0, #123624 55%, #0b2418 100%); border: 1px solid #31553f; border-radius: 10px; padding: 1rem; box-shadow: inset 0 0 40px rgba(0,0,0,0.35); display: grid; gap: 0.75rem; }
+  .replay-score-strip { display: flex; justify-content: space-between; align-items: center; gap: 0.7rem; flex-wrap: wrap; color: #ddd; font-size: 0.8rem; }
+  .replay-board { min-height: 560px; display: grid; grid-template-columns: minmax(190px, 0.85fr) minmax(300px, 1.3fr) minmax(190px, 0.85fr); grid-template-rows: auto minmax(220px, 1fr) auto; grid-template-areas: ". top ." "left center right" ". bottom ."; gap: 0.75rem; align-items: center; }
+  .replay-seat { background: rgba(15,15,26,0.82); border: 1px solid rgba(255,255,255,0.08); border-radius: 8px; padding: 0.65rem; min-width: 0; display: grid; gap: 0.45rem; }
+  .replay-seat.pos-0 { grid-area: bottom; }
+  .replay-seat.pos-1 { grid-area: left; }
+  .replay-seat.pos-2 { grid-area: top; }
+  .replay-seat.pos-3 { grid-area: right; }
+  .replay-seat.current { border-color: #42a5f5; box-shadow: 0 0 0 1px rgba(66,165,245,0.25) inset; }
+  .replay-seat.reported-player { border-color: #c9a84c; box-shadow: 0 0 0 1px rgba(201,168,76,0.25) inset; }
+  .replay-seat.actor { background: rgba(28, 34, 52, 0.9); }
+  .replay-seat-head { display: flex; justify-content: space-between; align-items: center; gap: 0.5rem; color: #f0f0f0; font-size: 0.82rem; }
+  .replay-seat-name { display: flex; align-items: center; gap: 0.4rem; min-width: 0; }
+  .seat-dot { width: 0.65rem; height: 0.65rem; border-radius: 50%; background: #2a2a4a; flex: 0 0 auto; }
+  .seat-dot.team-a { background: #42a5f5; }
+  .seat-dot.team-b { background: #c9a84c; }
+  .replay-seat-sub { color: #aaa; font-size: 0.72rem; overflow-wrap: anywhere; }
+  .replay-seat-hand { display: flex; flex-wrap: wrap; gap: 0.22rem; min-height: 4rem; align-content: flex-start; }
+  .replay-seat-hand.known { gap: 0.1rem; }
+  .replay-seat-hand.known .mini-card { margin-right: -0.65rem; }
+  .replay-seat-hand.known .mini-card:last-child { margin-right: 0; }
+  .replay-table-center { grid-area: center; align-self: stretch; min-width: 0; background: rgba(15,15,26,0.72); border: 1px solid rgba(255,255,255,0.1); border-radius: 10px; padding: 1rem; display: grid; gap: 0.8rem; align-content: center; justify-items: center; }
+  .replay-table-title { color: #c9a84c; font-size: 0.9rem; font-weight: 700; text-align: center; }
+  .replay-table-sub { color: #aaa; font-size: 0.76rem; text-align: center; }
+  .replay-trick-pile { width: 100%; display: grid; gap: 0.55rem; }
+  .replay-trick-play { display: grid; grid-template-columns: minmax(4.5rem, auto) minmax(0, 1fr); gap: 0.45rem; align-items: center; justify-content: center; }
+  .replay-trick-play.latest { background: rgba(201,168,76,0.12); border: 1px solid rgba(201,168,76,0.28); border-radius: 8px; padding: 0.45rem; }
+  .trick-seat-label { color: #ddd; font-size: 0.76rem; text-align: right; }
+  .trick-card-row { display: flex; flex-wrap: wrap; gap: 0.18rem; min-width: 0; }
+  .pass-chip { display: inline-flex; align-items: center; justify-content: center; min-height: 2rem; padding: 0.2rem 0.7rem; border-radius: 999px; border: 1px solid #444; color: #aaa; background: #151526; font-size: 0.78rem; font-weight: 700; }
+  .mini-card { width: 42px; height: 58px; background: #fff; border: 2px solid #ddd; border-radius: 6px; position: relative; color: #333; font-weight: 800; box-shadow: 0 4px 10px rgba(0,0,0,0.28); flex: 0 0 auto; }
+  .mini-card.unknown-card { background: linear-gradient(135deg, #b83329, #7d3ba0); border-color: #7f1d2c; color: rgba(255,255,255,0.85); display: flex; align-items: center; justify-content: center; font-size: 0.68rem; }
+  .mini-card.special-card { overflow: hidden; }
+  .mini-card .card-corner { position: absolute; top: 3px; left: 5px; display: flex; flex-direction: column; align-items: center; line-height: 1; }
+  .mini-card .card-rank { font-size: 0.65rem; }
+  .mini-card .card-suit { font-size: 0.55rem; }
+  .mini-card .card-center { height: 100%; display: flex; align-items: center; justify-content: center; }
+  .mini-card .card-suit-lg { font-size: 1rem; }
+  .special-art { font-size: 1.05rem; line-height: 1; }
+  .unknown-count { color: #ddd; font-size: 0.72rem; text-shadow: 0 1px 2px rgba(0,0,0,0.45); }
   .replay-evidence { background: #18182a; border: 1px solid #24243e; border-radius: 6px; padding: 0.75rem; display: grid; gap: 0.6rem; }
   .replay-evidence-head { display: flex; justify-content: space-between; align-items: center; gap: 0.6rem; flex-wrap: wrap; color: #f0f0f0; font-size: 0.85rem; }
   .replay-evidence details { border-top: 1px solid #24243e; padding-top: 0.55rem; }
@@ -120,6 +155,9 @@
   .timeline-sub { color: #888; font-size: 0.74rem; margin-top: 0.25rem; overflow-wrap: anywhere; }
   @media (max-width: 760px) {
     .report-review { grid-template-columns: 1fr; }
+    .replay-board { min-height: 0; grid-template-columns: 1fr; grid-template-rows: auto; grid-template-areas: "top" "left" "center" "right" "bottom"; }
+    .replay-trick-play { grid-template-columns: 1fr; }
+    .trick-seat-label { text-align: left; }
     .timeline-event { grid-template-columns: 1fr; }
   }
 </style>
@@ -258,6 +296,93 @@ function formatTrickPlays(plays) {
 function formatTrickTop(top) {
   if (!top) return '-';
   return [top.type, top.rank != null ? 'rank ' + top.rank : '', top.length != null ? 'len ' + top.length : ''].filter(Boolean).join(' · ');
+}
+
+const SUIT_SYMBOLS = { JADE: '♣', PAGODA: '♦', STAR: '♥', SWORD: '♠' };
+const SUIT_COLORS = { JADE: '#2ecc71', PAGODA: '#3498db', STAR: '#e74c3c', SWORD: '#222' };
+const SPECIAL_CARDS = {
+  MAHJONG: { label: '1', icon: '1', bg: '#f5f5dc', color: '#333' },
+  DOG: { label: 'Dog', icon: 'Dog', bg: '#d4c4a8', color: '#333' },
+  PHOENIX: { label: 'Ph', icon: 'Ph', bg: '#ffeaa7', color: '#c0392b' },
+  DRAGON: { label: 'Dr', icon: 'Dr', bg: '#2c3e50', color: '#fff' },
+};
+
+function rankLabel(rank) {
+  const n = Number(rank);
+  if (n === 11) return 'J';
+  if (n === 12) return 'Q';
+  if (n === 13) return 'K';
+  if (n === 14) return 'A';
+  return String(rank);
+}
+
+function parseCardId(id) {
+  if (!id || id === '?') return null;
+  if (SPECIAL_CARDS[id]) return { type: 'special', specialType: id };
+  const parts = String(id).split('_');
+  if (parts.length !== 2) return null;
+  const suit = parts[0];
+  const rank = Number(parts[1]);
+  if (!SUIT_SYMBOLS[suit] || !Number.isFinite(rank)) return null;
+  return { type: 'normal', suit, rank };
+}
+
+function renderMiniCard(id) {
+  const card = parseCardId(id);
+  if (!card) return '<div class="mini-card unknown-card"><span class="unknown-count">?</span></div>';
+  if (card.type === 'special') {
+    const special = SPECIAL_CARDS[card.specialType];
+    return '<div class="mini-card special-card" style="background:' + esc(special.bg) + ';color:' + esc(special.color) + '">' +
+      '<div class="card-corner">' + esc(special.label) + '</div>' +
+      '<div class="card-center"><span class="special-art">' + esc(special.icon) + '</span></div>' +
+    '</div>';
+  }
+  const symbol = SUIT_SYMBOLS[card.suit];
+  const color = SUIT_COLORS[card.suit];
+  return '<div class="mini-card" style="color:' + esc(color) + '">' +
+    '<div class="card-corner"><span class="card-rank">' + esc(rankLabel(card.rank)) + '</span><span class="card-suit">' + esc(symbol) + '</span></div>' +
+    '<div class="card-center"><span class="card-suit-lg">' + esc(symbol) + '</span></div>' +
+  '</div>';
+}
+
+function renderCardFaces(cardIds) {
+  return Array.isArray(cardIds) && cardIds.length
+    ? cardIds.map(renderMiniCard).join('')
+    : '<span class="pass-chip">No cards</span>';
+}
+
+function renderCardBacks(count) {
+  const n = Number.isFinite(Number(count)) ? Math.max(0, Number(count)) : 0;
+  if (n <= 0) return '<span class="pass-chip">No visible hand</span>';
+  const shown = Math.min(n, 10);
+  const backs = Array.from({ length: shown }, (_, i) => {
+    const label = i === shown - 1 && n > shown ? '+' + (n - shown + 1) : '';
+    return '<div class="mini-card unknown-card"><span class="unknown-count">' + esc(label) + '</span></div>';
+  }).join('');
+  return backs;
+}
+
+function removePlayedFromHand(hand, playedCards) {
+  if (!Array.isArray(hand) || !hand.length || !Array.isArray(playedCards) || !playedCards.length) return hand || [];
+  const remaining = [...playedCards];
+  return hand.filter(id => {
+    const idx = remaining.indexOf(id);
+    if (idx === -1) return true;
+    remaining.splice(idx, 1);
+    return false;
+  });
+}
+
+function playedCardsForEvent(ev) {
+  return cardsFromCombination(eventDataFor(ev)?.combination);
+}
+
+function positionFromPlay(play) {
+  return play?.playerPosition ?? play?.position ?? null;
+}
+
+function cardsFromPlay(play) {
+  return Array.isArray(play?.cards) ? play.cards.map(cardId) : [];
 }
 
 function renderReviewOptions(statuses, selected) {
@@ -508,34 +633,113 @@ function fallbackPlayersForEvent(ev) {
   }));
 }
 
-function renderPlayerCards(p) {
-  if (Array.isArray(p.hand) && p.hand.length) return renderCardList(p.hand);
-  if (Array.isArray(p.playedCards) && p.playedCards.length) {
-    return '<span class="replay-sub">Played: </span>' + renderCardList(p.playedCards);
-  }
-  return '<span class="card-chip unknown">unknown</span>';
+function scenePlayersForEvent(ev, snapshot) {
+  const playedCards = playedCardsForEvent(ev);
+  const isCardMove = (ev.event_type === 'PLAY' || ev.event_type === 'BOMB') && playedCards.length > 0;
+  return (snapshot?.players || fallbackPlayersForEvent(ev)).map(p => {
+    const originalHand = Array.isArray(p.hand) ? p.hand : [];
+    const acted = p.position === ev.player_position;
+    const visibleHand = acted && isCardMove ? removePlayedFromHand(originalHand, playedCards) : originalHand;
+    const originalCount = p.cardCount ?? originalHand.length;
+    const visibleCount = acted && isCardMove && Number.isFinite(Number(originalCount))
+      ? Math.max(0, Number(originalCount) - playedCards.length)
+      : originalCount;
+    return { ...p, visibleHand, visibleCount, acted };
+  });
 }
 
-function renderReplayHands(ev, snapshot) {
-  const players = snapshot?.players || fallbackPlayersForEvent(ev);
-  const reportedPos = ev.offset === 0 ? ev.player_position : null;
-  const currentPos = snapshot?.currentPlayer ?? ev.player_position;
-  return '<div class="replay-hands">' + players.map(p => {
-    const classes = [
-      'replay-player',
-      p.position === currentPos ? 'current' : '',
-      p.position === reportedPos ? 'reported-player' : '',
-    ].filter(Boolean).join(' ');
-    const count = p.cardCount ?? (Array.isArray(p.hand) ? p.hand.length : '?');
-    return '<div class="' + classes + '">' +
-      '<div class="replay-player-head">' +
-        '<strong>P' + p.position + ' · ' + esc(p.nickname || ('Player ' + p.position)) + '</strong>' +
-        '<span>' + count + ' card' + (count === 1 ? '' : 's') + '</span>' +
+function renderReplaySeat(p, ev, snapshot) {
+  const hasKnownHand = Array.isArray(p.visibleHand) && p.visibleHand.length > 0;
+  const hasFullSnapshot = !!snapshot;
+  const handHtml = hasKnownHand
+    ? renderCardFaces(p.visibleHand)
+    : renderCardBacks(p.visibleCount);
+  const classes = [
+    'replay-seat',
+    'pos-' + p.position,
+    p.position === (snapshot?.currentPlayer ?? ev.player_position) ? 'current' : '',
+    ev.offset === 0 && p.position === ev.player_position ? 'reported-player' : '',
+    p.acted ? 'actor' : '',
+  ].filter(Boolean).join(' ');
+  const teamClass = p.position === 0 || p.position === 2 ? 'team-a' : 'team-b';
+  const source = hasFullSnapshot
+    ? 'full hand'
+    : (hasKnownHand ? 'captured bot hand' : 'unknown cards shown as backs');
+  return '<div class="' + classes + '">' +
+    '<div class="replay-seat-head">' +
+      '<div class="replay-seat-name"><span class="seat-dot ' + teamClass + '"></span><strong>P' + p.position + ' · ' + esc(p.nickname || ('Player ' + p.position)) + '</strong></div>' +
+      '<span>' + esc(p.visibleCount ?? '?') + ' card' + (Number(p.visibleCount) === 1 ? '' : 's') + '</span>' +
+    '</div>' +
+    '<div class="replay-seat-sub">' + esc(p.tichuCall || 'none') + (p.isOut ? ' · out' : '') + (p.acted ? ' · acted' : '') + ' · ' + esc(source) + '</div>' +
+    '<div class="replay-seat-hand ' + (hasKnownHand ? 'known' : 'unknown') + '">' + handHtml + '</div>' +
+  '</div>';
+}
+
+function trickPlaysForScene(ev, snapshot) {
+  const data = eventDataFor(ev);
+  const bot = data?.bot || null;
+  const base = snapshot?.currentTrick?.plays?.length
+    ? snapshot.currentTrick.plays.map(p => ({
+        position: positionFromPlay(p),
+        cards: cardsFromPlay(p),
+        comboType: p.comboType,
+        latest: false,
+      }))
+    : (Array.isArray(bot?.currentTrickPlays) ? bot.currentTrickPlays.map(p => ({
+        position: positionFromPlay(p),
+        cards: cardsFromPlay(p),
+        comboType: p.comboType,
+        latest: false,
+      })) : []);
+  const playedCards = playedCardsForEvent(ev);
+  if ((ev.event_type === 'PLAY' || ev.event_type === 'BOMB') && playedCards.length) {
+    base.push({
+      position: ev.player_position,
+      cards: playedCards,
+      comboType: data?.combination?.type || ev.event_type,
+      latest: true,
+    });
+  }
+  return base;
+}
+
+function renderReplayTrick(ev, snapshot) {
+  const plays = trickPlaysForScene(ev, snapshot);
+  const latestPass = ev.event_type === 'PASS';
+  if (!plays.length && !latestPass) {
+    return '<div class="replay-table-sub">No cards in the trick yet</div>';
+  }
+  return '<div class="replay-trick-pile">' +
+    plays.map(play => '<div class="replay-trick-play ' + (play.latest ? 'latest' : '') + '">' +
+      '<div class="trick-seat-label">P' + esc(play.position ?? '-') + (play.latest ? ' now' : '') + '</div>' +
+      '<div class="trick-card-row">' + renderCardFaces(play.cards) + '</div>' +
+    '</div>').join('') +
+    (latestPass ? '<div class="replay-trick-play latest"><div class="trick-seat-label">P' + esc(ev.player_position ?? '-') + ' now</div><div><span class="pass-chip">PASS</span></div></div>' : '') +
+  '</div>';
+}
+
+function renderReplayGameRoom(ev, snapshot) {
+  const data = eventDataFor(ev);
+  const bot = data?.bot || null;
+  const players = scenePlayersForEvent(ev, snapshot);
+  const scores = snapshot?.scores ? snapshot.scores : bot?.scores;
+  const wish = snapshot?.wish?.active ? snapshot.wish.wishedRank : (bot?.wish?.active ? bot.wish.wishedRank : null);
+  const action = summarizeEventRow(ev);
+  return '<div class="replay-game-room">' +
+    '<div class="replay-score-strip">' +
+      '<strong>Team 0/2: ' + esc(scores ? scores[0] : '-') + '</strong>' +
+      '<span>' + replayEvidenceBadge(ev, snapshot) + '</span>' +
+      '<strong>Team 1/3: ' + esc(scores ? scores[1] : '-') + '</strong>' +
+    '</div>' +
+    '<div class="replay-board">' +
+      players.map(p => renderReplaySeat(p, ev, snapshot)).join('') +
+      '<div class="replay-table-center">' +
+        '<div class="replay-table-title">' + esc(action) + '</div>' +
+        '<div class="replay-table-sub">Current trick' + (wish ? ' · wish ' + esc(wish) : '') + '</div>' +
+        renderReplayTrick(ev, snapshot) +
       '</div>' +
-      '<div class="replay-sub">' + esc(p.tichuCall || 'none') + (p.isOut ? ' · out' : '') + (p.evidence ? ' · ' + esc(p.evidence) : '') + '</div>' +
-      '<div class="card-list">' + renderPlayerCards(p) + '</div>' +
-    '</div>';
-  }).join('') + '</div>';
+    '</div>' +
+  '</div>';
 }
 
 function renderReplayMeta(ev, snapshot) {
@@ -574,7 +778,8 @@ function renderLegacyEvidence(ev, snapshot) {
     ['Wish', bot?.wish?.active ? bot.wish.wishedRank : '-'],
   ];
   const raw = Object.keys(data).length ? JSON.stringify(data, null, 2) : '';
-  return '<div class="replay-evidence">' +
+  return '<details class="replay-evidence">' +
+    '<summary>Evidence details</summary>' +
     '<div class="replay-evidence-head">' +
       '<strong>' + (snapshot ? 'Captured Event Evidence' : 'Legacy Evidence') + '</strong>' +
       replayEvidenceBadge(ev, snapshot) +
@@ -583,7 +788,7 @@ function renderLegacyEvidence(ev, snapshot) {
       '<div class="report-field"><div class="report-field-label">' + esc(label) + '</div><div class="report-field-value">' + esc(value) + '</div></div>'
     ).join('') + '</div>' +
     (raw ? '<details><summary>Raw event data</summary><pre class="raw-json">' + esc(raw) + '</pre></details>' : '') +
-  '</div>';
+  '</details>';
 }
 
 function renderReplayRoom() {
@@ -611,10 +816,9 @@ function renderReplayRoom() {
         '<button onclick="nextReplayMove()" ' + (replayState.index >= events.length - 1 ? 'disabled' : '') + '>Next</button>' +
       '</div>' +
     '</div>' +
-    '<div class="replay-move"><strong>' + esc(summarizeEventRow(ev)) + '</strong></div>' +
-    renderReplayMeta(ev, snapshot) +
+    renderReplayGameRoom(ev, snapshot) +
+    '<details class="replay-evidence"><summary>Replay metadata</summary>' + renderReplayMeta(ev, snapshot) + '</details>' +
     renderLegacyEvidence(ev, snapshot) +
-    renderReplayHands(ev, snapshot) +
   '</div>';
 }
 
