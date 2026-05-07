@@ -126,7 +126,14 @@
   </div>
 </div>
 <script>
-const api = path => fetch('/admin/api/' + path).then(r => r.json());
+const api = async path => {
+  const res = await fetch('/admin/api/' + path, { headers: { Accept: 'application/json' } });
+  const text = await res.text();
+  let data = null;
+  try { data = text ? JSON.parse(text) : null; } catch { /* response was not JSON */ }
+  if (!res.ok) throw new Error(data?.error || text?.slice(0, 120) || ('HTTP ' + res.status));
+  return data;
+};
 let currentTab = 'connections';
 const REVIEW_LABELS = {
   unreviewed: 'Unreviewed',
@@ -329,7 +336,10 @@ async function loadTab(name) {
         '</div>' +
         '<div id="query-result"></div></div>';
     }
-  } catch(e) { panel.innerHTML = '<div class="empty">Error loading data</div>'; }
+  } catch(e) {
+    const message = e instanceof Error ? e.message : 'Request failed';
+    panel.innerHTML = '<div class="empty">Error loading data: ' + esc(message) + '</div>';
+  }
 }
 
 function renderTimelineEvent(ev) {
