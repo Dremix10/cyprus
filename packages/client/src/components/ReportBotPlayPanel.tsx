@@ -20,16 +20,19 @@ export function ReportBotPlayButton() {
   const user = useAuthStore((s) => s.user);
   const plays = useGameStore((s) => s.reportableBotPlays);
   const [open, setOpen] = useState(false);
-
-  if (!user) return null; // sign-in required to report
+  const disabledReason = !user
+    ? 'Sign in to report bot plays'
+    : plays.length === 0
+      ? 'Bot plays will appear here after bots move'
+      : 'Flag a bot play that looked wrong';
 
   return (
     <>
       <button
         className="btn btn-small btn-report-bot"
         onClick={() => setOpen(true)}
-        title="Flag a bot play that looked wrong"
-        disabled={plays.length === 0}
+        title={disabledReason}
+        disabled={!user || plays.length === 0}
       >
         Report bot play
       </button>
