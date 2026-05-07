@@ -10,7 +10,7 @@
     "start": "NODE_ENV=production node packages/server/dist/index.js",
     "test": "npm run test --workspaces --if-present",
     "lint": "eslint 'packages/*/src/**/*.{ts,tsx}'",
-    "clean": "rm -rf packages/*/dist"
+    "clean": "rm -rf packages/*/dist packages/client/dist-dev"
   },
   "devDependencies": {
     "concurrently": "^9.2.1",

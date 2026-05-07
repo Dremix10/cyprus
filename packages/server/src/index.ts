@@ -1,6 +1,7 @@
 import { timingSafeEqual } from 'crypto';
 import express from 'express';
 import { createServer } from 'http';
+import { existsSync } from 'node:fs';
 import { fileURLToPath } from 'url';
 import path from 'path';
 import { Server } from 'socket.io';
@@ -291,10 +292,12 @@ app.get('/admin/api/drain-status', (req, res) => {
 });
 
 // Serve the client build (always — not just production)
+const clientDistDev = path.resolve(__dirname, '../../client/dist-dev');
 const clientDist = path.resolve(__dirname, '../../client/dist');
-app.use(express.static(clientDist));
+const clientBuild = existsSync(path.join(clientDistDev, 'index.html')) ? clientDistDev : clientDist;
+app.use(express.static(clientBuild));
 app.get('*', (_req, res) => {
-  res.sendFile(path.join(clientDist, 'index.html'));
+  res.sendFile(path.join(clientBuild, 'index.html'));
 });
 
 // ─── Start Server ───────────────────────────────────────────────────

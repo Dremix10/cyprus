@@ -1,6 +1,6 @@
 import express, { type Request, type Response, type NextFunction } from 'express';
 import { createHash, timingSafeEqual, randomBytes, scrypt } from 'node:crypto';
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { BOT_REPORT_REVIEW_STATUSES, type TrackerDB } from './Database.js';
@@ -8,8 +8,14 @@ import { BOT_REPORT_REVIEW_STATUSES, type TrackerDB } from './Database.js';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
-const LOGIN_HTML = readFileSync(join(__dirname, 'admin', 'login.html'), 'utf-8');
-const DASHBOARD_HTML = readFileSync(join(__dirname, 'admin', 'dashboard.html'), 'utf-8');
+function readAdminHtml(filename: string): string {
+  const sourcePath = join(__dirname, '..', 'src', 'admin', filename);
+  const distPath = join(__dirname, 'admin', filename);
+  return readFileSync(existsSync(sourcePath) ? sourcePath : distPath, 'utf-8');
+}
+
+const LOGIN_HTML = readAdminHtml('login.html');
+const DASHBOARD_HTML = readAdminHtml('dashboard.html');
 
 // SHA-256 hash of default password — override with ADMIN_PASSWORD env var
 const DEFAULT_HASH = '11b6968ce0b6e99c8952c32e0b65320e7b4c6119aebd56cc361158e20333636f';
