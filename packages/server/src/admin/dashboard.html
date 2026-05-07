@@ -31,6 +31,7 @@
   .badge-red { background: #3a1a1a; color: #e74c3c; }
   .badge-blue { background: #1a2a3a; color: #42a5f5; }
   .badge-yellow { background: #3a3a1a; color: #c9a84c; }
+  .badge-muted { background: #262638; color: #aaa; }
   .refresh-info { color: #555; font-size: 0.75rem; }
   #last-refresh { color: #888; }
   .empty { padding: 2rem; text-align: center; color: #555; }
@@ -88,6 +89,7 @@
   .replay-room { display: grid; gap: 0.8rem; }
   .replay-stage { border: 1px solid #2a2a4a; border-radius: 8px; background: #0f0f1a; padding: 1rem; display: grid; gap: 0.8rem; }
   .replay-stage.reported { border-color: #c9a84c; box-shadow: 0 0 0 1px rgba(201, 168, 76, 0.25) inset; }
+  .replay-stage.legacy { border-color: #6d5a2b; }
   .replay-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 1rem; flex-wrap: wrap; }
   .replay-title { display: grid; gap: 0.2rem; }
   .replay-title strong { color: #f0f0f0; }
@@ -100,8 +102,14 @@
   .replay-player.current { border-color: #42a5f5; }
   .replay-player.reported-player { border-color: #c9a84c; }
   .replay-player-head { display: flex; justify-content: space-between; gap: 0.5rem; align-items: center; font-size: 0.8rem; color: #ddd; }
+  .replay-evidence { background: #18182a; border: 1px solid #24243e; border-radius: 6px; padding: 0.75rem; display: grid; gap: 0.6rem; }
+  .replay-evidence-head { display: flex; justify-content: space-between; align-items: center; gap: 0.6rem; flex-wrap: wrap; color: #f0f0f0; font-size: 0.85rem; }
+  .replay-evidence details { border-top: 1px solid #24243e; padding-top: 0.55rem; }
+  .replay-evidence summary { color: #c9a84c; cursor: pointer; font-size: 0.8rem; width: fit-content; }
+  .raw-json { margin-top: 0.55rem; max-height: 220px; overflow: auto; background: #0f0f1a; border: 1px solid #333; border-radius: 6px; padding: 0.7rem; color: #ccc; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0.72rem; line-height: 1.45; white-space: pre-wrap; }
   .card-list { display: flex; flex-wrap: wrap; gap: 0.25rem; min-height: 1.5rem; }
   .card-chip { background: #0f0f1a; border: 1px solid #333; border-radius: 4px; color: #e0e0e0; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0.72rem; padding: 0.16rem 0.32rem; }
+  .card-chip.unknown { color: #888; border-style: dashed; }
   .timeline { display: grid; gap: 0.45rem; }
   .timeline-event { display: grid; grid-template-columns: 3.5rem 7rem minmax(0, 1fr); gap: 0.6rem; align-items: start; background: #18182a; border: 1px solid #24243e; border-radius: 6px; padding: 0.65rem; }
   .timeline-event.reported { border-color: #c9a84c; background: #211d12; }
@@ -198,8 +206,17 @@ function reviewBadgeClass(status) {
   return 'badge-yellow';
 }
 
+function cardId(c) {
+  if (typeof c === 'string') return c;
+  return c?.id || '?';
+}
+
 function cardsText(cards) {
-  return Array.isArray(cards) ? cards.map(c => c?.id || '?').join(' ') : '';
+  return Array.isArray(cards) ? cards.map(cardId).join(' ') : '';
+}
+
+function cardsFromCombination(combination) {
+  return Array.isArray(combination?.cards) ? combination.cards.map(cardId) : [];
 }
 
 function summarizeEventRow(row) {
@@ -223,6 +240,26 @@ function botInfoFromRow(row) {
   return data?.bot || null;
 }
 
+function formatPlayerMap(value) {
+  if (!value || typeof value !== 'object') return '-';
+  return [0, 1, 2, 3].map(pos => 'P' + pos + ': ' + (value[pos] ?? value[String(pos)] ?? '?')).join(' · ');
+}
+
+function formatPlayerList(value) {
+  return Array.isArray(value) && value.length ? value.map(pos => 'P' + pos).join(' -> ') : '-';
+}
+
+function formatTrickPlays(plays) {
+  return Array.isArray(plays) && plays.length
+    ? plays.map(p => 'P' + p.position + '[' + (Array.isArray(p.cards) ? p.cards.join(' ') : '-') + ']').join(' -> ')
+    : '-';
+}
+
+function formatTrickTop(top) {
+  if (!top) return '-';
+  return [top.type, top.rank != null ? 'rank ' + top.rank : '', top.length != null ? 'len ' + top.length : ''].filter(Boolean).join(' · ');
+}
+
 function renderReviewOptions(statuses, selected) {
   return statuses.map(s => '<option value="' + esc(s) + '"' + (s === selected ? ' selected' : '') + '>' + esc(REVIEW_LABELS[s] || s) + '</option>').join('');
 }
@@ -237,7 +274,7 @@ function renderReportTestPanel(recent) {
   return '<div class="report-test">' +
     '<div class="report-test-bar">' +
       '<button onclick="toggleReportTester()" ' + (!hasReports ? 'disabled' : '') + '>Test Bot Reports</button>' +
-      '<span class="reports-hint">Step through three recorded bot-report moves before and after a selected report.</span>' +
+      '<span class="reports-hint">Step through recorded moves before and after a report; old reports show partial evidence when full hands were not captured.</span>' +
     '</div>' +
     '<div class="report-test-chooser" id="report-test-chooser" hidden>' +
       '<div class="report-test-bar">' +
@@ -439,18 +476,44 @@ function snapshotForEvent(ev) {
   return parseJson(ev.snapshot);
 }
 
-function fallbackPlayersForEvent(ev) {
-  const data = parseJson(ev.data);
+function eventDataFor(ev) {
+  return parseJson(ev.data) || {};
+}
+
+function replayEvidenceBadge(ev, snapshot) {
+  const data = eventDataFor(ev);
   const bot = data?.bot || null;
+  if (snapshot) return '<span class="badge badge-green">Full state snapshot</span>';
+  if (bot?.hand) return '<span class="badge badge-yellow">Legacy report · bot hand captured</span>';
+  if (data?.combination) return '<span class="badge badge-blue">Legacy report · move only</span>';
+  return '<span class="badge badge-muted">Legacy report · sparse event</span>';
+}
+
+function fallbackPlayersForEvent(ev) {
+  const data = eventDataFor(ev);
+  const bot = data?.bot || null;
+  const playedCards = cardsFromCombination(data?.combination);
   return [0, 1, 2, 3].map(pos => ({
     position: pos,
     nickname: 'P' + pos,
     hand: bot && ev.player_position === pos && Array.isArray(bot.hand) ? bot.hand : [],
+    playedCards: ev.player_position === pos ? playedCards : [],
     cardCount: bot?.oppCardCounts?.[pos] ?? null,
     isOut: Array.isArray(bot?.finishOrder) ? bot.finishOrder.includes(pos) : false,
     finishOrder: null,
     tichuCall: bot?.tichuCalls?.[pos] || 'unknown',
+    evidence: bot && ev.player_position === pos && Array.isArray(bot.hand)
+      ? 'captured bot hand before this decision'
+      : (ev.player_position === pos && playedCards.length ? 'played cards captured' : 'card identities unavailable'),
   }));
+}
+
+function renderPlayerCards(p) {
+  if (Array.isArray(p.hand) && p.hand.length) return renderCardList(p.hand);
+  if (Array.isArray(p.playedCards) && p.playedCards.length) {
+    return '<span class="replay-sub">Played: </span>' + renderCardList(p.playedCards);
+  }
+  return '<span class="card-chip unknown">unknown</span>';
 }
 
 function renderReplayHands(ev, snapshot) {
@@ -469,26 +532,58 @@ function renderReplayHands(ev, snapshot) {
         '<strong>P' + p.position + ' · ' + esc(p.nickname || ('Player ' + p.position)) + '</strong>' +
         '<span>' + count + ' card' + (count === 1 ? '' : 's') + '</span>' +
       '</div>' +
-      '<div class="replay-sub">' + esc(p.tichuCall || 'none') + (p.isOut ? ' · out' : '') + '</div>' +
-      '<div class="card-list">' + renderCardList(p.hand) + '</div>' +
+      '<div class="replay-sub">' + esc(p.tichuCall || 'none') + (p.isOut ? ' · out' : '') + (p.evidence ? ' · ' + esc(p.evidence) : '') + '</div>' +
+      '<div class="card-list">' + renderPlayerCards(p) + '</div>' +
     '</div>';
   }).join('') + '</div>';
 }
 
 function renderReplayMeta(ev, snapshot) {
-  const data = parseJson(ev.data);
+  const data = eventDataFor(ev);
   const bot = data?.bot || null;
   const rows = [
     ['Room', ev.room_code || '-'],
     ['Score', snapshot?.scores ? snapshot.scores.join(' - ') : (bot?.scores ? bot.scores.join(' - ') : '-')],
     ['Phase', snapshot?.phase || '-'],
-    ['Current trick', snapshot?.currentTrick?.plays?.length ? snapshot.currentTrick.plays.map(p => 'P' + p.playerPosition + '[' + p.cards.join(' ') + ']').join(' -> ') : (bot?.currentTrickPlays?.length ? bot.currentTrickPlays.map(p => 'P' + p.position + '[' + p.cards.join(' ') + ']').join(' -> ') : '-')],
+    ['Current trick', snapshot?.currentTrick?.plays?.length ? snapshot.currentTrick.plays.map(p => 'P' + p.playerPosition + '[' + p.cards.join(' ') + ']').join(' -> ') : formatTrickPlays(bot?.currentTrickPlays)],
     ['Wish', snapshot?.wish?.active ? snapshot.wish.wishedRank : (bot?.wish?.active ? bot.wish.wishedRank : '-')],
     ['Branch', bot?.branchTag || '-'],
+    ['Tier', bot?.tier || '-'],
+    ['Trick top', formatTrickTop(bot?.trickTop)],
+    ['Trick points', bot?.trickPoints ?? '-'],
+    ['Current winner', snapshot?.currentTrick?.currentWinner != null ? 'P' + snapshot.currentTrick.currentWinner : (bot?.currentWinner != null ? 'P' + bot.currentWinner : '-')],
+    ['Pass count', snapshot?.currentTrick?.passCount ?? bot?.passCount ?? '-'],
+    ['Finish order', snapshot?.finishOrder?.length ? formatPlayerList(snapshot.finishOrder) : formatPlayerList(bot?.finishOrder)],
   ];
   return '<div class="replay-meta-grid">' + rows.map(([label, value]) =>
     '<div class="report-field"><div class="report-field-label">' + esc(label) + '</div><div class="report-field-value">' + esc(value) + '</div></div>'
   ).join('') + '</div>';
+}
+
+function renderLegacyEvidence(ev, snapshot) {
+  const data = eventDataFor(ev);
+  const bot = data?.bot || null;
+  const playedCards = cardsFromCombination(data?.combination);
+  const fields = [
+    ['Played cards', playedCards.length ? playedCards.join(' ') : '-'],
+    ['Combination', data?.combination ? summarizeEventRow(ev) : '-'],
+    ['Bot hand before move', Array.isArray(bot?.hand) && bot.hand.length ? bot.hand.join(' ') : '-'],
+    ['Opponent card counts', formatPlayerMap(bot?.oppCardCounts)],
+    ['Tichu calls', formatPlayerMap(bot?.tichuCalls)],
+    ['Current trick plays', formatTrickPlays(bot?.currentTrickPlays)],
+    ['Wish', bot?.wish?.active ? bot.wish.wishedRank : '-'],
+  ];
+  const raw = Object.keys(data).length ? JSON.stringify(data, null, 2) : '';
+  return '<div class="replay-evidence">' +
+    '<div class="replay-evidence-head">' +
+      '<strong>' + (snapshot ? 'Captured Event Evidence' : 'Legacy Evidence') + '</strong>' +
+      replayEvidenceBadge(ev, snapshot) +
+    '</div>' +
+    '<div class="replay-meta-grid">' + fields.map(([label, value]) =>
+      '<div class="report-field"><div class="report-field-label">' + esc(label) + '</div><div class="report-field-value">' + esc(value) + '</div></div>'
+    ).join('') + '</div>' +
+    (raw ? '<details><summary>Raw event data</summary><pre class="raw-json">' + esc(raw) + '</pre></details>' : '') +
+  '</div>';
 }
 
 function renderReplayRoom() {
@@ -502,11 +597,9 @@ function renderReplayRoom() {
 
   const ev = events[replayState.index];
   const snapshot = snapshotForEvent(ev);
-  const snapshotNote = snapshot
-    ? '<span class="badge badge-green">Full hands captured</span>'
-    : '<span class="badge badge-yellow">Old report: full-hand snapshot unavailable</span>';
+  const snapshotNote = replayEvidenceBadge(ev, snapshot);
   const offsetLabel = ev.offset === 0 ? 'Reported move' : (ev.offset > 0 ? '+' + ev.offset + ' after report' : ev.offset + ' before report');
-  target.innerHTML = '<div class="replay-stage ' + (ev.offset === 0 ? 'reported' : '') + '">' +
+  target.innerHTML = '<div class="replay-stage ' + (ev.offset === 0 ? 'reported ' : '') + (snapshot ? '' : 'legacy') + '">' +
     '<div class="replay-head">' +
       '<div class="replay-title">' +
         '<strong>Move ' + (replayState.index + 1) + ' of ' + events.length + ' · ' + esc(offsetLabel) + '</strong>' +
@@ -520,6 +613,7 @@ function renderReplayRoom() {
     '</div>' +
     '<div class="replay-move"><strong>' + esc(summarizeEventRow(ev)) + '</strong></div>' +
     renderReplayMeta(ev, snapshot) +
+    renderLegacyEvidence(ev, snapshot) +
     renderReplayHands(ev, snapshot) +
   '</div>';
 }
