@@ -4,10 +4,13 @@ set -euo pipefail
 APP_DIR="/home/dev/cyprus"
 ENTRY="packages/server/dist/index.js"
 LOG_FILE="server.log"
-LOCK_FILE="/tmp/cyprus-deploy.lock"
+LOCK_FILE="${LOCK_FILE:-/home/dev/cyprus-deploy.lock}"
+SERVICE_NAME="${SERVICE_NAME:-cyprus.service}"
 
 echo "=== Deploy started at $(date) ==="
 
+touch "$LOCK_FILE"
+chmod 666 "$LOCK_FILE" 2>/dev/null || true
 exec 9>"$LOCK_FILE"
 if ! flock -w 300 9; then
   echo "ERROR: Another deploy is still running; could not acquire $LOCK_FILE"
@@ -16,12 +19,56 @@ fi
 
 cd "$APP_DIR"
 
+service_exists() {
+  command -v systemctl >/dev/null 2>&1 && systemctl cat "$SERVICE_NAME" >/dev/null 2>&1
+}
+
+port_in_use() {
+  ss -tlnp 2>/dev/null | grep -q ":3001 "
+}
+
+wait_for_port_free() {
+  echo "Waiting for port to be freed..."
+  for i in $(seq 1 15); do
+    if ! port_in_use; then
+      echo "Port is free."
+      return 0
+    fi
+    if [ "$i" = "10" ]; then
+      echo "Force killing by port..."
+      fuser -k 3001/tcp 2>/dev/null || true
+    fi
+    sleep 1
+  done
+
+  if port_in_use; then
+    echo "ERROR: Port 3001 still in use!"
+    ss -tlnp | grep ":3001 "
+    return 1
+  fi
+}
+
+wait_for_health() {
+  echo "Waiting for health check..."
+  for _ in $(seq 1 20); do
+    if curl -fsS http://localhost:3001/health >/tmp/cyprus-health.json 2>/dev/null; then
+      cat /tmp/cyprus-health.json
+      echo ""
+      echo "=== Deploy successful ==="
+      return 0
+    fi
+    sleep 1
+  done
+
+  return 1
+}
+
 echo "Resetting local changes before pull..."
 git checkout -- packages/server/data/ 2>/dev/null || true
 git stash --include-untracked 2>/dev/null || true
 
 echo "Pulling latest from main..."
-git pull origin main
+git pull --ff-only origin main
 
 # Load env for API key before drain + build.
 set -a; [ -f .env ] && source .env; set +a
@@ -60,7 +107,12 @@ if [ -n "${DATA_API_KEY:-}" ]; then
 fi
 
 echo "Stopping old process..."
-if [ -n "${DATA_API_KEY:-}" ]; then
+if service_exists; then
+  echo "Stopping $SERVICE_NAME..."
+  systemctl stop "$SERVICE_NAME"
+  sleep 2
+fi
+if port_in_use && [ -n "${DATA_API_KEY:-}" ]; then
   echo "Requesting graceful shutdown via API..."
   curl -s -X POST http://localhost:3001/admin/api/shutdown \
     -H "Authorization: Bearer $DATA_API_KEY" \
@@ -76,22 +128,23 @@ pkill -9 -f "node.*packages/server" 2>/dev/null || true
 sleep 1
 # Also kill by port if something else grabbed it
 fuser -k 3001/tcp 2>/dev/null || true
-# Wait for port to be released
-echo "Waiting for port to be freed..."
-for i in $(seq 1 15); do
-  if ! ss -tlnp 2>/dev/null | grep -q ":3001 "; then
-    echo "Port is free."
-    break
-  fi
-  if [ "$i" = "10" ]; then
-    echo "Force killing by port..."
-    fuser -k 3001/tcp 2>/dev/null || true
-  fi
-  sleep 1
-done
+wait_for_port_free
 
 echo "Starting new process..."
 set -a; [ -f .env ] && source .env; set +a
+if service_exists; then
+  echo "Starting $SERVICE_NAME..."
+  systemctl reset-failed "$SERVICE_NAME" 2>/dev/null || true
+  systemctl start "$SERVICE_NAME"
+  if wait_for_health; then
+    exit 0
+  fi
+  echo "ERROR: $SERVICE_NAME started but health check failed. Check $LOG_FILE for details."
+  systemctl status "$SERVICE_NAME" --no-pager -l || true
+  tail -20 "$LOG_FILE"
+  exit 1
+fi
+
 nohup node "$ENTRY" >> "$LOG_FILE" 2>&1 &
 NEW_PID=$!
 echo "New process started (PID: $NEW_PID)"
@@ -99,16 +152,9 @@ echo "New process started (PID: $NEW_PID)"
 # Brief pause to catch immediate crashes
 sleep 2
 if kill -0 "$NEW_PID" 2>/dev/null; then
-  echo "Waiting for health check..."
-  for i in $(seq 1 20); do
-    if curl -fsS http://localhost:3001/health >/tmp/cyprus-health.json 2>/dev/null; then
-      cat /tmp/cyprus-health.json
-      echo ""
-      echo "=== Deploy successful ==="
-      exit 0
-    fi
-    sleep 1
-  done
+  if wait_for_health; then
+    exit 0
+  fi
   echo "ERROR: New process stayed up but health check failed. Check $LOG_FILE for details."
   tail -20 "$LOG_FILE"
   exit 1

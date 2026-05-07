@@ -26,4 +26,6 @@ jobs:
             set -e
             cd /home/dev/cyprus
             git stash --include-untracked 2>/dev/null || true
+            git checkout main
+            git pull --ff-only origin main
             bash /home/dev/cyprus/deploy/restart.sh

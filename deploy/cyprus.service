@@ -1,0 +1,21 @@
+[Unit]
+Description=Cyprus Tichu Game Server
+After=network.target
+
+[Service]
+Type=simple
+User=dev
+WorkingDirectory=/home/dev/cyprus
+EnvironmentFile=-/home/dev/cyprus/.env
+Environment=NODE_ENV=production
+ExecStart=/usr/bin/node packages/server/dist/index.js
+Restart=always
+RestartSec=5
+StandardOutput=append:/home/dev/cyprus/server.log
+StandardError=append:/home/dev/cyprus/server.log
+
+NoNewPrivileges=true
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target
