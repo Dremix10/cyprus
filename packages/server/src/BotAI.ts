@@ -37,6 +37,45 @@ export interface BotDecisionRecorder {
   record(branch: string): void;
 }
 
+export interface MonteCarloCandidateScore {
+  cardIds: string[] | null;
+  totalScore: number;
+  simCount: number;
+  averageScore: number | null;
+}
+
+export interface MonteCarloDecisionResult {
+  cardIds: string[] | null;
+  candidates: MonteCarloCandidateScore[];
+  totalSims: number;
+  durationMs: number;
+  filteredCandidateCount: number;
+  errorCount: number;
+}
+
+export interface MonteCarloAdvisorOptions {
+  forcedCandidate?: Card[] | null;
+}
+
+export type MonteCarloEvaluator = (
+  candidates: (Card[] | null)[],
+  options?: MonteCarloAdvisorOptions,
+) => MonteCarloDecisionResult | undefined;
+
+export interface MonteCarloAdvisorTrace {
+  mode: 'advisor';
+  heuristicCardIds: string[] | null;
+  heuristicBranch: string | null;
+  mcCardIds: string[] | null;
+  accepted: boolean;
+  reason: string;
+  margin: number | null;
+  totalSims: number;
+  durationMs: number;
+  errorCount: number;
+  candidates: MonteCarloCandidateScore[];
+}
+
 // ─── Hand Analysis ──────────────────────────────────────────────────────
 
 interface HandPlan {
@@ -375,6 +414,8 @@ export interface BotConfig {
   useMonteCarlo: boolean;           // use MC simulation for key decisions (default: false)
   mcSims: number;                   // max simulations per decision (default: 200)
   mcTimeMs: number;                 // time budget in ms per decision (default: 150)
+  mcOverrideMargin: number;         // required MC score edge over heuristic before override
+  mcMinSimsPerCandidate: number;    // reject MC override if scores are too thin/noisy
 }
 
 export const DEFAULT_BOT_CONFIG: BotConfig = {
@@ -394,6 +435,8 @@ export const DEFAULT_BOT_CONFIG: BotConfig = {
   useMonteCarlo: false,
   mcSims: 200,
   mcTimeMs: 150,
+  mcOverrideMargin: 25,
+  mcMinSimsPerCandidate: 2,
 };
 
 // ─── Bot AI ─────────────────────────────────────────────────────────────
@@ -402,6 +445,7 @@ export class BotAI {
   public config: BotConfig;
   public inRollout: boolean = false; // true during MC rollouts (prevents recursion)
   public lastBranch: string | null = null; // most recent branch tag (set by tag())
+  public lastMonteCarloTrace: MonteCarloAdvisorTrace | null = null;
   private effectiveDifficulty: BotDifficulty;
   private recorder?: BotDecisionRecorder;
 
@@ -424,6 +468,113 @@ export class BotAI {
   private tag(branch: string): void {
     this.recorder?.record(branch);
     this.lastBranch = branch;
+  }
+
+  private sameCardIds(a: string[] | null, b: string[] | null): boolean {
+    if (a === null || b === null) return a === b;
+    if (a.length !== b.length) return false;
+    const as = [...a].sort();
+    const bs = [...b].sort();
+    return as.every((id, i) => id === bs[i]);
+  }
+
+  private cardsFromIds(hand: Card[], ids: string[] | null): Card[] | null {
+    if (ids === null) return null;
+    const byId = new Map(hand.map((c) => [c.id, c]));
+    const cards = ids.map((id) => byId.get(id)).filter((c): c is Card => c !== undefined);
+    return cards.length === ids.length ? cards : null;
+  }
+
+  private includesCandidate(candidates: (Card[] | null)[], ids: string[] | null): boolean {
+    return candidates.some((candidate) => this.sameCardIds(candidate ? candidate.map((c) => c.id) : null, ids));
+  }
+
+  private findMcCandidate(
+    result: MonteCarloDecisionResult,
+    ids: string[] | null,
+  ): MonteCarloCandidateScore | null {
+    return result.candidates.find((candidate) => this.sameCardIds(candidate.cardIds, ids)) ?? null;
+  }
+
+  private isBombCardIds(hand: Card[], ids: string[] | null): boolean {
+    const cards = this.cardsFromIds(hand, ids);
+    if (!cards) return false;
+    const combo = detectCombination(cards);
+    return combo?.type === CombinationType.FOUR_OF_A_KIND_BOMB ||
+      combo?.type === CombinationType.STRAIGHT_FLUSH_BOMB;
+  }
+
+  private isCheapHeuristicPlay(hand: Card[], ids: string[] | null): boolean {
+    const cards = this.cardsFromIds(hand, ids);
+    if (!cards) return false;
+    if (cards.some((c) => isSpecial(c, SpecialCardType.DRAGON) || isSpecial(c, SpecialCardType.PHOENIX))) {
+      return false;
+    }
+    const combo = detectCombination(cards);
+    if (!combo) return false;
+    if (
+      combo.type === CombinationType.FOUR_OF_A_KIND_BOMB ||
+      combo.type === CombinationType.STRAIGHT_FLUSH_BOMB
+    ) {
+      return false;
+    }
+    return combo.rank < NR.QUEEN;
+  }
+
+  private evaluateMonteCarloAdvisor(
+    result: MonteCarloDecisionResult,
+    heuristicCardIds: string[] | null,
+    heuristicBranch: string | null,
+    hand: Card[],
+  ): MonteCarloAdvisorTrace {
+    const heuristic = this.findMcCandidate(result, heuristicCardIds);
+    const mc = this.findMcCandidate(result, result.cardIds);
+    const heuristicAvg = heuristic?.averageScore;
+    const mcAvg = mc?.averageScore;
+    const margin = heuristicAvg !== null && heuristicAvg !== undefined && mcAvg !== null && mcAvg !== undefined
+      ? mcAvg - heuristicAvg
+      : null;
+
+    let accepted = false;
+    let reason = 'low-margin';
+
+    if (this.sameCardIds(result.cardIds, heuristicCardIds)) {
+      reason = 'agreed';
+    } else if (result.totalSims <= 0 || result.filteredCandidateCount <= 0) {
+      reason = 'no-sims';
+    } else if (!heuristic || heuristic.averageScore === null) {
+      reason = 'missing-heuristic-score';
+    } else if (!mc || mc.averageScore === null) {
+      reason = 'missing-mc-score';
+    } else if (mc.simCount < this.config.mcMinSimsPerCandidate || heuristic.simCount < this.config.mcMinSimsPerCandidate) {
+      reason = 'low-sims';
+    } else if (result.cardIds === null && this.isCheapHeuristicPlay(hand, heuristicCardIds)) {
+      reason = 'pass-over-heuristic';
+    } else {
+      const requiredMargin = this.isBombCardIds(hand, result.cardIds) && !this.isBombCardIds(hand, heuristicCardIds)
+        ? this.config.mcOverrideMargin * 2
+        : this.config.mcOverrideMargin;
+      if (margin !== null && margin >= requiredMargin) {
+        accepted = true;
+        reason = 'accepted';
+      } else {
+        reason = 'low-margin';
+      }
+    }
+
+    return {
+      mode: 'advisor',
+      heuristicCardIds,
+      heuristicBranch,
+      mcCardIds: result.cardIds,
+      accepted,
+      reason,
+      margin,
+      totalSims: result.totalSims,
+      durationMs: result.durationMs,
+      errorCount: result.errorCount,
+      candidates: result.candidates,
+    };
   }
 
   private isPlayerOut(position: PlayerPosition, context?: GameContext): boolean {
@@ -966,8 +1117,9 @@ export class BotAI {
     wish: WishState,
     botPosition: PlayerPosition,
     context?: GameContext,
-    mcEvaluate?: (candidates: (Card[] | null)[]) => string[] | null,
+    mcEvaluate?: MonteCarloEvaluator,
   ): string[] | null {
+    this.lastMonteCarloTrace = null;
     const isLeading = currentTrick.plays.length === 0;
     const trickTop = isLeading
       ? null
@@ -1036,7 +1188,13 @@ export class BotAI {
       }
     }
 
-    // Hard mode — try Monte Carlo for both leading and following
+    const heuristicResult = isLeading
+      ? this.chooseLeadHard(hand, playable, botPosition, context, cardInfo)
+      : this.chooseFollowHard(hand, playable, currentTrick, wish, botPosition, context, cardInfo);
+    const heuristicBranch = this.lastBranch;
+    const heuristicCards = this.cardsFromIds(hand, heuristicResult);
+
+    // Hard mode — use Monte Carlo as an advisor, not an unconditional override.
     if (
       this.config.useMonteCarlo &&
       !this.inRollout &&
@@ -1085,14 +1243,22 @@ export class BotAI {
       // For follow decisions, include "pass" as a candidate
       const candidates: (Card[] | null)[] = [...filteredPlayable];
       if (!isLeading) candidates.push(null);
-      const result = mcEvaluate(candidates);
-      if (result !== undefined) return result;
+      if (!this.includesCandidate(candidates, heuristicResult)) {
+        candidates.push(heuristicCards);
+      }
+      const result = mcEvaluate(candidates, { forcedCandidate: heuristicCards });
+      if (result) {
+        const trace = this.evaluateMonteCarloAdvisor(result, heuristicResult, heuristicBranch, hand);
+        this.lastMonteCarloTrace = trace;
+        if (trace.accepted) {
+          this.tag('mc:override');
+          return result.cardIds;
+        }
+        this.lastBranch = heuristicBranch;
+      }
     }
 
-    if (isLeading) {
-      return this.chooseLeadHard(hand, playable, botPosition, context, cardInfo);
-    }
-    return this.chooseFollowHard(hand, playable, currentTrick, wish, botPosition, context, cardInfo);
+    return heuristicResult;
   }
 
   // ─── Easy ────────────────────────────────────────────────────────

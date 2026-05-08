@@ -8,7 +8,7 @@ import type {
 import { GamePhase, findPlayableFromHand } from '@cyprus/shared';
 import { RoomManager } from './RoomManager.js';
 import type { GameEngine } from './GameEngine.js';
-import type { BotDifficulty } from './BotAI.js';
+import type { BotDifficulty, MonteCarloAdvisorOptions } from './BotAI.js';
 import type { TrackerDB } from './Database.js';
 import type { GameMonitor } from './GameMonitor.js';
 import { MatchmakingManager } from './MatchmakingManager.js';
@@ -16,7 +16,7 @@ import { TimerManager } from './TimerManager.js';
 import { GamePersistence } from './GamePersistence.js';
 import { BotController } from './BotController.js';
 import { BotAI } from './BotAI.js';
-import { monteCarloEvaluate } from './MonteCarloSim.js';
+import { monteCarloEvaluateDetailed } from './MonteCarloSim.js';
 import { buildReplaySnapshot, type ReplaySnapshot } from './ReplaySnapshot.js';
 import type { TichuCall, Card } from '@cyprus/shared';
 
@@ -929,8 +929,17 @@ export class SocketHandler {
     // Always use Unfair tier — strongest evaluator we have, regardless of bots in the room.
     const hintBot = new BotAI('unfair');
     const ctx = this.buildSimContext(engine);
-    const mcEval = (candidates: (Card[] | null)[]) =>
-      monteCarloEvaluate(engine, info.position, candidates, hintBot.config.mcSims, hintBot.config.mcTimeMs, this.monitor, room.code);
+    const mcEval = (candidates: (Card[] | null)[], options?: MonteCarloAdvisorOptions) =>
+      monteCarloEvaluateDetailed(
+        engine,
+        info.position,
+        candidates,
+        hintBot.config.mcSims,
+        hintBot.config.mcTimeMs,
+        this.monitor,
+        room.code,
+        options,
+      );
 
     let cardIds: string[] | null;
     try {

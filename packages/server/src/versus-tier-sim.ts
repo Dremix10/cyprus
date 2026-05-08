@@ -16,14 +16,14 @@ import {
   findPlayableFromHand,
 } from '@cyprus/shared';
 import { GameEngine } from './GameEngine.js';
-import { BotAI, type BotConfig, type BotDifficulty } from './BotAI.js';
-import { monteCarloEvaluate } from './MonteCarloSim.js';
+import { BotAI, type BotConfig, type BotDifficulty, type MonteCarloEvaluator } from './BotAI.js';
+import { monteCarloEvaluateDetailed } from './MonteCarloSim.js';
 
 function cfgFor(diff: BotDifficulty): Partial<BotConfig> {
   switch (diff) {
-    case 'unfair': return { useMonteCarlo: true, mcSims: 600, mcTimeMs: 400 };
-    case 'extreme': return { useMonteCarlo: true, mcSims: 400, mcTimeMs: 300 };
-    case 'hard': return { useMonteCarlo: true, mcSims: 200, mcTimeMs: 150 };
+    case 'unfair': return { useMonteCarlo: true, mcSims: 600, mcTimeMs: 400, mcOverrideMargin: 18 };
+    case 'extreme': return { useMonteCarlo: true, mcSims: 400, mcTimeMs: 300, mcOverrideMargin: 22 };
+    case 'hard': return { useMonteCarlo: true, mcSims: 200, mcTimeMs: 150, mcOverrideMargin: 30 };
     default: return { useMonteCarlo: false };
   }
 }
@@ -170,11 +170,11 @@ function runGame(swapped: boolean): GameResult {
         tichuCalls[cp % 2]++;
       }
 
-      let mcEval: ((candidates: (Card[] | null)[]) => string[] | null) | undefined;
+      let mcEval: MonteCarloEvaluator | undefined;
       if (bots[cp].config.useMonteCarlo && !bots[cp].inRollout) {
         const sims = bots[cp].config.mcSims;
         const timeMs = bots[cp].config.mcTimeMs;
-        mcEval = (candidates) => monteCarloEvaluate(engine, cp, candidates, sims, timeMs);
+        mcEval = (candidates, options) => monteCarloEvaluateDetailed(engine, cp, candidates, sims, timeMs, undefined, undefined, options);
       }
 
       let ids = bots[cp].choosePlay(pl.hand, engine.state.currentTrick, engine.state.wish, cp, buildCtx(engine), mcEval);

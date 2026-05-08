@@ -21,7 +21,12 @@ import {
   SpecialCardType,
 } from '@cyprus/shared';
 import { GameEngine } from './GameEngine.js';
-import { BotAI, type GameContext } from './BotAI.js';
+import {
+  BotAI,
+  type GameContext,
+  type MonteCarloAdvisorOptions,
+  type MonteCarloDecisionResult,
+} from './BotAI.js';
 import type { GameMonitor } from './GameMonitor.js';
 
 // ─── Shared rollout bots (reused across all simulations) ──────────────
@@ -53,7 +58,7 @@ function buildCtx(engine: GameEngine): GameContext {
   };
 }
 
-/** Build context once for use throughout a rollout (avoids O(n) trick iteration per move). */
+/** Build the current public context for a rollout bot decision. */
 function buildRolloutCtx(engine: GameEngine): GameContext {
   return buildCtx(engine);
 }
@@ -99,9 +104,40 @@ function scoreCandidateHeuristic(cards: Card[] | null, hand: Card[]): number {
   return score;
 }
 
+function sameCandidate(a: Card[] | null, b: Card[] | null): boolean {
+  if (a === null || b === null) return a === b;
+  if (a.length !== b.length) return false;
+  const as = a.map((c) => c.id).sort();
+  const bs = b.map((c) => c.id).sort();
+  return as.every((id, i) => id === bs[i]);
+}
+
+function ensureCandidateIncluded(
+  selected: (Card[] | null)[],
+  forced: Card[] | null | undefined,
+  maxCandidates: number,
+): (Card[] | null)[] {
+  if (forced === undefined || selected.some((candidate) => sameCandidate(candidate, forced))) {
+    return selected;
+  }
+
+  if (selected.length < maxCandidates) {
+    return [...selected, forced];
+  }
+
+  return [...selected.slice(0, Math.max(0, maxCandidates - 1)), forced];
+}
+
 /** Select diverse top candidates: pick best from each combo type. */
-function preFilterCandidates(candidates: (Card[] | null)[], hand: Card[], maxCandidates: number = 5): (Card[] | null)[] {
-  if (candidates.length <= maxCandidates) return candidates;
+function preFilterCandidates(
+  candidates: (Card[] | null)[],
+  hand: Card[],
+  maxCandidates: number = 5,
+  forcedCandidate?: Card[] | null,
+): (Card[] | null)[] {
+  if (candidates.length <= maxCandidates) {
+    return ensureCandidateIncluded(candidates, forcedCandidate, maxCandidates);
+  }
 
   // Score and sort
   const scored = candidates.map((c, i) => ({
@@ -126,7 +162,7 @@ function preFilterCandidates(candidates: (Card[] | null)[], hand: Card[], maxCan
     }
   }
 
-  return selected;
+  return ensureCandidateIncluded(selected, forcedCandidate, maxCandidates);
 }
 
 // ─── Determinization ──────────────────────────────────────────────────
@@ -175,10 +211,6 @@ function determinize(engine: GameEngine, botPosition: PlayerPosition, unknownPoo
 function rollout(engine: GameEngine, deadline: number): void {
   let safety = 0;
 
-  // Build context once before the rollout — the bot AI uses it for heuristics,
-  // not exact state, so a snapshot at rollout start is sufficient.
-  const ctx = buildRolloutCtx(engine);
-
   while (
     (engine.state.phase === GamePhase.PLAYING || engine.state.phase === GamePhase.DRAGON_GIVE) &&
     safety < 500
@@ -193,12 +225,14 @@ function rollout(engine: GameEngine, deadline: number): void {
 
     if (engine.state.wishPending !== null) {
       const wp = engine.state.wishPending;
+      const ctx = buildRolloutCtx(engine);
       engine.setWish(wp, rolloutBots[wp].chooseWish(engine.state.players[wp].hand, ctx));
       continue;
     }
 
     if (engine.state.phase === GamePhase.DRAGON_GIVE) {
       const w = engine.state.dragonWinner!;
+      const ctx = buildRolloutCtx(engine);
       const opps = engine.state.players
         .filter((p) => p.position % 2 !== w % 2)
         .map((p) => p.position as PlayerPosition);
@@ -209,6 +243,7 @@ function rollout(engine: GameEngine, deadline: number): void {
 
     const cp = engine.state.currentPlayer;
     const pl = engine.state.players[cp];
+    const ctx = buildRolloutCtx(engine);
 
     let ids = rolloutBots[cp].choosePlay(
       pl.hand, engine.state.currentTrick, engine.state.wish, cp, ctx
@@ -287,11 +322,37 @@ interface MCCandidate {
   simCount: number;
 }
 
+function toCardIds(cards: Card[] | null): string[] | null {
+  return cards ? cards.map((c) => c.id) : null;
+}
+
+function buildDecisionResult(
+  cardIds: string[] | null,
+  mc: MCCandidate[],
+  totalSims: number,
+  durationMs: number,
+  errorCount: number,
+): MonteCarloDecisionResult {
+  return {
+    cardIds,
+    candidates: mc.map((candidate) => ({
+      cardIds: candidate.cardIds,
+      totalScore: candidate.totalScore,
+      simCount: candidate.simCount,
+      averageScore: candidate.simCount > 0 ? candidate.totalScore / candidate.simCount : null,
+    })),
+    totalSims,
+    durationMs,
+    filteredCandidateCount: mc.length,
+    errorCount,
+  };
+}
+
 /**
  * Monte Carlo evaluation of candidate plays.
  * Pre-filters to top 5 candidates, then evaluates via simulation.
  */
-export function monteCarloEvaluate(
+export function monteCarloEvaluateDetailed(
   engine: GameEngine,
   botPosition: PlayerPosition,
   candidates: (Card[] | null)[],
@@ -299,19 +360,26 @@ export function monteCarloEvaluate(
   timeBudgetMs: number = 150,
   monitor?: GameMonitor,
   roomCode?: string,
-): string[] | null {
+  options: MonteCarloAdvisorOptions = {},
+): MonteCarloDecisionResult | undefined {
+  if (candidates.length === 0) return undefined;
+
   if (candidates.length <= 1) {
     const only = candidates[0];
-    return only ? only.map((c) => c.id) : null;
+    const onlyIds = toCardIds(only);
+    const mc = [{ cardIds: onlyIds, totalScore: 0, simCount: 0 }];
+    return buildDecisionResult(onlyIds, mc, 0, 0, 0);
   }
 
   // Pre-filter to top candidates
   const hand = engine.state.players[botPosition].hand;
-  const filtered = preFilterCandidates(candidates, hand, 5);
+  const filtered = preFilterCandidates(candidates, hand, 5, options.forcedCandidate);
 
   if (filtered.length <= 1) {
     const only = filtered[0];
-    return only ? only.map((c) => c.id) : null;
+    const onlyIds = toCardIds(only);
+    const mc = [{ cardIds: onlyIds, totalScore: 0, simCount: 0 }];
+    return buildDecisionResult(onlyIds, mc, 0, 0, 0);
   }
 
   const start = performance.now();
@@ -328,6 +396,7 @@ export function monteCarloEvaluate(
   const unknownPool = computeUnknownPool(knownIds);
 
   let totalSims = 0;
+  let errorCount = 0;
 
   while (totalSims < maxSimulations && (performance.now() - start) < timeBudgetMs) {
     const candidateIdx = totalSims % mc.length;
@@ -359,6 +428,7 @@ export function monteCarloEvaluate(
       candidate.simCount++;
       totalSims++;
     } catch {
+      errorCount++;
       totalSims++;
     }
   }
@@ -380,5 +450,25 @@ export function monteCarloEvaluate(
     }
   }
 
-  return mc[bestIdx].cardIds;
+  return buildDecisionResult(mc[bestIdx].cardIds, mc, totalSims, durationMs, errorCount);
+}
+
+export function monteCarloEvaluate(
+  engine: GameEngine,
+  botPosition: PlayerPosition,
+  candidates: (Card[] | null)[],
+  maxSimulations: number = 200,
+  timeBudgetMs: number = 150,
+  monitor?: GameMonitor,
+  roomCode?: string,
+): string[] | null {
+  return monteCarloEvaluateDetailed(
+    engine,
+    botPosition,
+    candidates,
+    maxSimulations,
+    timeBudgetMs,
+    monitor,
+    roomCode,
+  )?.cardIds ?? null;
 }
