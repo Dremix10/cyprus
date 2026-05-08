@@ -489,6 +489,180 @@ export class BotAI {
     return filtered.length > 0 ? filtered : playable;
   }
 
+  private withoutCards(hand: Card[], played: Card[]): Card[] {
+    const remainingIds = played.map((c) => c.id);
+    return hand.filter((card) => {
+      const idx = remainingIds.indexOf(card.id);
+      if (idx === -1) return true;
+      remainingIds.splice(idx, 1);
+      return false;
+    });
+  }
+
+  private breaksMadeNormalSet(play: Card[], hand: Card[]): boolean {
+    const handCounts = new Map<NormalRank, number>();
+    const playCounts = new Map<NormalRank, number>();
+
+    for (const card of hand) {
+      if (isNormalCard(card)) handCounts.set(card.rank, (handCounts.get(card.rank) ?? 0) + 1);
+    }
+    for (const card of play) {
+      if (isNormalCard(card)) playCounts.set(card.rank, (playCounts.get(card.rank) ?? 0) + 1);
+    }
+
+    for (const [rank, used] of playCounts) {
+      const held = handCounts.get(rank) ?? 0;
+      if (held >= 2 && used > 0 && used < held) return true;
+    }
+    return false;
+  }
+
+  private hasLeadPrioritySpecial(playable: Card[][]): boolean {
+    return playable.some((cards) =>
+      cards.length === 1 && (
+        isSpecial(cards[0], SpecialCardType.DOG) ||
+        isSpecial(cards[0], SpecialCardType.MAHJONG)
+      )
+    );
+  }
+
+  private chooseEndgameLeadPlan(hand: Card[], playable: Card[][]): Card[] | null {
+    if (hand.length < 4 || hand.length > 6) return null;
+    if (this.hasLeadPrioritySpecial(playable)) return null;
+
+    let bestPlay: Card[] | null = null;
+    let bestScore = Infinity;
+
+    for (const play of playable) {
+      const combo = detectCombination(play);
+      if (!combo) continue;
+      if (
+        combo.type === CombinationType.FOUR_OF_A_KIND_BOMB ||
+        combo.type === CombinationType.STRAIGHT_FLUSH_BOMB
+      ) {
+        continue;
+      }
+
+      const remaining = this.withoutCards(hand, play);
+      const remainingPlan = planHand(remaining);
+      let score = (1 + remainingPlan.turnsToOut) * 100;
+
+      // Prefer playing a whole made combo now over spending comparable singletons.
+      score -= play.length * 14;
+      if (combo.type === CombinationType.TRIPLE) score -= 20;
+      if (combo.type === CombinationType.PAIR) score -= 10;
+      if (combo.type === CombinationType.STRAIGHT || combo.type === CombinationType.FULL_HOUSE) score -= 18;
+      if (this.breaksMadeNormalSet(play, hand)) score += 100;
+      score += combo.rank * 0.1;
+
+      if (score < bestScore) {
+        bestScore = score;
+        bestPlay = play;
+      }
+    }
+
+    if (!bestPlay || bestPlay.length <= 1) return null;
+    return bestPlay;
+  }
+
+  private chooseRaceLeadPlan(
+    hand: Card[],
+    playable: Card[][],
+    botPosition: PlayerPosition,
+    context?: GameContext
+  ): Card[] | null {
+    if (!context || this.hasLeadPrioritySpecial(playable)) return null;
+
+    const minOppCards = this.minOpponentCardCount(botPosition, context);
+    const urgentRace = minOppCards <= 2 || (context.finishOrder.length > 0 && minOppCards <= 4);
+    if (!urgentRace) return null;
+
+    let bestPlay: Card[] | null = null;
+    let bestScore = Infinity;
+
+    for (const play of playable) {
+      if (play.length <= 1) continue;
+      const combo = detectCombination(play);
+      if (!combo) continue;
+      if (
+        combo.type === CombinationType.FOUR_OF_A_KIND_BOMB ||
+        combo.type === CombinationType.STRAIGHT_FLUSH_BOMB
+      ) {
+        continue;
+      }
+      if (this.isHighResourceLeadWaste(play, hand, botPosition, context)) continue;
+
+      const remainingPlan = planHand(this.withoutCards(hand, play));
+      let score = (1 + remainingPlan.turnsToOut) * 100;
+      score -= play.length * 18;
+      if (combo.type === CombinationType.CONSECUTIVE_PAIRS) score -= 35;
+      if (combo.type === CombinationType.TRIPLE) score -= 20;
+      if (combo.type === CombinationType.FULL_HOUSE || combo.type === CombinationType.STRAIGHT) score -= 18;
+      if (combo.type === CombinationType.PAIR) score -= 8;
+      if (this.breaksMadeNormalSet(play, hand)) score += 80;
+      score += combo.rank * 0.1;
+
+      if (score < bestScore) {
+        bestScore = score;
+        bestPlay = play;
+      }
+    }
+
+    return bestPlay;
+  }
+
+  private isHighResourceLeadWaste(
+    play: Card[],
+    hand: Card[],
+    botPosition: PlayerPosition,
+    context?: GameContext
+  ): boolean {
+    if (play.length < 5) return false;
+
+    const urgent = hand.length <= 8 ||
+      (!!context && this.minOpponentCardCount(botPosition, context) <= 2) ||
+      (!!context && this.minOpponentTichuCardCount(botPosition, context) <= 5);
+    if (urgent) return false;
+
+    const hasPhoenix = play.some((c) => isSpecial(c, SpecialCardType.PHOENIX));
+    const highNormals = play.filter((c) => isNormalCard(c) && c.rank >= NR.KING).length;
+    const hasAce = play.some((c) => isNormalCard(c) && c.rank === NR.ACE);
+    const highResource =
+      hasPhoenix ||
+      (hasAce && highNormals >= 2) ||
+      highNormals >= 3;
+    if (!highResource) return false;
+
+    const remainingPlan = planHand(this.withoutCards(hand, play));
+    return remainingPlan.turnsToOut > 2;
+  }
+
+  private filterHighResourceLeadWaste(
+    playable: Card[][],
+    hand: Card[],
+    botPosition: PlayerPosition,
+    context?: GameContext
+  ): Card[][] {
+    const filtered = playable.filter((play) =>
+      !this.isHighResourceLeadWaste(play, hand, botPosition, context)
+    );
+    return filtered.length > 0 ? filtered : playable;
+  }
+
+  private shouldLeadAceAgainstTichu(
+    hand: Card[],
+    botPosition: PlayerPosition,
+    context?: GameContext,
+    cardInfo?: CardCountInfo | null
+  ): boolean {
+    if (!this.config.leadAcesAgainstTichu || !context) return false;
+    if (this.aceSingleIsUnbeatable(cardInfo)) return false;
+
+    const minTichuCards = this.minOpponentTichuCardCount(botPosition, context);
+    if (minTichuCards <= 4) return true;
+    return hand.length <= 4;
+  }
+
   // ─── Grand Tichu ────────────────────────────────────────────────────
 
   decideGrandTichu(hand: Card[]): boolean {
@@ -841,6 +1015,27 @@ export class BotAI {
       context.tichuCalls[partnerPos] === 'grand_tichu'
     ) && !context.finishOrder.includes(partnerPos);
 
+    if (isLeading && !partnerHasLiveTichu) {
+      const plannedLead = this.chooseEndgameLeadPlan(hand, playable);
+      if (plannedLead) {
+        this.tag('lead:endgame-plan');
+        return plannedLead.map((c) => c.id);
+      }
+      const raceLead = this.chooseRaceLeadPlan(hand, playable, botPosition, context);
+      if (raceLead) {
+        this.tag('lead:race-plan');
+        return raceLead.map((c) => c.id);
+      }
+    }
+
+    if (!isLeading) {
+      const blockPlay = this.chooseLowSingleInitiativeBlock(hand, playable, currentTrick, botPosition, context);
+      if (blockPlay) {
+        this.tag('follow:block-low-single-initiative');
+        return blockPlay.map((c) => c.id);
+      }
+    }
+
     // Hard mode — try Monte Carlo for both leading and following
     if (
       this.config.useMonteCarlo &&
@@ -1130,19 +1325,21 @@ export class BotAI {
       }
       // 2. Lead Aces as singles — if they burn Dragon, we get the 25pts back (Dragon rule).
       //    Skip if we know nothing remaining can beat Ace (pure waste).
-      if (this.config.leadAcesAgainstTichu) {
+      if (this.shouldLeadAceAgainstTichu(hand, botPosition, context, cardInfo)) {
         const aceSingles = combos.nonSpecialSingles.filter(
           (c) => isNormalCard(c[0]) && c[0].rank === NR.ACE
         );
-        if (aceSingles.length > 0 && !this.aceSingleIsUnbeatable(cardInfo)) {
+        if (aceSingles.length > 0) {
           this.tag('lead:vs-tichu-ace');
           return aceSingles[0].map((c) => c.id);
         }
       }
       // 3. Lead King+ singles to pressure
-      const highSingles = combos.nonSpecialSingles.filter(
-        (c) => isNormalCard(c[0]) && c[0].rank >= NR.KING
-      );
+      const highSingles = combos.nonSpecialSingles.filter((c) => {
+        if (!isNormalCard(c[0])) return false;
+        if (c[0].rank === NR.ACE) return false;
+        return c[0].rank >= NR.KING;
+      });
       if (highSingles.length > 0) {
         this.tag('lead:vs-tichu-high');
         return this.pickHighestCombo(highSingles);
@@ -1155,6 +1352,17 @@ export class BotAI {
           return dragonPlay.map((c) => c.id);
         }
       }
+    }
+
+    const plannedLead = this.chooseEndgameLeadPlan(hand, playable);
+    if (plannedLead) {
+      this.tag('lead:endgame-plan');
+      return plannedLead.map((c) => c.id);
+    }
+    const raceLead = this.chooseRaceLeadPlan(hand, playable, botPosition, context);
+    if (raceLead) {
+      this.tag('lead:race-plan');
+      return raceLead.map((c) => c.id);
     }
 
     const leadBombReason = this.getLeadBombReason(
@@ -1173,7 +1381,7 @@ export class BotAI {
     // Matches the choosePlay-level filter (filterAceWasteInLeads): an Ace pair or triple
     // inside any multi-card combo is filtered (covers AAA-XX full houses, KK-AA consecutive
     // pairs, etc.); a single Ace is only allowed in length-5+ combos (Ace-ending straights).
-    const noAceCombos = combos.multiCard.filter((combo) => {
+    const noAceCombos = this.filterHighResourceLeadWaste(combos.multiCard, hand, botPosition, context).filter((combo) => {
       const aceCount = combo.filter((c) => isNormalCard(c) && c.rank === NR.ACE).length;
       if (aceCount === 0) return true;
       if (aceCount >= 2) return false;
@@ -1286,21 +1494,6 @@ export class BotAI {
     // Is there an opponent Tichu/Grand Tichu call we should save bombs for?
     const opponentTichuActive = context ? this.hasOpponentTichuCall(botPosition, context) : false;
 
-    // ── Endgame urgency: play to go out ──
-    // Skip if partner is already winning — don't overtake partner, especially if they called Tichu.
-    // Exceptions: if *we* called Tichu/GT or partner is already out, we still need to race out.
-    if (hand.length <= 3 && regular.length > 0) {
-      const botCalledTichu = !!context && (
-        context.tichuCalls[botPosition] === 'tichu' ||
-        context.tichuCalls[botPosition] === 'grand_tichu'
-      );
-      if (!partnerWinning || botCalledTichu || partnerOut) {
-        const sorted = this.sortByRank(regular);
-        this.tag(partnerWinning && partnerOut ? 'follow:endgame-partner-out' : 'follow:endgame-urgency');
-        return sorted[0].map((c) => c.id);
-      }
-    }
-
     // ── Check if opponent is about to go out ──
     const opponentAboutToOut = context ? this.isOpponentAboutToOut(botPosition, context) : false;
 
@@ -1320,6 +1513,16 @@ export class BotAI {
 
     // ── Partner winning ──
     if (partnerWinning) {
+      const dragonOut = this.chooseDragonOnNegativePartnerTrick(hand, regular, trickPoints);
+      if (dragonOut) {
+        this.tag('follow:dragon-negative-out');
+        return dragonOut.map((c) => c.id);
+      }
+      if (partnerOut && hand.length <= 3 && regular.length > 0) {
+        this.tag('follow:endgame-partner-out');
+        const sorted = this.sortByRank(regular);
+        return sorted[0].map((c) => c.id);
+      }
       // Bomb only if opponent is about to go out (prevent them)
       if (opponentAboutToOut && bombs.length > 0) {
         this.tag('follow:bomb-block-opp-out');
@@ -1337,35 +1540,60 @@ export class BotAI {
       return null;
     }
 
+    const controlPlay = this.chooseEndgameControlFollow(hand, regular, currentTrick, botPosition, context);
+    if (controlPlay) {
+      this.tag('follow:endgame-secure-control');
+      return controlPlay.map((c) => c.id);
+    }
+
+    // ── Endgame urgency: play to go out ──
+    // Skip if partner is already winning — don't overtake partner, especially if they called Tichu.
+    // Exceptions: if *we* called Tichu/GT or partner is already out, we still need to race out.
+    if (hand.length <= 3 && regular.length > 0) {
+      const botCalledTichu = !!context && (
+        context.tichuCalls[botPosition] === 'tichu' ||
+        context.tichuCalls[botPosition] === 'grand_tichu'
+      );
+      if (!partnerWinning || botCalledTichu || partnerOut) {
+        const sorted = this.sortByRank(regular);
+        this.tag(partnerWinning && partnerOut ? 'follow:endgame-partner-out' : 'follow:endgame-urgency');
+        return sorted[0].map((c) => c.id);
+      }
+    }
+
     // ── Proactive bombing: bomb high-value tricks even when regular plays exist ──
     if (bombs.length > 0 && !partnerWinning) {
       // Opponent card-count awareness: bomb aggressively when opponents are thin
-      if (this.config.opponentCardCountBombing && context) {
+      if (context) {
         const minOppCards = this.minOpponentCardCount(botPosition, context);
         // Opponent at 1 card — always bomb
-        if (minOppCards <= 1) { this.tag('follow:bomb-opp-1-card'); return this.pickLowestCombo(bombs); }
+        if (this.config.opponentCardCountBombing && minOppCards <= 1) { this.tag('follow:bomb-opp-1-card'); return this.pickLowestCombo(bombs); }
         // Opponent at ≤2 cards — bomb any trick
-        if (minOppCards <= 2) { this.tag('follow:bomb-opp-2-card'); return this.pickLowestCombo(bombs); }
+        if (this.config.opponentCardCountBombing && minOppCards <= 2) { this.tag('follow:bomb-opp-2-card'); return this.pickLowestCombo(bombs); }
         // Opponent at ≤3 with Tichu call — bomb any trick ≥5 pts
-        if (minOppCards <= 3 && opponentTichuActive && trickPoints >= 5) {
+        if (this.config.opponentCardCountBombing && minOppCards <= 3 && opponentTichuActive && trickPoints >= 5) {
           this.tag('follow:bomb-opp-3-tichu');
           return this.pickLowestCombo(bombs);
         }
       }
-      // Bomb valuable tricks (15+ points) — worth spending a bomb to steal
-      if (trickPoints >= this.config.bombPointThreshold) {
-        this.tag('follow:bomb-high-points');
-        return this.pickLowestCombo(bombs);
-      }
-      // Bomb 10+ point tricks if opponent is about to go out or has Tichu
-      if (trickPoints >= 10 && (opponentAboutToOut || opponentTichuActive)) {
-        this.tag('follow:bomb-10pts-urgent');
-        return this.pickLowestCombo(bombs);
-      }
-      // Bomb any trick if close to going out (use bombs before hand empties)
-      if (hand.length <= this.config.bombEndgameCards) {
-        this.tag('follow:bomb-endgame-clear');
-        return this.pickLowestCombo(bombs);
+      // If a regular play wins the trick, keep the bomb unless the situation is truly urgent.
+      const keepBombForLater = regular.length > 0 &&
+        !this.shouldBombDespiteRegular(hand, currentTrick, botPosition, context);
+      if (!keepBombForLater) {
+        if (trickPoints >= this.config.bombPointThreshold) {
+          this.tag('follow:bomb-high-points');
+          return this.pickLowestCombo(bombs);
+        }
+        // Bomb 10+ point tricks if opponent is about to go out or has Tichu
+        if (trickPoints >= 10 && (opponentAboutToOut || opponentTichuActive)) {
+          this.tag('follow:bomb-10pts-urgent');
+          return this.pickLowestCombo(bombs);
+        }
+        // Bomb any trick if close to going out (use bombs before hand empties)
+        if (hand.length <= this.config.bombEndgameCards) {
+          this.tag('follow:bomb-endgame-clear');
+          return this.pickLowestCombo(bombs);
+        }
       }
     }
 
@@ -1567,6 +1795,108 @@ export class BotAI {
     return bestPlay ? bestPlay.map((c) => c.id) : null;
   }
 
+  private chooseLowSingleInitiativeBlock(
+    hand: Card[],
+    playable: Card[][],
+    currentTrick: TrickState,
+    botPosition: PlayerPosition,
+    context?: GameContext
+  ): Card[] | null {
+    if (!context || currentTrick.plays.length === 0) return null;
+
+    const winner = currentTrick.currentWinner;
+    if (winner === null || winner % 2 === botPosition % 2) return null;
+
+    const topCombo = currentTrick.plays[currentTrick.plays.length - 1]?.combination;
+    if (
+      !topCombo ||
+      topCombo.type !== CombinationType.SINGLE ||
+      topCombo.rank > NR.FIVE
+    ) {
+      return null;
+    }
+
+    const winnerCards = context.playerCardCounts.get(winner) ?? 14;
+    const winnerCall = context.tichuCalls[winner];
+    const winnerHasLiveTichu = winnerCall === 'tichu' || winnerCall === 'grand_tichu';
+    if (winnerCards > 4 && !winnerHasLiveTichu) return null;
+
+    const normalRankCounts = new Map<number, number>();
+    for (const card of hand) {
+      if (isNormalCard(card)) {
+        normalRankCounts.set(card.rank, (normalRankCounts.get(card.rank) || 0) + 1);
+      }
+    }
+
+    const cheapNormalSingles = playable.filter((play) =>
+      play.length === 1 &&
+      isNormalCard(play[0]) &&
+      play[0].rank <= NR.TEN &&
+      play[0].rank > topCombo.rank
+    );
+    if (cheapNormalSingles.length === 0) return null;
+
+    const singletonSingles = cheapNormalSingles.filter((play) =>
+      isNormalCard(play[0]) && normalRankCounts.get(play[0].rank) === 1
+    );
+
+    return this.sortByRank(singletonSingles.length > 0 ? singletonSingles : cheapNormalSingles)[0];
+  }
+
+  private chooseEndgameControlFollow(
+    hand: Card[],
+    regular: Card[][],
+    currentTrick: TrickState,
+    botPosition: PlayerPosition,
+    context?: GameContext
+  ): Card[] | null {
+    if (!context || hand.length !== 2) return null;
+
+    const winner = currentTrick.currentWinner;
+    if (winner === null || winner % 2 === botPosition % 2) return null;
+
+    const topCombo = currentTrick.plays[currentTrick.plays.length - 1]?.combination;
+    if (!topCombo || topCombo.type !== CombinationType.SINGLE) return null;
+
+    const normalSingles = regular.filter((play) => play.length === 1 && isNormalCard(play[0]));
+    if (normalSingles.length < 2) return null;
+
+    const sorted = this.sortByRank(normalSingles);
+    return sorted[sorted.length - 1];
+  }
+
+  private chooseDragonOnNegativePartnerTrick(
+    hand: Card[],
+    regular: Card[][],
+    trickPoints: number
+  ): Card[] | null {
+    if (hand.length !== 1 || trickPoints >= 0) return null;
+    return regular.find((play) =>
+      play.length === 1 && isSpecial(play[0], SpecialCardType.DRAGON)
+    ) ?? null;
+  }
+
+  private shouldBombDespiteRegular(
+    hand: Card[],
+    currentTrick: TrickState,
+    botPosition: PlayerPosition,
+    context?: GameContext
+  ): boolean {
+    if (hand.length <= 3) return true;
+    if (!context) return false;
+
+    const winner = currentTrick.currentWinner;
+    if (winner !== null && winner % 2 !== botPosition % 2) {
+      const winnerCards = context.playerCardCounts.get(winner) ?? 14;
+      const winnerCall = context.tichuCalls[winner];
+      if ((winnerCall === 'tichu' || winnerCall === 'grand_tichu') && winnerCards <= 5) {
+        return true;
+      }
+    }
+
+    return this.minOpponentCardCount(botPosition, context) <= 2;
+  }
+
   // ─── Bomb Logic ──────────────────────────────────────────────────
 
   private shouldUseBombHard(
@@ -1627,6 +1957,19 @@ export class BotAI {
     for (const pos of [0, 1, 2, 3] as PlayerPosition[]) {
       if (pos % 2 === botPosition % 2) continue;
       if (context.finishOrder.includes(pos)) continue;
+      const cards = context.playerCardCounts.get(pos) ?? 14;
+      if (cards < min) min = cards;
+    }
+    return min;
+  }
+
+  private minOpponentTichuCardCount(botPosition: PlayerPosition, context: GameContext): number {
+    let min = Infinity;
+    for (const pos of [0, 1, 2, 3] as PlayerPosition[]) {
+      if (pos % 2 === botPosition % 2) continue;
+      if (context.finishOrder.includes(pos)) continue;
+      const call = context.tichuCalls[pos];
+      if (call !== 'tichu' && call !== 'grand_tichu') continue;
       const cards = context.playerCardCounts.get(pos) ?? 14;
       if (cards < min) min = cards;
     }

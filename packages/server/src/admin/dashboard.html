@@ -69,6 +69,13 @@
   .report-title { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; }
   .report-title strong { color: #f0f0f0; }
   .report-meta { color: #888; font-size: 0.78rem; margin-top: 0.25rem; }
+  .fixed-pill { background: #1a3a2a; color: #66d38a; border: 1px solid rgba(102, 211, 138, 0.35); border-radius: 4px; padding: 0.16rem 0.5rem; font-size: 0.75rem; font-weight: 700; cursor: pointer; }
+  .fixed-pill:hover { border-color: #66d38a; color: #8be0a7; }
+  .fixed-note { background: #111f18; border: 1px solid rgba(102, 211, 138, 0.24); border-radius: 8px; padding: 0.85rem 1rem; display: grid; gap: 0.55rem; }
+  .fixed-note[hidden] { display: none; }
+  .fixed-note-title { color: #66d38a; font-weight: 700; font-size: 0.85rem; }
+  .fixed-note-body { color: #d7e8dc; font-size: 0.82rem; line-height: 1.45; }
+  .fixed-note-meta { color: #93aa9a; font-size: 0.75rem; }
   .report-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 0.6rem; }
   .report-field { background: #18182a; border: 1px solid #24243e; border-radius: 6px; padding: 0.55rem 0.65rem; min-width: 0; }
   .report-field-label { color: #777; font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.4px; margin-bottom: 0.25rem; }
@@ -216,6 +223,94 @@ const REVIEW_LABELS = {
   needs_replay: 'Needs replay',
   duplicate: 'Duplicate',
 };
+const FIXED_REPORTS = [
+  {
+    ids: [28, 14, 10, 9, 7, 6],
+    title: 'Phoenix lead waste fixed',
+    summary: 'Bots now avoid leading a bare Phoenix when any normal lead exists, including partner-Tichu setup leads. Phoenix can still be used as the final card or inside a real combination.',
+    changed: 'Added Phoenix-single filtering before lead selection and regression tests for the reported partner-Tichu shapes.',
+  },
+  {
+    ids: [24, 23, 12, 11],
+    title: 'Bomb lead waste fixed',
+    summary: 'Bombs are no longer treated as ordinary lead multi-card combos. A bot leads a bomb only when it is the only legal lead, an endgame closeout, or there is a real urgent reason.',
+    changed: 'Split bomb candidates from regular lead candidates and added explicit bomb-lead reason tags.',
+  },
+  {
+    ids: [22, 1],
+    title: 'Phoenix follow waste fixed',
+    summary: 'Bots now avoid spending Phoenix on low or medium single follows when a normal card can win the trick, unless Phoenix is the only useful stop or the bot is in late endgame.',
+    changed: 'Added a wasteful-Phoenix follow filter before smart selection and Monte Carlo candidate selection.',
+  },
+  {
+    ids: [26],
+    title: 'Partner-out pass fixed',
+    summary: 'When partner is winning but already out, a short-handed bot now keeps racing instead of passing and trapping itself.',
+    changed: 'Added a partner-out endgame exception before the partner-winning pass rule.',
+  },
+  {
+    ids: [25],
+    title: 'Partner Mahjong wish protection fixed',
+    summary: 'When partner leads Mahjong with an active wish, the bot now helps satisfy/protect the wish with the cheapest normal single instead of passively giving up the setup.',
+    changed: 'Threaded wish context through follow decisions and added a partner-Mahjong wish branch.',
+  },
+  {
+    ids: [21],
+    title: 'Triple-breaking endgame lead fixed',
+    summary: 'Hard bots now use a small-hand lead plan before Monte Carlo, so they keep made triples/pairs together instead of leading one card from the set.',
+    changed: 'Added an endgame lead planner that scores the remaining hand after each candidate lead.',
+  },
+  {
+    ids: [20],
+    title: 'Low-card opponent single pass fixed',
+    summary: 'Hard bots no longer let a low-card opponent keep initiative for free on a cheap single when the bot has a cheap normal answer.',
+    changed: 'Added a pre-Monte-Carlo low-single initiative block that prefers loose low normal singles.',
+  },
+  {
+    ids: [31, 13],
+    title: 'Ace-vs-Tichu lead waste fixed',
+    summary: 'Bots no longer burn an Ace just because an opponent has a distant Tichu or Grand Tichu call. Ace pressure is reserved for immediate danger or very short bot hands.',
+    changed: 'Restricted the Ace-vs-Tichu branch and falls back to safer pressure such as King leads or normal plan leads.',
+  },
+  {
+    ids: [30],
+    title: 'Race lead shape fixed',
+    summary: 'When opponents are nearly out, bots now prefer stronger multi-card race leads like consecutive pairs instead of leaking a tiny pair first.',
+    changed: 'Added a race lead planner that scores candidates by cards shed and remaining turns to go out.',
+  },
+  {
+    ids: [29],
+    title: 'High-resource opening combo fixed',
+    summary: 'Bots avoid opening with Phoenix/Ace/King-heavy long combos when there is no clear finish plan and no urgent opponent pressure.',
+    changed: 'Added high-resource lead-waste filtering before long-combo lead selection.',
+  },
+  {
+    ids: [17],
+    title: 'Two-card endgame control fixed',
+    summary: 'With two cards left, bots now prefer the stronger winning single when that is the realistic way to keep control and go out.',
+    changed: 'Added an endgame secure-control follow branch before cheapest-beat urgency.',
+  },
+  {
+    ids: [5],
+    title: 'Dragon over negative partner trick fixed',
+    summary: 'If partner is winning with a negative Phoenix trick and the bot has only Dragon, the bot can play Dragon to go out and hand the negative pile to opponents.',
+    changed: 'Added a Dragon-negative-out exception before the partner-winning pass branch.',
+  },
+  {
+    ids: [4, 3],
+    title: 'Unnecessary follow bomb fixed',
+    summary: 'Bots now keep bombs when a regular card or pair can already win the trick, unless the situation is truly urgent.',
+    changed: 'Added regular-over-bomb restraint for high-point and Tichu-pressure follow decisions.',
+  },
+  {
+    ids: [2],
+    title: 'Grand Tichu low-single block fixed',
+    summary: 'Bots now contest cheap low singles from a live Tichu or Grand Tichu caller even when that caller still has many cards.',
+    changed: 'Extended the low-single initiative block to live Tichu callers, still using cheap normal singles only.',
+  },
+];
+const FIXED_REPORT_LOOKUP = new Map();
+FIXED_REPORTS.forEach(fix => fix.ids.forEach(id => FIXED_REPORT_LOOKUP.set(id, fix)));
 
 function showTab(name) {
   currentTab = name;
@@ -426,6 +521,46 @@ function reportIdLabel(report) {
   return ids.map(id => '#' + id).join('/');
 }
 
+function fixedInfoForReport(report) {
+  const ids = report.report_ids || [report.id];
+  const seen = new Set();
+  const fixes = [];
+  ids.forEach(id => {
+    const fix = FIXED_REPORT_LOOKUP.get(Number(id));
+    if (!fix || seen.has(fix.title)) return;
+    seen.add(fix.title);
+    fixes.push(fix);
+  });
+  return fixes;
+}
+
+function renderFixedButton(report) {
+  const fixes = fixedInfoForReport(report);
+  if (fixes.length === 0) return '';
+  const label = fixes.length > 1 ? 'Fixed ' + fixes.length : 'Fixed';
+  return '<button class="fixed-pill" type="button" onclick="toggleFixedNote(' + report.id + ')">' + esc(label) + '</button>';
+}
+
+function renderFixedNote(report) {
+  const fixes = fixedInfoForReport(report);
+  if (fixes.length === 0) return '';
+  return '<div class="fixed-note" id="fixed-note-' + report.id + '" hidden>' +
+    fixes.map(fix =>
+      '<div>' +
+        '<div class="fixed-note-title">' + esc(fix.title) + '</div>' +
+        '<div class="fixed-note-body">' + esc(fix.summary) + '</div>' +
+        '<div class="fixed-note-meta">' + esc(fix.changed) + '</div>' +
+      '</div>'
+    ).join('') +
+  '</div>';
+}
+
+function toggleFixedNote(reportId) {
+  const note = document.getElementById('fixed-note-' + reportId);
+  if (!note) return;
+  note.hidden = !note.hidden;
+}
+
 function groupReportsByEvent(reports) {
   const groups = new Map();
   reports.forEach(report => {
@@ -530,6 +665,7 @@ function renderBotReports(data) {
   const totalReports = grouped.reduce((sum, g) => sum + Number(g.total_reports || 0), 0);
   const unreviewed = grouped.reduce((sum, g) => sum + Number(g.unreviewed_reports || 0), 0);
   const duplicateCount = recent.reduce((sum, r) => sum + Math.max(0, Number(r.report_count || 1) - 1), 0);
+  const fixedCount = recent.filter(r => fixedInfoForReport(r).length > 0).length;
 
   const groupedHtml = grouped.length
     ? '<table><tr><th>Branch</th><th>Tier</th><th>Reporters</th><th>Total</th><th>Unreviewed</th><th>Last</th></tr>' +
@@ -554,6 +690,7 @@ function renderBotReports(data) {
               '<strong>Report ' + esc(reportIdLabel(r)) + '</strong>' +
               (Number(r.report_count) > 1 ? '<span class="badge badge-blue">' + r.report_count + ' reports</span>' : '') +
               '<span id="review-badges-' + r.id + '">' + renderStatusBadges(r) + '</span>' +
+              renderFixedButton(r) +
               '<span class="badge badge-blue">' + esc(r.event_type) + '</span>' +
               '<span class="badge badge-yellow">' + esc(r.room_code) + '</span>' +
             '</div>' +
@@ -561,6 +698,7 @@ function renderBotReports(data) {
           '</div>' +
           '<button class="report-context-btn" onclick="loadReportContext(' + r.id + ')">Show ±3 plays</button>' +
         '</div>' +
+        renderFixedNote(r) +
         '<div class="report-grid">' +
           '<div class="report-field"><div class="report-field-label">Reporters</div><div class="report-field-value">' + esc(reporterText) + '</div></div>' +
           '<div class="report-field"><div class="report-field-label">Review statuses</div><div class="report-field-value">' + esc(statusText) + '</div></div>' +
@@ -581,7 +719,7 @@ function renderBotReports(data) {
     : '<div class="empty">No reported plays yet</div>';
 
   return '<div class="reports-wrap">' +
-    '<div class="reports-heading"><h2>Reported Bot Plays</h2><div class="reports-hint">' + totalReports + ' total · ' + recent.length + ' unique plays · ' + duplicateCount + ' duplicate reports grouped · ' + unreviewed + ' unreviewed</div></div>' +
+    '<div class="reports-heading"><h2>Reported Bot Plays</h2><div class="reports-hint">' + totalReports + ' total · ' + recent.length + ' unique plays · ' + fixedCount + ' fixed · ' + duplicateCount + ' duplicate reports grouped · ' + unreviewed + ' unreviewed</div></div>' +
     renderReportTestPanel(recent) +
     '<div class="reports-summary">' + groupedHtml + '</div>' +
     cardsHtml +
