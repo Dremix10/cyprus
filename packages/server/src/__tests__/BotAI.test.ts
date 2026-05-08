@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { BotAI, type GameContext } from '../BotAI.js';
+import { BotAI, type GameContext, type MonteCarloDecisionResult } from '../BotAI.js';
 import {
   CombinationType,
   NormalRank,
@@ -545,7 +545,9 @@ describe('BotAI endgame lead planning', () => {
       }),
       () => {
         mcCalled = true;
-        return ['PAGODA_9'];
+        return mcDecision(['PAGODA_9'], [
+          { cardIds: ['PAGODA_9'], avg: 100 },
+        ]);
       },
     );
 
@@ -599,7 +601,9 @@ describe('BotAI low-single initiative blocking', () => {
       report20Context(),
       () => {
         mcCalled = true;
-        return null;
+        return mcDecision(null, [
+          { cardIds: null, avg: 100 },
+        ]);
       },
     );
 
@@ -621,11 +625,14 @@ describe('BotAI low-single initiative blocking', () => {
       inactiveWish,
       2,
       report20Context(),
-      () => null,
+      () => mcDecision(null, [
+        { cardIds: ['PAGODA_12'], avg: 0 },
+        { cardIds: null, avg: 50 },
+      ]),
     );
 
     expect(play).toBeNull();
-    expect(bot.lastBranch).toBeNull();
+    expect(bot.lastBranch).toBe('mc:override');
   });
 });
 
@@ -914,5 +921,124 @@ describe('BotAI report-driven follow fixes', () => {
 
     expect(play).toEqual(['JADE_4']);
     expect(bot.lastBranch).toBe('follow:block-low-single-initiative');
+  });
+});
+
+function mcDecision(
+  cardIds: string[] | null,
+  candidates: Array<{ cardIds: string[] | null; avg: number; simCount?: number }>,
+): MonteCarloDecisionResult {
+  const scored = candidates.map((candidate) => {
+    const simCount = candidate.simCount ?? 10;
+    return {
+      cardIds: candidate.cardIds,
+      totalScore: candidate.avg * simCount,
+      simCount,
+      averageScore: candidate.avg,
+    };
+  });
+  return {
+    cardIds,
+    candidates: scored,
+    totalSims: scored.reduce((sum, candidate) => sum + candidate.simCount, 0),
+    durationMs: 12,
+    filteredCandidateCount: scored.length,
+    errorCount: 0,
+  };
+}
+
+describe('BotAI Monte Carlo advisor mode', () => {
+  it('rejects an MC pass when the heuristic has a playable follow', () => {
+    const bot = new BotAI('hard', { useMonteCarlo: true, mcOverrideMargin: 5 });
+    const hand: Card[] = [
+      nc(Suit.PAGODA, NormalRank.THREE),
+      nc(Suit.STAR, NormalRank.FOUR),
+      nc(Suit.SWORD, NormalRank.SIX),
+      nc(Suit.JADE, NormalRank.EIGHT),
+      nc(Suit.SWORD, NormalRank.KING),
+    ];
+
+    const play = bot.choosePlay(
+      hand,
+      singleTrick(0, nc(Suit.JADE, NormalRank.TWO)),
+      inactiveWish,
+      1,
+      report22Context(),
+      (_candidates, options) => {
+        expect(options?.forcedCandidate?.map((c) => c.id)).toEqual(['PAGODA_3']);
+        return mcDecision(null, [
+          { cardIds: ['PAGODA_3'], avg: 0 },
+          { cardIds: null, avg: 100 },
+        ]);
+      },
+    );
+
+    expect(play).toEqual(['PAGODA_3']);
+    expect(bot.lastBranch).not.toBe('mc:override');
+    expect(bot.lastMonteCarloTrace?.reason).toBe('pass-over-heuristic');
+  });
+
+  it('keeps the heuristic move when MC advantage is below the override margin', () => {
+    const bot = new BotAI('hard', { useMonteCarlo: true, mcOverrideMargin: 25 });
+    const hand: Card[] = [
+      nc(Suit.JADE, NormalRank.TWO),
+      nc(Suit.PAGODA, NormalRank.FOUR),
+      nc(Suit.STAR, NormalRank.SIX),
+      nc(Suit.SWORD, NormalRank.EIGHT),
+      nc(Suit.STAR, NormalRank.KING),
+      nc(Suit.JADE, NormalRank.ACE),
+    ];
+
+    const play = bot.choosePlay(
+      hand,
+      emptyTrick,
+      inactiveWish,
+      0,
+      report22Context(),
+      (_candidates, options) => {
+        expect(options?.forcedCandidate?.map((c) => c.id)).toEqual(['JADE_2']);
+        return mcDecision(['JADE_14'], [
+          { cardIds: ['JADE_2'], avg: 90 },
+          { cardIds: ['JADE_14'], avg: 105 },
+        ]);
+      },
+    );
+
+    expect(play).toEqual(['JADE_2']);
+    expect(bot.lastBranch).not.toBe('mc:override');
+    expect(bot.lastMonteCarloTrace?.reason).toBe('low-margin');
+    expect(bot.lastMonteCarloTrace?.margin).toBe(15);
+  });
+
+  it('accepts an MC override when it clearly beats the heuristic', () => {
+    const bot = new BotAI('hard', { useMonteCarlo: true, mcOverrideMargin: 25 });
+    const hand: Card[] = [
+      nc(Suit.JADE, NormalRank.TWO),
+      nc(Suit.PAGODA, NormalRank.FOUR),
+      nc(Suit.STAR, NormalRank.SIX),
+      nc(Suit.SWORD, NormalRank.EIGHT),
+      nc(Suit.STAR, NormalRank.KING),
+      nc(Suit.JADE, NormalRank.ACE),
+    ];
+
+    const play = bot.choosePlay(
+      hand,
+      emptyTrick,
+      inactiveWish,
+      0,
+      report22Context(),
+      (_candidates, options) => {
+        expect(options?.forcedCandidate?.map((c) => c.id)).toEqual(['JADE_2']);
+        return mcDecision(['JADE_14'], [
+          { cardIds: ['JADE_2'], avg: 80 },
+          { cardIds: ['JADE_14'], avg: 120 },
+        ]);
+      },
+    );
+
+    expect(play).toEqual(['JADE_14']);
+    expect(bot.lastBranch).toBe('mc:override');
+    expect(bot.lastMonteCarloTrace?.accepted).toBe(true);
+    expect(bot.lastMonteCarloTrace?.reason).toBe('accepted');
   });
 });

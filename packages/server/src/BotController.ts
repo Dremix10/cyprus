@@ -8,8 +8,13 @@ import { GamePhase, findPlayableFromHand, getCardPoints } from '@cyprus/shared';
 import type { Room, RoomManager } from './RoomManager.js';
 import type { GameEngine } from './GameEngine.js';
 import { BotAI } from './BotAI.js';
-import type { BotDifficulty, GameContext } from './BotAI.js';
-import { monteCarloEvaluate } from './MonteCarloSim.js';
+import type {
+  BotDifficulty,
+  GameContext,
+  MonteCarloAdvisorOptions,
+  MonteCarloAdvisorTrace,
+} from './BotAI.js';
+import { monteCarloEvaluateDetailed } from './MonteCarloSim.js';
 import type { TrackerDB } from './Database.js';
 import type { GameMonitor } from './GameMonitor.js';
 import { buildReplaySnapshot } from './ReplaySnapshot.js';
@@ -29,9 +34,9 @@ export class BotController {
 
   private getMcConfig(difficulty: BotDifficulty): Partial<import('./BotAI.js').BotConfig> {
     switch (difficulty) {
-      case 'unfair': return { useMonteCarlo: true, mcSims: 600, mcTimeMs: 400 };
-      case 'extreme': return { useMonteCarlo: true, mcSims: 400, mcTimeMs: 300 };
-      case 'hard': return { useMonteCarlo: true };
+      case 'unfair': return { useMonteCarlo: true, mcSims: 600, mcTimeMs: 400, mcOverrideMargin: 18 };
+      case 'extreme': return { useMonteCarlo: true, mcSims: 400, mcTimeMs: 300, mcOverrideMargin: 22 };
+      case 'hard': return { useMonteCarlo: true, mcOverrideMargin: 30 };
       default: return {};
     }
   }
@@ -98,6 +103,7 @@ export class BotController {
     hand: Card[],
     engine: GameEngine,
     branchTag: string | null,
+    mcTrace: MonteCarloAdvisorTrace | null,
   ): Record<string, unknown> {
     const trick = engine.state.currentTrick;
     const top = trick.plays.length > 0 ? trick.plays[trick.plays.length - 1].combination : null;
@@ -122,24 +128,24 @@ export class BotController {
     const wish = engine.state.wish.active
       ? { active: true, wishedRank: engine.state.wish.wishedRank }
       : { active: false, wishedRank: null };
-    return {
-      bot: {
-        tier,
-        branchTag,
-        hand: hand.map((c) => c.id),
-        trickTop: top ? { type: top.type, rank: top.rank, length: top.length } : null,
-        trickPoints,
-        oppCardCounts,
-        tichuCalls,
-        // Enrichments for future MC cross-check
-        currentTrickPlays,
-        currentWinner: trick.currentWinner,
-        passCount: trick.passCount,
-        wish,
-        finishOrder: [...engine.state.finishOrder],
-        scores: [...engine.state.scores] as [number, number],
-      },
+    const bot: Record<string, unknown> = {
+      tier,
+      branchTag,
+      hand: hand.map((c) => c.id),
+      trickTop: top ? { type: top.type, rank: top.rank, length: top.length } : null,
+      trickPoints,
+      oppCardCounts,
+      tichuCalls,
+      // Enrichments for future MC cross-check
+      currentTrickPlays,
+      currentWinner: trick.currentWinner,
+      passCount: trick.passCount,
+      wish,
+      finishOrder: [...engine.state.finishOrder],
+      scores: [...engine.state.scores] as [number, number],
     };
+    if (mcTrace) bot.mc = mcTrace;
+    return { bot };
   }
 
   private attachBotDecision(events: GameEvent[], enrichment: Record<string, unknown>): void {
@@ -238,7 +244,17 @@ export class BotController {
 
       // Build MC evaluator for hard mode bots
       const mcEval = botAI.config.useMonteCarlo
-        ? (candidates: (Card[] | null)[]) => monteCarloEvaluate(engine, currentPlayer, candidates, botAI.config.mcSims, botAI.config.mcTimeMs, this.monitor, room.code)
+        ? (candidates: (Card[] | null)[], options?: MonteCarloAdvisorOptions) =>
+            monteCarloEvaluateDetailed(
+              engine,
+              currentPlayer,
+              candidates,
+              botAI.config.mcSims,
+              botAI.config.mcTimeMs,
+              this.monitor,
+              room.code,
+              options,
+            )
         : undefined;
 
       botAI.lastBranch = null;
@@ -264,7 +280,13 @@ export class BotController {
         }
       }
 
-      const enrichment = this.buildBotDecisionEnrichment(room.botDifficulty, hand, engine, botAI.lastBranch);
+      const enrichment = this.buildBotDecisionEnrichment(
+        room.botDifficulty,
+        hand,
+        engine,
+        botAI.lastBranch,
+        botAI.lastMonteCarloTrace,
+      );
 
       if (cardIds) {
         const ids = cardIds;

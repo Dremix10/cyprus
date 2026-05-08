@@ -12,8 +12,8 @@ import {
   findPlayableFromHand,
 } from '@cyprus/shared';
 import { GameEngine } from './GameEngine.js';
-import { BotAI, type BotConfig, type GameContext } from './BotAI.js';
-import { monteCarloEvaluate } from './MonteCarloSim.js';
+import { BotAI, type BotConfig, type GameContext, type MonteCarloAdvisorOptions } from './BotAI.js';
+import { monteCarloEvaluateDetailed } from './MonteCarloSim.js';
 
 const NUM_GAMES = parseInt(process.argv[2] || '50', 10);
 const TARGET_SCORE = 1000;
@@ -134,8 +134,8 @@ function runGame(budgetA: BudgetConfig, budgetB: BudgetConfig, swapped: boolean)
       const isTeamA = cp % 2 === 0;
       const budget = (isTeamA !== swapped) ? budgetA : budgetB;
 
-      const mcEval = (candidates: (Card[] | null)[]) =>
-        monteCarloEvaluate(engine, cp, candidates, budget.sims, budget.timeMs);
+      const mcEval = (candidates: (Card[] | null)[], options?: MonteCarloAdvisorOptions) =>
+        monteCarloEvaluateDetailed(engine, cp, candidates, budget.sims, budget.timeMs, undefined, undefined, options);
 
       let ids = bots[cp].choosePlay(pl.hand, engine.state.currentTrick, engine.state.wish, cp, buildCtx(engine), mcEval);
 

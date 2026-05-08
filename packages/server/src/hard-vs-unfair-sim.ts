@@ -15,11 +15,11 @@ import {
   findPlayableFromHand,
 } from '@cyprus/shared';
 import { GameEngine } from './GameEngine.js';
-import { BotAI, type BotConfig, type GameContext } from './BotAI.js';
-import { monteCarloEvaluate } from './MonteCarloSim.js';
+import { BotAI, type BotConfig, type GameContext, type MonteCarloEvaluator } from './BotAI.js';
+import { monteCarloEvaluateDetailed } from './MonteCarloSim.js';
 
-const HARD_CONFIG: Partial<BotConfig> = { useMonteCarlo: true, mcSims: 200, mcTimeMs: 150 };
-const UNFAIR_CONFIG: Partial<BotConfig> = { useMonteCarlo: true, mcSims: 600, mcTimeMs: 400 };
+const HARD_CONFIG: Partial<BotConfig> = { useMonteCarlo: true, mcSims: 200, mcTimeMs: 150, mcOverrideMargin: 30 };
+const UNFAIR_CONFIG: Partial<BotConfig> = { useMonteCarlo: true, mcSims: 600, mcTimeMs: 400, mcOverrideMargin: 18 };
 
 const NUM_GAMES = parseInt(process.argv[2] || '50', 10);
 const TARGET_SCORE = 1000;
@@ -146,11 +146,11 @@ function runGame(swapped: boolean): GameResult {
       }
 
       // Build per-bot MC evaluator using each bot's own mc budget
-      let mcEval: ((candidates: (Card[] | null)[]) => string[] | null) | undefined;
+      let mcEval: MonteCarloEvaluator | undefined;
       if (bots[cp].config.useMonteCarlo && !bots[cp].inRollout) {
         const sims = bots[cp].config.mcSims;
         const timeMs = bots[cp].config.mcTimeMs;
-        mcEval = (candidates) => monteCarloEvaluate(engine, cp, candidates, sims, timeMs);
+        mcEval = (candidates, options) => monteCarloEvaluateDetailed(engine, cp, candidates, sims, timeMs, undefined, undefined, options);
       }
 
       let ids = bots[cp].choosePlay(pl.hand, engine.state.currentTrick, engine.state.wish, cp, buildCtx(engine), mcEval);

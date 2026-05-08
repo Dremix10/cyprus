@@ -15,8 +15,16 @@ import {
   findPlayableFromHand,
 } from '@cyprus/shared';
 import { GameEngine } from './GameEngine.js';
-import { BotAI, type BotConfig, type GameContext, DEFAULT_BOT_CONFIG } from './BotAI.js';
-import { monteCarloEvaluate } from './MonteCarloSim.js';
+import {
+  BotAI,
+  type BotConfig,
+  type GameContext,
+  type MonteCarloAdvisorOptions,
+  type MonteCarloDecisionResult,
+  type MonteCarloEvaluator,
+  DEFAULT_BOT_CONFIG,
+} from './BotAI.js';
+import { monteCarloEvaluateDetailed } from './MonteCarloSim.js';
 
 // ─── OLD MC EVALUATOR (baseline: 50 sims, 40ms, old eval) ─────────────
 function oldEvaluateOutcome(engine: GameEngine, botPosition: PlayerPosition): number {
@@ -35,11 +43,12 @@ function oldMonteCarloEvaluate(
   engine: GameEngine,
   botPosition: PlayerPosition,
   candidates: (Card[] | null)[],
-): string[] | null {
+  options?: MonteCarloAdvisorOptions,
+): MonteCarloDecisionResult | undefined {
   // Old behavior: only 50 sims, 40ms, simple eval
   // We import internals we need from MonteCarloSim via the public function
   // but override the budget. Use the new function with old budget.
-  return monteCarloEvaluate(engine, botPosition, candidates, 50, 40);
+  return monteCarloEvaluateDetailed(engine, botPosition, candidates, 50, 40, undefined, undefined, options);
 }
 
 // ─── CONFIGS TO COMPARE ────────────────────────────────────────────────
@@ -173,17 +182,17 @@ function runGame(configA: Partial<BotConfig>, configB: Partial<BotConfig>, swapp
 
       // Build MC evaluator — old MC for Team A, new MC for Team B
       const isTeamA = cp % 2 === 0;
-      let mcEval: ((candidates: (Card[] | null)[]) => string[] | null) | undefined;
+      let mcEval: MonteCarloEvaluator | undefined;
       if (bots[cp].config.useMonteCarlo && !bots[cp].inRollout) {
         if (isTeamA !== swapped) {
           // Team A (old): lead-only, 50 sims, 40ms
           const isLeading = engine.state.currentTrick.plays.length === 0;
           if (isLeading && pl.hand.length >= 5) {
-            mcEval = (candidates) => oldMonteCarloEvaluate(engine, cp, candidates);
+            mcEval = (candidates, options) => oldMonteCarloEvaluate(engine, cp, candidates, options);
           }
         } else {
           // Team B (new): lead+follow, 200 sims, 150ms (default)
-          mcEval = (candidates) => monteCarloEvaluate(engine, cp, candidates);
+          mcEval = (candidates, options) => monteCarloEvaluateDetailed(engine, cp, candidates, undefined, undefined, undefined, undefined, options);
         }
       }
 
