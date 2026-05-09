@@ -2169,6 +2169,7 @@ body {
 
 .card {
   --card-selected-lift: -14px;
+  --card-selected-scale: 1;
   width: 60px;
   height: 84px;
   background: var(--card-bg);
@@ -2191,9 +2192,9 @@ body {
 }
 
 .card-selected {
-  transform: translateY(var(--card-selected-lift)) !important;
+  transform: translateY(var(--card-selected-lift)) scale(var(--card-selected-scale)) !important;
   border-color: var(--primary) !important;
-  box-shadow: 0 10px 24px rgba(233, 69, 96, 0.4), 0 0 0 1px rgba(233, 69, 96, 0.2) !important;
+  box-shadow: 0 10px 24px rgba(233, 69, 96, 0.42), 0 0 0 2px rgba(233, 69, 96, 0.28) !important;
 }
 
 .card-sm {
@@ -2269,7 +2270,12 @@ body {
 
   .card-selected,
   .card-selected:hover {
-    transform: translateY(var(--card-selected-lift)) !important;
+    transform: translateY(var(--card-selected-lift)) scale(var(--card-selected-scale)) !important;
+    border-color: #ff5575 !important;
+    box-shadow:
+      0 0 0 3px rgba(255, 85, 117, 0.42),
+      0 8px 22px rgba(255, 85, 117, 0.38),
+      inset 0 0 0 2px rgba(255, 255, 255, 0.28) !important;
   }
 }
 
@@ -3782,10 +3788,11 @@ span.pass-zone-avatar {
     --hand-overlap: -10px;
     --hand-hit-y: 11px;
     --hand-hit-x: 8px;
-    --card-selected-lift: -9px;
-    min-height: 88px;
-    padding: 0.85rem 0.7rem 0.65rem;
-    scroll-padding-inline: 0.7rem;
+    --card-selected-lift: -5px;
+    --card-selected-scale: 1.045;
+    min-height: 96px;
+    padding: 1.15rem 1rem 0.72rem;
+    scroll-padding-inline: 1rem;
   }
 
   .player-hand .card {
@@ -4136,9 +4143,10 @@ span.pass-zone-avatar {
     --hand-overlap: -9px;
     --hand-hit-y: 9px;
     --hand-hit-x: 8px;
-    --card-selected-lift: -8px;
-    min-height: 76px;
-    padding: 0.6rem 0.55rem 0.45rem;
+    --card-selected-lift: -4px;
+    --card-selected-scale: 1.04;
+    min-height: 84px;
+    padding: 0.85rem 0.85rem 0.5rem;
     justify-content: flex-start;
   }
 
