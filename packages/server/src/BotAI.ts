@@ -21,6 +21,7 @@ import {
   getCardPoints,
   FULL_DECK,
 } from '@cyprus/shared';
+import { scoreLeadCandidates, type LeadScoreTrace } from './BotMoveScorer.js';
 
 export type BotDifficulty = 'easy' | 'medium' | 'hard' | 'extreme' | 'unfair';
 
@@ -414,6 +415,9 @@ export interface BotConfig {
   scoreAwareTichu: boolean;         // adjust Tichu thresholds based on score differential (default: false)
   opponentCardCountBombing: boolean; // bomb aggressively when opponents have few cards (default: false)
   smartCardTracking: boolean;       // use remaining-card tracker more widely during follow (default: true)
+  useLeadScorer: boolean;           // let explainable lead scorer choose ordinary leads (default: false until arena-proven)
+  recordLeadScorerTrace: boolean;   // record lead scorer diagnostics without changing the live move
+  leadScorerMinConfidence: number;  // required score edge before scorer overrides legacy lead order
 
   // Monte Carlo simulation
   useMonteCarlo: boolean;           // use MC simulation for key decisions (default: false)
@@ -437,6 +441,9 @@ export const DEFAULT_BOT_CONFIG: BotConfig = {
   scoreAwareTichu: false,
   opponentCardCountBombing: false,
   smartCardTracking: true,
+  useLeadScorer: false,
+  recordLeadScorerTrace: true,
+  leadScorerMinConfidence: 8,
   useMonteCarlo: false,
   mcSims: 200,
   mcTimeMs: 150,
@@ -451,6 +458,7 @@ export class BotAI {
   public inRollout: boolean = false; // true during MC rollouts (prevents recursion)
   public lastBranch: string | null = null; // most recent branch tag (set by tag())
   public lastMonteCarloTrace: MonteCarloAdvisorTrace | null = null;
+  public lastLeadScoreTrace: LeadScoreTrace | null = null;
   private effectiveDifficulty: BotDifficulty;
   private recorder?: BotDecisionRecorder;
 
@@ -765,6 +773,20 @@ export class BotAI {
     }
 
     return bestPlay;
+  }
+
+  private chooseScoredLead(
+    hand: Card[],
+    playable: Card[][],
+    botPosition: PlayerPosition,
+    context?: GameContext,
+  ): Card[] | null {
+    if (!this.config.useLeadScorer && !this.config.recordLeadScorerTrace) return null;
+    const trace = scoreLeadCandidates(hand, playable, botPosition, context, {
+      minConfidence: this.config.leadScorerMinConfidence,
+    });
+    this.lastLeadScoreTrace = trace;
+    return this.config.useLeadScorer ? trace?.cards ?? null : null;
   }
 
   private chooseSmallHandControlLead(
@@ -1154,6 +1176,7 @@ export class BotAI {
     mcEvaluate?: MonteCarloEvaluator,
   ): string[] | null {
     this.lastMonteCarloTrace = null;
+    this.lastLeadScoreTrace = null;
     const isLeading = currentTrick.plays.length === 0;
     const trickTop = isLeading
       ? null
@@ -1585,6 +1608,12 @@ export class BotAI {
     if (leadBombReason) {
       this.tag(`lead:bomb-${leadBombReason}`);
       return this.pickLowestCombo(combos.bombs);
+    }
+
+    const scoredLead = this.chooseScoredLead(hand, playable, botPosition, context);
+    if (scoredLead) {
+      this.tag('lead:scorer');
+      return scoredLead.map((c) => c.id);
     }
 
     // ── Prefer aces as singles — filter out non-straight combos containing aces ──

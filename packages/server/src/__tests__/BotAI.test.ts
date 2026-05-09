@@ -487,6 +487,64 @@ describe('BotAI Phoenix following', () => {
 });
 
 describe('BotAI endgame lead planning', () => {
+  it('uses the explainable lead scorer for ordinary hard leads', () => {
+    const bot = new BotAI('hard', { useLeadScorer: true });
+    const hand: Card[] = [
+      nc(Suit.PAGODA, NormalRank.THREE),
+      nc(Suit.STAR, NormalRank.FOUR),
+      nc(Suit.SWORD, NormalRank.FIVE),
+      nc(Suit.JADE, NormalRank.SIX),
+      nc(Suit.PAGODA, NormalRank.SEVEN),
+      nc(Suit.STAR, NormalRank.NINE),
+      nc(Suit.SWORD, NormalRank.TEN),
+    ];
+
+    const play = bot.choosePlay(hand, emptyTrick, inactiveWish, 2, report22Context());
+
+    expect(play).toEqual(['PAGODA_3', 'STAR_4', 'SWORD_5', 'JADE_6', 'PAGODA_7']);
+    expect(bot.lastBranch).toBe('lead:scorer');
+    expect(bot.lastLeadScoreTrace?.reason).toContain('cards-out');
+    expect(bot.lastLeadScoreTrace?.candidates.length).toBeGreaterThan(1);
+  });
+
+  it('can disable the lead scorer for arena baselines', () => {
+    const bot = new BotAI('hard', { useLeadScorer: false, recordLeadScorerTrace: false });
+    const hand: Card[] = [
+      nc(Suit.PAGODA, NormalRank.THREE),
+      nc(Suit.STAR, NormalRank.FOUR),
+      nc(Suit.SWORD, NormalRank.FIVE),
+      nc(Suit.JADE, NormalRank.SIX),
+      nc(Suit.PAGODA, NormalRank.SEVEN),
+      nc(Suit.STAR, NormalRank.NINE),
+      nc(Suit.SWORD, NormalRank.TEN),
+    ];
+
+    const play = bot.choosePlay(hand, emptyTrick, inactiveWish, 2, report22Context());
+
+    expect(play).toEqual(['PAGODA_3', 'STAR_4', 'SWORD_5', 'JADE_6', 'PAGODA_7']);
+    expect(bot.lastBranch).toBe('lead:long-5plus');
+    expect(bot.lastLeadScoreTrace).toBeNull();
+  });
+
+  it('records lead scorer diagnostics in shadow mode without changing the move', () => {
+    const bot = new BotAI('hard');
+    const hand: Card[] = [
+      nc(Suit.PAGODA, NormalRank.THREE),
+      nc(Suit.STAR, NormalRank.FOUR),
+      nc(Suit.SWORD, NormalRank.FIVE),
+      nc(Suit.JADE, NormalRank.SIX),
+      nc(Suit.PAGODA, NormalRank.SEVEN),
+      nc(Suit.STAR, NormalRank.NINE),
+      nc(Suit.SWORD, NormalRank.TEN),
+    ];
+
+    const play = bot.choosePlay(hand, emptyTrick, inactiveWish, 2, report22Context());
+
+    expect(play).toEqual(['PAGODA_3', 'STAR_4', 'SWORD_5', 'JADE_6', 'PAGODA_7']);
+    expect(bot.lastBranch).toBe('lead:long-5plus');
+    expect(bot.lastLeadScoreTrace?.cardIds).toEqual(['PAGODA_3', 'STAR_4', 'SWORD_5', 'JADE_6', 'PAGODA_7']);
+  });
+
   it('does not break a triple in the report #21 endgame shape', () => {
     const bot = new BotAI('hard');
     const hand: Card[] = [

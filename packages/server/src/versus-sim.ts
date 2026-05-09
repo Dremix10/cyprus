@@ -1,10 +1,12 @@
 /**
- * Asymmetric bot simulation: Team A (config A) vs Team B (config B)
- * Run 10,000 games head-to-head to determine which config is stronger.
+ * Asymmetric bot arena: Team A (baseline config) vs Team B (challenger config).
+ * Run many games head-to-head to determine whether a bot change is stronger.
  *
- * Usage: npx tsx packages/server/src/versus-sim.ts
+ * Usage: npm run bot:arena -- 1000
  *
- * To test a change: modify CONFIG_B below, keep CONFIG_A as baseline.
+ * Default comparison: legacy hard leading without the lead scorer vs the
+ * scalable explainable lead scorer. Positions are swapped halfway through
+ * to reduce seating bias.
  * If Team B wins significantly more (>52%), the change is a real improvement.
  */
 import {
@@ -52,18 +54,19 @@ function oldMonteCarloEvaluate(
 }
 
 // ─── CONFIGS TO COMPARE ────────────────────────────────────────────────
-// Team A (positions 0, 2) = OLD MC (50 sims, lead-only)
+// Team A = baseline hard bot without the scalable lead scorer.
 const CONFIG_A: Partial<BotConfig> = {
-  useMonteCarlo: true,
+  useLeadScorer: false,
+  recordLeadScorerTrace: false,
+  useMonteCarlo: false,
 };
 
-// Team B (positions 1, 3) = NEW MC (200 sims, lead+follow, better eval)
+// Team B = challenger hard bot with the scalable lead scorer.
 const CONFIG_B: Partial<BotConfig> = {
-  useMonteCarlo: true,
+  useLeadScorer: true,
+  recordLeadScorerTrace: false,
+  useMonteCarlo: false,
 };
-
-// Team A uses old MC behavior: lead-only, 50 sims, 40ms
-const TEAM_A_LEAD_ONLY = true;
 
 // ─── SIMULATION SETTINGS ───────────────────────────────────────────────
 const NUM_GAMES = parseInt(process.argv[2] || '1000', 10);
@@ -247,8 +250,8 @@ function runGame(configA: Partial<BotConfig>, configB: Partial<BotConfig>, swapp
 
 // ─── MAIN ──────────────────────────────────────────────────────────────
 console.log(`=== Versus Simulation: ${NUM_GAMES} games ===`);
-console.log(`Team A (pos 0,2): OLD MC (50 sims/40ms, lead-only, hand>=5)`);
-console.log(`Team B (pos 1,3): NEW MC (200 sims/150ms, lead+follow, hand>=2, better eval)`);
+console.log(`Team A: baseline hard bot without lead scorer`);
+console.log(`Team B: hard bot with scalable lead scorer`);
 console.log('');
 
 const start = Date.now();
@@ -303,13 +306,13 @@ const ms = Date.now() - start;
 console.log(`\n=== RESULTS (${done} games in ${(ms / 1000).toFixed(1)}s) ===`);
 console.log(`Position swap: first ${halfGames} normal, last ${NUM_GAMES - halfGames} swapped`);
 console.log('');
-console.log('Team A (OLD MC):');
+console.log('Team A (baseline):');
 console.log(`  Wins: ${teamAWins}/${done} (${(100 * teamAWins / done).toFixed(1)}%)`);
 console.log(`  Avg score: ${Math.round(totalScoreA / done)}`);
 console.log(`  First outs: ${totalFirstOutA} (${(100 * totalFirstOutA / totalRounds).toFixed(1)}% of rounds)`);
 console.log(`  Tichu: ${totalTichuA.calls} calls, ${totalTichuA.success} success (${totalTichuA.calls ? (100 * totalTichuA.success / totalTichuA.calls).toFixed(1) : 0}%)`);
 console.log('');
-console.log('Team B (NEW MC):');
+console.log('Team B (lead scorer):');
 console.log(`  Wins: ${teamBWins}/${done} (${(100 * teamBWins / done).toFixed(1)}%)`);
 console.log(`  Avg score: ${Math.round(totalScoreB / done)}`);
 console.log(`  First outs: ${totalFirstOutB} (${(100 * totalFirstOutB / totalRounds).toFixed(1)}% of rounds)`);
