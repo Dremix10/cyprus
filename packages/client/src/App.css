@@ -2168,6 +2168,7 @@ body {
 /* ─── Cards ─────────────────────────────── */
 
 .card {
+  --card-selected-lift: -14px;
   width: 60px;
   height: 84px;
   background: var(--card-bg);
@@ -2190,7 +2191,7 @@ body {
 }
 
 .card-selected {
-  transform: translateY(-14px) !important;
+  transform: translateY(var(--card-selected-lift)) !important;
   border-color: var(--primary) !important;
   box-shadow: 0 10px 24px rgba(233, 69, 96, 0.4), 0 0 0 1px rgba(233, 69, 96, 0.2) !important;
 }
@@ -2258,6 +2259,20 @@ body {
   box-shadow: none;
 }
 
+@media (hover: none), (pointer: coarse) {
+  .card:hover,
+  .card-sm:hover,
+  .card-back:hover {
+    transform: none;
+    box-shadow: none;
+  }
+
+  .card-selected,
+  .card-selected:hover {
+    transform: translateY(var(--card-selected-lift)) !important;
+  }
+}
+
 /* ─── Special Cards ────────────────────── */
 
 .special-card {
@@ -2293,18 +2308,73 @@ body {
 /* ─── Player Hand (fan layout) ──────────── */
 
 .player-hand {
+  --hand-card-width: 60px;
+  --hand-card-height: 84px;
+  --hand-overlap: -12px;
+  --hand-hit-y: 8px;
+  --hand-hit-x: 5px;
   display: flex;
   justify-content: center;
-  padding: 0.5rem 1rem;
+  width: 100%;
+  max-width: 100%;
+  padding: 0.7rem 1rem 0.85rem;
   min-height: 100px;
+  overflow-x: auto;
+  overflow-y: visible;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-x: contain;
+  touch-action: pan-x;
+  scrollbar-width: none;
+}
+
+.player-hand::-webkit-scrollbar {
+  display: none;
+}
+
+.player-hand .card {
+  width: var(--hand-card-width);
+  height: var(--hand-card-height);
 }
 
 .hand-card-wrapper {
-  margin-left: -12px;
+  flex: 0 0 auto;
+  margin-left: var(--hand-overlap);
   transition: transform 0.18s cubic-bezier(0.34, 1.56, 0.64, 1);
   animation: card-deal-in 0.35s ease-out both;
   animation-delay: calc(var(--card-index) * 0.04s);
   position: relative;
+  z-index: var(--card-index);
+}
+
+.hand-card-wrapper-selected {
+  z-index: 100;
+}
+
+.hand-card-wrapper-locked {
+  opacity: 0.45;
+}
+
+.hand-card-hitbox {
+  appearance: none;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  padding: var(--hand-hit-y) var(--hand-hit-x);
+  margin: calc(var(--hand-hit-y) * -1) calc(var(--hand-hit-x) * -1);
+  border-radius: 12px;
+  cursor: pointer;
+  touch-action: pan-x;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.hand-card-hitbox:disabled {
+  cursor: default;
+}
+
+.hand-card-hitbox:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 4px;
 }
 
 .received-dot {
@@ -3570,7 +3640,32 @@ span.pass-zone-avatar {
   }
 
   .hand-card-wrapper {
-    margin-left: -14px;
+    margin-left: var(--hand-overlap);
+  }
+
+  .player-hand {
+    --hand-card-width: 52px;
+    --hand-card-height: 74px;
+    --hand-overlap: -12px;
+    --hand-hit-y: 10px;
+    --hand-hit-x: 7px;
+    justify-content: flex-start;
+    min-height: 94px;
+    padding: 0.8rem 0.9rem 0.75rem;
+  }
+
+  .player-hand .card {
+    width: var(--hand-card-width);
+    height: var(--hand-card-height);
+  }
+
+  .my-hand-row {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .my-hand-row .player-hand {
+    flex: 1 1 auto;
   }
 
   .player-avatar {
@@ -3678,7 +3773,40 @@ span.pass-zone-avatar {
   }
 
   .hand-card-wrapper {
-    margin-left: -20px;
+    margin-left: var(--hand-overlap);
+  }
+
+  .player-hand {
+    --hand-card-width: 48px;
+    --hand-card-height: 68px;
+    --hand-overlap: -10px;
+    --hand-hit-y: 11px;
+    --hand-hit-x: 8px;
+    --card-selected-lift: -9px;
+    min-height: 88px;
+    padding: 0.85rem 0.7rem 0.65rem;
+    scroll-padding-inline: 0.7rem;
+  }
+
+  .player-hand .card {
+    width: var(--hand-card-width);
+    height: var(--hand-card-height);
+  }
+
+  .player-hand .card-rank {
+    font-size: 0.75rem;
+  }
+
+  .player-hand .card-suit {
+    font-size: 0.6rem;
+  }
+
+  .player-hand .card-suit-lg {
+    font-size: 1.1rem;
+  }
+
+  .player-hand .special-corner {
+    font-size: 0.62rem;
   }
 
   /* Hide avatars on mobile to save space */
@@ -3765,6 +3893,12 @@ span.pass-zone-avatar {
     gap: 1.5rem;
   }
 
+  .btn-play,
+  .btn-pass,
+  .btn-tichu {
+    min-height: 44px;
+  }
+
   .phase-view h3 {
     font-size: 1rem;
   }
@@ -3823,6 +3957,18 @@ span.pass-zone-avatar {
 
   .my-hand-row {
     gap: 0.2rem;
+    width: 100%;
+    min-width: 0;
+    align-items: center;
+  }
+
+  .my-player-info {
+    max-width: 34px;
+    overflow: hidden;
+  }
+
+  .my-name {
+    display: none;
   }
 
   .revealed-hand {
@@ -3936,6 +4082,8 @@ span.pass-zone-avatar {
     grid-column: 1 / -1;
     grid-row: 2;
     gap: 0.2rem;
+    width: 100%;
+    min-width: 0;
   }
 
   .turn-indicator {
@@ -3979,7 +4127,36 @@ span.pass-zone-avatar {
   }
 
   .hand-card-wrapper {
-    margin-left: -22px;
+    margin-left: var(--hand-overlap);
+  }
+
+  .player-hand {
+    --hand-card-width: 44px;
+    --hand-card-height: 62px;
+    --hand-overlap: -9px;
+    --hand-hit-y: 9px;
+    --hand-hit-x: 8px;
+    --card-selected-lift: -8px;
+    min-height: 76px;
+    padding: 0.6rem 0.55rem 0.45rem;
+    justify-content: flex-start;
+  }
+
+  .player-hand .card {
+    width: var(--hand-card-width);
+    height: var(--hand-card-height);
+  }
+
+  .player-hand .card-rank {
+    font-size: 0.68rem;
+  }
+
+  .player-hand .card-suit {
+    font-size: 0.52rem;
+  }
+
+  .player-hand .card-suit-lg {
+    font-size: 0.95rem;
   }
 
   /* Compact opponent panels — horizontal layout */
@@ -4042,6 +4219,12 @@ span.pass-zone-avatar {
 
   .play-pass-group {
     gap: 1rem;
+  }
+
+  .btn-play,
+  .btn-pass,
+  .btn-tichu {
+    min-height: 40px;
   }
 
   .tichu-badge {
