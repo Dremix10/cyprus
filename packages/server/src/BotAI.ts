@@ -767,6 +767,35 @@ export class BotAI {
     return bestPlay;
   }
 
+  private chooseSmallHandControlLead(
+    hand: Card[],
+    playable: Card[][],
+    botPosition: PlayerPosition,
+    context?: GameContext,
+  ): Card[] | null {
+    if (!context) return null;
+    if (hand.length < 2 || hand.length > 3) return null;
+    if (this.hasLeadPrioritySpecial(playable)) return null;
+
+    const { regular } = this.splitBombs(playable);
+    if (regular.some((play) => play.length > 1)) return null;
+
+    const allHandCardsAreNormal = hand.every(isNormalCard);
+    if (!allHandCardsAreNormal) return null;
+
+    const normalSingles = regular.filter((play) => play.length === 1 && isNormalCard(play[0]));
+    if (normalSingles.length !== hand.length) return null;
+
+    const minOppCards = this.minOpponentCardCount(botPosition, context);
+    const urgentEndgame =
+      minOppCards <= 2 ||
+      (hand.length <= 2 && minOppCards <= 4) ||
+      (context.finishOrder.length > 0 && minOppCards <= 4);
+    if (!urgentEndgame) return null;
+
+    return this.sortByRank(normalSingles)[normalSingles.length - 1];
+  }
+
   private isHighResourceLeadWaste(
     play: Card[],
     hand: Card[],
@@ -1173,6 +1202,11 @@ export class BotAI {
     ) && !context.finishOrder.includes(partnerPos);
 
     if (isLeading && !partnerHasLiveTichu) {
+      const controlLead = this.chooseSmallHandControlLead(hand, playable, botPosition, context);
+      if (controlLead) {
+        this.tag('lead:endgame-control-ladder');
+        return controlLead.map((c) => c.id);
+      }
       const plannedLead = this.chooseEndgameLeadPlan(hand, playable);
       if (plannedLead) {
         this.tag('lead:endgame-plan');
@@ -1420,9 +1454,14 @@ export class BotAI {
     cardInfo?: CardCountInfo | null
   ): string[] {
     const combos = this.categorizeCombos(playable);
-    const plan = planHand(hand);
     const opponentTichuActive = context ? this.hasOpponentTichuCall(botPosition, context) : false;
     const opponentAboutToOut = context ? this.isOpponentAboutToOut(botPosition, context) : false;
+
+    const controlLead = this.chooseSmallHandControlLead(hand, playable, botPosition, context);
+    if (controlLead) {
+      this.tag('lead:endgame-control-ladder');
+      return controlLead.map((c) => c.id);
+    }
 
     // ── Endgame: 1-3 cards left, just go out ──
     if (hand.length <= 3) {

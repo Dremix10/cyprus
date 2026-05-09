@@ -570,6 +570,88 @@ describe('BotAI endgame lead planning', () => {
     expect(play).toEqual(['PAGODA_8', 'SWORD_8']);
     expect(bot.lastBranch).toBe('lead:endgame-plan');
   });
+
+  it('leads the high control single first in the report #33 three-card endgame', () => {
+    const bot = new BotAI('hard');
+    const hand: Card[] = [
+      nc(Suit.STAR, NormalRank.THREE),
+      nc(Suit.PAGODA, NormalRank.FOUR),
+      nc(Suit.JADE, NormalRank.TEN),
+    ];
+
+    const play = bot.choosePlay(hand, emptyTrick, inactiveWish, 2, report22Context({
+      playerCardCounts: new Map<PlayerPosition, number>([
+        [0, 0],
+        [1, 0],
+        [2, 3],
+        [3, 1],
+      ]),
+      finishOrder: [0, 1],
+      scores: [-260, 260],
+    }));
+
+    expect(play).toEqual(['JADE_10']);
+    expect(bot.lastBranch).toBe('lead:endgame-control-ladder');
+  });
+
+  it('uses the Ace before the Ten in the report #34 two-card endgame', () => {
+    const bot = new BotAI('hard', { useMonteCarlo: true });
+    let mcCalled = false;
+    const hand: Card[] = [
+      nc(Suit.SWORD, NormalRank.TEN),
+      nc(Suit.STAR, NormalRank.ACE),
+    ];
+
+    const play = bot.choosePlay(
+      hand,
+      emptyTrick,
+      inactiveWish,
+      1,
+      report22Context({
+        playerCardCounts: new Map<PlayerPosition, number>([
+          [0, 0],
+          [1, 2],
+          [2, 4],
+          [3, 1],
+        ]),
+        finishOrder: [0],
+        scores: [-260, 260],
+      }),
+      () => {
+        mcCalled = true;
+        return mcDecision(['STAR_14'], [
+          { cardIds: ['SWORD_10'], avg: -70 },
+          { cardIds: ['STAR_14'], avg: -64 },
+        ]);
+      },
+    );
+
+    expect(mcCalled).toBe(false);
+    expect(play).toEqual(['STAR_14']);
+    expect(bot.lastBranch).toBe('lead:endgame-control-ladder');
+  });
+
+  it('leads the Jack before the Six in the report #35 two-card endgame', () => {
+    const bot = new BotAI('hard');
+    const hand: Card[] = [
+      nc(Suit.STAR, NormalRank.SIX),
+      nc(Suit.JADE, NormalRank.JACK),
+    ];
+
+    const play = bot.choosePlay(hand, emptyTrick, inactiveWish, 2, report22Context({
+      playerCardCounts: new Map<PlayerPosition, number>([
+        [0, 0],
+        [1, 0],
+        [2, 2],
+        [3, 2],
+      ]),
+      finishOrder: [0, 1],
+      scores: [-260, 260],
+    }));
+
+    expect(play).toEqual(['JADE_11']);
+    expect(bot.lastBranch).toBe('lead:endgame-control-ladder');
+  });
 });
 
 describe('BotAI low-single initiative blocking', () => {
