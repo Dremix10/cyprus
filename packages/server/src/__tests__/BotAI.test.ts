@@ -612,6 +612,47 @@ describe('BotAI low-single initiative blocking', () => {
     expect(bot.lastBranch).toBe('follow:block-low-single-initiative');
   });
 
+  it('uses a real blocker when a one-card opponent led low in the report #32 shape', () => {
+    const bot = new BotAI('unfair', { useMonteCarlo: true });
+    let mcCalled = false;
+    const hand: Card[] = [
+      nc(Suit.SWORD, NormalRank.TWO),
+      nc(Suit.JADE, NormalRank.THREE),
+      nc(Suit.STAR, NormalRank.FOUR),
+      nc(Suit.SWORD, NormalRank.FOUR),
+      nc(Suit.JADE, NormalRank.FIVE),
+      nc(Suit.JADE, NormalRank.SIX),
+      nc(Suit.PAGODA, NormalRank.NINE),
+      nc(Suit.PAGODA, NormalRank.JACK),
+      nc(Suit.SWORD, NormalRank.QUEEN),
+      nc(Suit.STAR, NormalRank.KING),
+    ];
+
+    const play = bot.choosePlay(
+      hand,
+      singleTrick(3, nc(Suit.PAGODA, NormalRank.FOUR)),
+      inactiveWish,
+      2,
+      report22Context({
+        playerCardCounts: new Map<PlayerPosition, number>([
+          [0, 0],
+          [1, 8],
+          [2, 10],
+          [3, 1],
+        ]),
+        finishOrder: [0],
+      }),
+      () => {
+        mcCalled = true;
+        return undefined;
+      },
+    );
+
+    expect(mcCalled).toBe(false);
+    expect(play).toEqual(['SWORD_12']);
+    expect(bot.lastBranch).toBe('follow:block-one-card-opponent');
+  });
+
   it('does not force an expensive card just because an opponent led low', () => {
     const bot = new BotAI('hard', { useMonteCarlo: true });
     const hand: Card[] = [
