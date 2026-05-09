@@ -7,7 +7,7 @@
   body { background: #0f0f1a; color: #e0e0e0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
   .topbar { background: #1a1a2e; border-bottom: 1px solid #2a2a4a; padding: 1rem 2rem; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 10; }
   .topbar h1 { font-size: 1.3rem; color: #c9a84c; }
-  .topbar .links { display: flex; gap: 1rem; align-items: center; }
+  .topbar .links { display: flex; gap: 1rem; align-items: center; justify-content: flex-end; flex-wrap: wrap; }
   .topbar a { color: #888; text-decoration: none; font-size: 0.85rem; }
   .topbar a:hover { color: #c9a84c; }
   .container { max-width: 1400px; margin: 0 auto; padding: 1.5rem; }
@@ -33,7 +33,7 @@
   .badge-yellow { background: #3a3a1a; color: #c9a84c; }
   .badge-muted { background: #262638; color: #aaa; }
   .refresh-info { color: #555; font-size: 0.75rem; }
-  #last-refresh { color: #888; }
+  #last-refresh, #server-updated { color: #888; }
   .empty { padding: 2rem; text-align: center; color: #555; }
   .empty a { color: #c9a84c; font-weight: 700; }
   .query-wrap { padding: 1rem; }
@@ -188,6 +188,7 @@
 <div class="topbar">
   <h1>Cyprus Admin</h1>
   <div class="links">
+    <span class="refresh-info">Server updated: <span id="server-updated">-</span></span>
     <span class="refresh-info">Updated: <span id="last-refresh">-</span></span>
     <a href="#" onclick="refresh(true); return false;">Refresh</a>
     <a href="/admin/logout">Logout</a>
@@ -345,6 +346,22 @@ function ago(dt) {
   if (ms < 3600000) return Math.floor(ms/60000) + 'm ago';
   if (ms < 86400000) return Math.floor(ms/3600000) + 'h ago';
   return Math.floor(ms/86400000) + 'd ago';
+}
+
+function formatBuildDate(value) {
+  if (!value || value === 'unknown') return '-';
+  const normalized = String(value)
+    .replace(/^(\d{4}-\d{2}-\d{2}) /, '$1T')
+    .replace(/ ([+-]\d{2})(\d{2})$/, '$1:$2');
+  const date = new Date(normalized);
+  if (Number.isNaN(date.getTime())) return String(value);
+  return date.toLocaleDateString('en-US', {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
 }
 
 function reviewBadgeClass(status) {
@@ -736,6 +753,9 @@ function toggleReportTester() {
   const chooser = document.getElementById('report-test-chooser');
   if (!chooser) return;
   chooser.hidden = !chooser.hidden;
+  if (chooser.hidden && replayState?.targetId === 'report-replay-room') {
+    closeReplay();
+  }
 }
 
 function isReportTesterOpen() {
@@ -743,11 +763,36 @@ function isReportTesterOpen() {
   return currentTab === 'botreports' && !!chooser && chooser.hidden === false;
 }
 
+function isReplayActive() {
+  if (currentTab !== 'botreports' || !replayState?.targetId) return false;
+  const target = document.getElementById(replayState.targetId);
+  return !!target && !!target.querySelector('.replay-stage');
+}
+
+function shouldPreserveBotReportsPanel() {
+  return currentTab === 'botreports' && (isReportTesterOpen() || isReplayActive());
+}
+
 function renderFilePreviewNotice() {
   const message = '<div class="empty">This is only the local dashboard HTML file. Open <a href="' + LIVE_ADMIN_URL + '">the live admin dashboard</a> to load player data and reported plays.</div>';
   document.getElementById('stats').innerHTML = '';
   document.querySelectorAll('.panel').forEach(p => { p.innerHTML = message; });
+  document.getElementById('server-updated').textContent = 'open live admin';
   document.getElementById('last-refresh').textContent = 'open live admin';
+}
+
+async function loadServerInfo() {
+  const el = document.getElementById('server-updated');
+  if (!el) return;
+  try {
+    const res = await fetch('/health', { headers: { Accept: 'application/json' } });
+    const data = await res.json();
+    el.textContent = formatBuildDate(data.commitDate);
+    el.title = [data.commit, data.commitMessage].filter(Boolean).join(' · ');
+  } catch(e) {
+    el.textContent = 'unavailable';
+    el.removeAttribute('title');
+  }
 }
 
 async function loadStats() {
@@ -1156,6 +1201,7 @@ function renderReplayRoom() {
         snapshotNote +
         '<button onclick="previousReplayMove()" ' + (replayState.index <= 0 ? 'disabled' : '') + '>Previous</button>' +
         '<button onclick="nextReplayMove()" ' + (replayState.index >= events.length - 1 ? 'disabled' : '') + '>Next</button>' +
+        '<button onclick="closeReplay()">Close replay</button>' +
       '</div>' +
     '</div>' +
     renderReplayGameRoom(ev, snapshot) +
@@ -1207,9 +1253,18 @@ function previousReplayMove() {
   renderReplayRoom();
 }
 
+function closeReplay() {
+  const targetId = replayState?.targetId;
+  replayState = null;
+  if (!targetId) return;
+  const target = document.getElementById(targetId);
+  if (target) target.innerHTML = '';
+}
+
 async function loadReportContext(reportId) {
   const target = document.getElementById('report-context-' + reportId);
   if (!target) return;
+  if (replayState?.targetId === target.id) replayState = null;
   target.innerHTML = '<div class="empty">Loading surrounding plays...</div>';
   try {
     const data = await api('bot-reports/' + reportId + '/context?radius=3');
@@ -1317,7 +1372,8 @@ async function refresh(forcePanel = false) {
     return;
   }
   await loadStats();
-  if (!isReportTesterOpen() || forcePanel) {
+  await loadServerInfo();
+  if (!shouldPreserveBotReportsPanel() || forcePanel) {
     await loadTab(currentTab);
     document.getElementById('last-refresh').textContent = new Date().toLocaleTimeString();
   } else {
