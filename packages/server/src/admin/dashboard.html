@@ -80,6 +80,19 @@
   .report-field { background: #18182a; border: 1px solid #24243e; border-radius: 6px; padding: 0.55rem 0.65rem; min-width: 0; }
   .report-field-label { color: #777; font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.4px; margin-bottom: 0.25rem; }
   .report-field-value { color: #ddd; font-size: 0.82rem; overflow-wrap: anywhere; }
+  .mc-diagnostics { background: #151526; border: 1px solid #2a2a4a; border-radius: 8px; padding: 0.8rem; display: grid; gap: 0.7rem; }
+  .mc-diagnostics.missing { border-style: dashed; color: #999; font-size: 0.82rem; }
+  .mc-head { display: flex; justify-content: space-between; gap: 0.75rem; align-items: center; flex-wrap: wrap; }
+  .mc-head strong { color: #c9a84c; font-size: 0.88rem; }
+  .mc-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 0.55rem; }
+  .mc-choice { background: #10101b; border: 1px solid #24243e; border-radius: 6px; padding: 0.65rem; display: grid; gap: 0.45rem; }
+  .mc-choice-label { color: #888; font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.4px; }
+  .mc-choice-main { color: #e8e8e8; font-size: 0.82rem; overflow-wrap: anywhere; }
+  .mc-choice-sub { color: #888; font-size: 0.74rem; overflow-wrap: anywhere; }
+  .mc-candidates summary { color: #c9a84c; cursor: pointer; font-size: 0.8rem; width: fit-content; }
+  .mc-candidate-list { margin-top: 0.5rem; display: grid; gap: 0.35rem; }
+  .mc-candidate { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 0.5rem; align-items: center; background: #10101b; border: 1px solid #24243e; border-radius: 6px; padding: 0.45rem 0.55rem; }
+  .mc-candidate-score { color: #aaa; font-size: 0.74rem; white-space: nowrap; }
   .report-review { display: grid; grid-template-columns: minmax(150px, 220px) minmax(240px, 1fr) auto; gap: 0.6rem; align-items: start; }
   .report-review select, .report-review textarea { width: 100%; background: #0f0f1a; color: #e0e0e0; border: 1px solid #333; border-radius: 6px; padding: 0.55rem 0.65rem; font-size: 0.82rem; }
   .report-review textarea { min-height: 38px; resize: vertical; }
@@ -391,6 +404,95 @@ function formatTrickPlays(plays) {
 function formatTrickTop(top) {
   if (!top) return '-';
   return [top.type, top.rank != null ? 'rank ' + top.rank : '', top.length != null ? 'len ' + top.length : ''].filter(Boolean).join(' · ');
+}
+
+function formatNumber(value, digits = 1) {
+  const n = Number(value);
+  return Number.isFinite(n) ? n.toFixed(digits) : '-';
+}
+
+function sameDecisionCards(a, b) {
+  if (a === null || b === null) return a === b;
+  if (!Array.isArray(a) || !Array.isArray(b)) return false;
+  if (a.length !== b.length) return false;
+  return a.every((id, idx) => id === b[idx]);
+}
+
+function findMcCandidate(mc, cardIds) {
+  if (!mc || !Array.isArray(mc.candidates)) return null;
+  return mc.candidates.find(candidate => sameDecisionCards(candidate.cardIds, cardIds)) || null;
+}
+
+function renderDecisionChips(cardIds) {
+  if (cardIds === null) return '<span class="pass-chip">PASS</span>';
+  if (!Array.isArray(cardIds)) return '<span class="replay-sub">Not captured</span>';
+  if (cardIds.length === 0) return '<span class="pass-chip">No cards</span>';
+  return '<div class="card-list">' + cardIds.map(id => '<span class="card-chip">' + esc(id) + '</span>').join('') + '</div>';
+}
+
+function formatCandidateScore(candidate) {
+  if (!candidate) return 'score unavailable';
+  const avg = candidate.averageScore == null ? '-' : formatNumber(candidate.averageScore, 1);
+  const sims = candidate.simCount ?? 0;
+  return 'avg ' + avg + ' · sims ' + sims;
+}
+
+function renderMcChoice(label, cardIds, detail, candidate) {
+  return '<div class="mc-choice">' +
+    '<div class="mc-choice-label">' + esc(label) + '</div>' +
+    '<div class="mc-choice-main">' + renderDecisionChips(cardIds) + '</div>' +
+    '<div class="mc-choice-sub">' + esc(detail || formatCandidateScore(candidate)) + '</div>' +
+  '</div>';
+}
+
+function renderMcInfo(label, value, detail = '') {
+  return '<div class="mc-choice">' +
+    '<div class="mc-choice-label">' + esc(label) + '</div>' +
+    '<div class="mc-choice-main">' + esc(value) + '</div>' +
+    (detail ? '<div class="mc-choice-sub">' + esc(detail) + '</div>' : '') +
+  '</div>';
+}
+
+function renderMcCandidates(mc) {
+  if (!mc || !Array.isArray(mc.candidates) || mc.candidates.length === 0) return '';
+  const candidates = [...mc.candidates]
+    .sort((a, b) => Number(b.averageScore ?? -Infinity) - Number(a.averageScore ?? -Infinity))
+    .slice(0, 8);
+  return '<details class="mc-candidates"><summary>MC candidate scores</summary>' +
+    '<div class="mc-candidate-list">' +
+      candidates.map(candidate =>
+        '<div class="mc-candidate">' +
+          '<div>' + renderDecisionChips(candidate.cardIds) + '</div>' +
+          '<div class="mc-candidate-score">' + esc(formatCandidateScore(candidate)) + '</div>' +
+        '</div>'
+      ).join('') +
+    '</div>' +
+  '</details>';
+}
+
+function renderMcDiagnostics(bot) {
+  const mc = bot?.mc || null;
+  if (!mc) {
+    return '<div class="mc-diagnostics missing">Heuristic vs MC diagnostics were not captured for this event. New hard, extreme, and unfair bot reports after the MC advisor deploy will show the heuristic choice, MC choice, and candidate scores here; medium/easy bots do not run MC.</div>';
+  }
+  const heuristicCandidate = findMcCandidate(mc, mc.heuristicCardIds);
+  const mcCandidate = findMcCandidate(mc, mc.mcCardIds);
+  const actualCardIds = mc.accepted ? mc.mcCardIds : mc.heuristicCardIds;
+  const decisionLabel = mc.accepted ? 'MC override accepted' : (sameDecisionCards(mc.heuristicCardIds, mc.mcCardIds) ? 'Heuristic and MC agreed' : 'Heuristic kept');
+  const margin = mc.margin == null ? '-' : formatNumber(mc.margin, 1);
+  return '<div class="mc-diagnostics">' +
+    '<div class="mc-head">' +
+      '<strong>Heuristic vs MC</strong>' +
+      '<span class="badge ' + (mc.accepted ? 'badge-blue' : 'badge-yellow') + '">' + esc(decisionLabel) + '</span>' +
+    '</div>' +
+    '<div class="mc-grid">' +
+      renderMcChoice('Heuristic would choose', mc.heuristicCardIds, 'branch: ' + (mc.heuristicBranch || '-'), heuristicCandidate) +
+      renderMcChoice('MC preferred', mc.mcCardIds, formatCandidateScore(mcCandidate), mcCandidate) +
+      renderMcChoice('Actual bot played', actualCardIds, 'reason: ' + (mc.reason || '-') + ' · margin: ' + margin, null) +
+      renderMcInfo('Run stats', 'sims: ' + (mc.totalSims ?? '-') + ' · time: ' + (mc.durationMs ?? '-') + 'ms', 'errors: ' + (mc.errorCount ?? 0)) +
+    '</div>' +
+    renderMcCandidates(mc) +
+  '</div>';
 }
 
 const SUIT_SYMBOLS = { JADE: '♣', PAGODA: '♦', STAR: '♥', SWORD: '♠' };
@@ -708,6 +810,7 @@ function renderBotReports(data) {
           '<div class="report-field"><div class="report-field-label">Bot hand</div><div class="report-field-value">' + esc(hand) + '</div></div>' +
           '<div class="report-field"><div class="report-field-label">Review notes</div><div class="report-field-value">' + esc(notesText) + '</div></div>' +
         '</div>' +
+        renderMcDiagnostics(bot) +
         '<div class="report-review">' +
           '<select id="review-status-' + r.id + '">' + renderReviewOptions(statuses, status) + '</select>' +
           '<textarea id="review-note-' + r.id + '" maxlength="1000" placeholder="Classification note">' + esc(note) + '</textarea>' +
@@ -1049,6 +1152,7 @@ function renderReplayRoom() {
       '</div>' +
     '</div>' +
     renderReplayGameRoom(ev, snapshot) +
+    renderMcDiagnostics(eventDataFor(ev)?.bot || null) +
     '<details class="replay-evidence"><summary>Replay metadata</summary>' + renderReplayMeta(ev, snapshot) + '</details>' +
     renderLegacyEvidence(ev, snapshot) +
   '</div>';

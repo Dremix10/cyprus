@@ -2,12 +2,6 @@ import { useState } from 'react';
 import { useGameStore, type ReportableBotPlay } from '../stores/gameStore.js';
 import { useAuthStore } from '../stores/authStore.js';
 
-function botName(position: number): string {
-  // Mirror the server's Greek-themed bot avatars; falls back to "Bot N" if unknown.
-  const names = ['Bot Zeus', 'Bot Hera', 'Bot Athena', 'Bot Apollo'];
-  return names[position] ?? `Bot ${position}`;
-}
-
 function relativeTime(at: number): string {
   const seconds = Math.max(0, Math.floor((Date.now() - at) / 1000));
   if (seconds < 5) return 'just now';
@@ -23,7 +17,7 @@ export function ReportBotPlayButton() {
   const disabledReason = !user
     ? 'Sign in to report bot plays'
     : plays.length === 0
-      ? 'Bot plays will appear here after bots move'
+      ? 'Recent bot plays will appear here after bots move'
       : 'Flag a bot play that looked wrong';
 
   return (
@@ -57,7 +51,7 @@ function ReportBotPlayModal({ onClose }: { onClose: () => void }) {
           Click ⚑ next to a play that looked wrong. Reports help us improve the bots.
         </p>
         {plays.length === 0 ? (
-          <p className="report-bot-empty">No bot plays this round yet.</p>
+          <p className="report-bot-empty">No recent bot plays available.</p>
         ) : (
           <ul className="report-bot-list">
             {plays.map((p) => (
@@ -99,7 +93,7 @@ function ReportRow({
 
   return (
     <li className="report-bot-row">
-      <span className="report-bot-name">{botName(play.position)}</span>
+      <span className="report-bot-name">{play.playerName}</span>
       <span className="report-bot-summary">{play.combinationSummary}</span>
       <span className="report-bot-time">{relativeTime(play.at)}</span>
       {reported ? (

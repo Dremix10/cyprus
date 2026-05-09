@@ -106,6 +106,7 @@ export class BotController {
     mcTrace: MonteCarloAdvisorTrace | null,
   ): Record<string, unknown> {
     const trick = engine.state.currentTrick;
+    const actingPlayer = engine.state.players[engine.state.currentPlayer];
     const top = trick.plays.length > 0 ? trick.plays[trick.plays.length - 1].combination : null;
     let trickPoints = 0;
     for (const play of trick.plays) {
@@ -131,6 +132,8 @@ export class BotController {
     const bot: Record<string, unknown> = {
       tier,
       branchTag,
+      position: actingPlayer.position,
+      name: actingPlayer.nickname,
       hand: hand.map((c) => c.id),
       trickTop: top ? { type: top.type, rank: top.rank, length: top.length } : null,
       trickPoints,

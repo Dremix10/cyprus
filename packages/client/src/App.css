@@ -2319,14 +2319,14 @@ body {
   --hand-overlap: -12px;
   --hand-hit-y: 8px;
   --hand-hit-x: 5px;
-  display: flex;
-  justify-content: center;
+  --hand-lift-space: 18px;
+  display: block;
   width: 100%;
   max-width: 100%;
-  padding: 0.7rem 1rem 0.85rem;
-  min-height: 100px;
+  padding: var(--hand-lift-space) 1rem 0.85rem;
+  min-height: calc(var(--hand-card-height) + var(--hand-lift-space) + 0.85rem);
   overflow-x: auto;
-  overflow-y: visible;
+  overflow-y: hidden;
   -webkit-overflow-scrolling: touch;
   overscroll-behavior-x: contain;
   touch-action: pan-x;
@@ -2340,6 +2340,15 @@ body {
 .player-hand .card {
   width: var(--hand-card-width);
   height: var(--hand-card-height);
+}
+
+.player-hand-track {
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  width: max-content;
+  min-width: 100%;
+  padding-inline: 1px;
 }
 
 .hand-card-wrapper {
@@ -3655,9 +3664,13 @@ span.pass-zone-avatar {
     --hand-overlap: -12px;
     --hand-hit-y: 10px;
     --hand-hit-x: 7px;
+    --hand-lift-space: 20px;
+    min-height: calc(var(--hand-card-height) + var(--hand-lift-space) + 0.75rem);
+    padding: var(--hand-lift-space) 0.9rem 0.75rem;
+  }
+
+  .player-hand-track {
     justify-content: flex-start;
-    min-height: 94px;
-    padding: 0.8rem 0.9rem 0.75rem;
   }
 
   .player-hand .card {
@@ -3788,10 +3801,11 @@ span.pass-zone-avatar {
     --hand-overlap: -10px;
     --hand-hit-y: 11px;
     --hand-hit-x: 8px;
-    --card-selected-lift: -5px;
-    --card-selected-scale: 1.045;
-    min-height: 96px;
-    padding: 1.15rem 1rem 0.72rem;
+    --hand-lift-space: 24px;
+    --card-selected-lift: -12px;
+    --card-selected-scale: 1.035;
+    min-height: calc(var(--hand-card-height) + var(--hand-lift-space) + 0.72rem);
+    padding: var(--hand-lift-space) 1rem 0.72rem;
     scroll-padding-inline: 1rem;
   }
 
@@ -4143,10 +4157,14 @@ span.pass-zone-avatar {
     --hand-overlap: -9px;
     --hand-hit-y: 9px;
     --hand-hit-x: 8px;
-    --card-selected-lift: -4px;
-    --card-selected-scale: 1.04;
-    min-height: 84px;
-    padding: 0.85rem 0.85rem 0.5rem;
+    --hand-lift-space: 20px;
+    --card-selected-lift: -10px;
+    --card-selected-scale: 1.03;
+    min-height: calc(var(--hand-card-height) + var(--hand-lift-space) + 0.5rem);
+    padding: var(--hand-lift-space) 0.85rem 0.5rem;
+  }
+
+  .player-hand-track {
     justify-content: flex-start;
   }
 

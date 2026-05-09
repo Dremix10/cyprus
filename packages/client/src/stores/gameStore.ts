@@ -22,6 +22,7 @@ import {
 export interface ReportableBotPlay {
   eventId: number;
   position: PlayerPosition;
+  playerName: string;
   type: 'PLAY' | 'PASS' | 'BOMB';
   // Display-only summary; full card data is in event.data.combination
   combinationSummary: string;
@@ -39,7 +40,7 @@ interface GameStore {
   selectedCards: Set<string>;
   error: string | null;
   lastEvent: GameEvent | null;
-  /** Bot plays from the current round that the user could flag as bad. Capped, FIFO. */
+  /** Recent bot plays that the user could flag as bad. Kept after round/game end. Capped, FIFO. */
   reportableBotPlays: ReportableBotPlay[];
   /** Hint UI state — resets each time it becomes the user's turn. */
   hintStatus: HintStatus;
@@ -79,6 +80,20 @@ function summarizeBotPlay(event: GameEvent): string {
   return `${combo.type ?? '?'} [${ids.join(', ')}]`;
 }
 
+function getBotPlayPlayerName(
+  event: GameEvent,
+  data: { bot?: { name?: string | null } } | undefined,
+  state: ClientGameState | null,
+): string {
+  const eventName = typeof data?.bot?.name === 'string' ? data.bot.name.trim() : '';
+  if (eventName) return eventName;
+
+  const player = state?.players.find((p) => p.position === event.playerPosition);
+  if (player?.nickname) return player.nickname;
+
+  return event.playerPosition === undefined ? 'Bot' : `Bot P${event.playerPosition + 1}`;
+}
+
 const MAX_REPORTABLE = 25;
 
 export const useGameStore = create<GameStore>((set, get) => ({
@@ -110,11 +125,13 @@ export const useGameStore = create<GameStore>((set, get) => ({
 
     // Track bot PLAY/PASS/BOMB events as reportable (only if event has the bot decision context)
     if (event.id !== undefined && (event.type === 'PLAY' || event.type === 'PASS' || event.type === 'BOMB')) {
-      const data = event.data as { bot?: { branchTag?: string | null; tier?: string | null } } | undefined;
+      const data = event.data as { bot?: { branchTag?: string | null; tier?: string | null; name?: string | null } } | undefined;
       if (data?.bot && event.playerPosition !== undefined) {
+        const currentState = get().gameState;
         const entry: ReportableBotPlay = {
           eventId: event.id,
           position: event.playerPosition,
+          playerName: getBotPlayPlayerName(event, data, currentState),
           type: event.type,
           combinationSummary: summarizeBotPlay(event),
           branchTag: data.bot.branchTag ?? null,
@@ -125,10 +142,6 @@ export const useGameStore = create<GameStore>((set, get) => ({
         const next = [entry, ...get().reportableBotPlays].slice(0, MAX_REPORTABLE);
         set({ reportableBotPlays: next });
       }
-    }
-    // New round / game over: reset the reportable list
-    if (event.type === 'ROUND_END' || event.type === 'GAME_OVER') {
-      set({ reportableBotPlays: [] });
     }
 
     switch (event.type) {
