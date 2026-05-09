@@ -22,6 +22,7 @@ import {
   FULL_DECK,
 } from '@cyprus/shared';
 import { scoreLeadCandidates, type LeadScoreTrace } from './BotMoveScorer.js';
+import { solveEndgameDecision, type EndgameSolverTrace } from './EndgameSolver.js';
 
 export type BotDifficulty = 'easy' | 'medium' | 'hard' | 'extreme' | 'unfair';
 
@@ -418,6 +419,8 @@ export interface BotConfig {
   useLeadScorer: boolean;           // let explainable lead scorer choose ordinary leads (default: false until arena-proven)
   recordLeadScorerTrace: boolean;   // record lead scorer diagnostics without changing the live move
   leadScorerMinConfidence: number;  // required score edge before scorer overrides legacy lead order
+  useEndgameSolver: boolean;        // let the <=4-card team-aware solver choose moves (default: false until proven)
+  recordEndgameSolverTrace: boolean; // record endgame solver diagnostics without changing the live move
 
   // Monte Carlo simulation
   useMonteCarlo: boolean;           // use MC simulation for key decisions (default: false)
@@ -444,6 +447,8 @@ export const DEFAULT_BOT_CONFIG: BotConfig = {
   useLeadScorer: false,
   recordLeadScorerTrace: true,
   leadScorerMinConfidence: 8,
+  useEndgameSolver: false,
+  recordEndgameSolverTrace: true,
   useMonteCarlo: false,
   mcSims: 200,
   mcTimeMs: 150,
@@ -459,6 +464,7 @@ export class BotAI {
   public lastBranch: string | null = null; // most recent branch tag (set by tag())
   public lastMonteCarloTrace: MonteCarloAdvisorTrace | null = null;
   public lastLeadScoreTrace: LeadScoreTrace | null = null;
+  public lastEndgameSolverTrace: EndgameSolverTrace | null = null;
   private effectiveDifficulty: BotDifficulty;
   private recorder?: BotDecisionRecorder;
 
@@ -787,6 +793,22 @@ export class BotAI {
     });
     this.lastLeadScoreTrace = trace;
     return this.config.useLeadScorer ? trace?.cards ?? null : null;
+  }
+
+  private chooseEndgameSolverDecision(
+    hand: Card[],
+    playable: Card[][],
+    currentTrick: TrickState,
+    wish: WishState,
+    botPosition: PlayerPosition,
+    context?: GameContext,
+  ): { cardIds: string[] | null } | null {
+    if (this.inRollout) return null;
+    if (!this.config.useEndgameSolver && !this.config.recordEndgameSolverTrace) return null;
+    const trace = solveEndgameDecision({ hand, playable, currentTrick, wish, botPosition, context });
+    this.lastEndgameSolverTrace = trace;
+    if (!trace || !this.config.useEndgameSolver) return null;
+    return { cardIds: trace.cardIds };
   }
 
   private chooseSmallHandControlLead(
@@ -1177,6 +1199,7 @@ export class BotAI {
   ): string[] | null {
     this.lastMonteCarloTrace = null;
     this.lastLeadScoreTrace = null;
+    this.lastEndgameSolverTrace = null;
     const isLeading = currentTrick.plays.length === 0;
     const trickTop = isLeading
       ? null
@@ -1202,6 +1225,19 @@ export class BotAI {
 
     if (this.effectiveDifficulty === 'easy') {
       return this.choosePlayEasy(playable, isLeading);
+    }
+
+    const solverDecision = this.chooseEndgameSolverDecision(
+      hand,
+      playable,
+      currentTrick,
+      wish,
+      botPosition,
+      context,
+    );
+    if (solverDecision) {
+      this.tag('endgame:solver');
+      return solverDecision.cardIds;
     }
 
     if (this.effectiveDifficulty === 'medium') {

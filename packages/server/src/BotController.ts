@@ -15,6 +15,7 @@ import type {
   MonteCarloAdvisorTrace,
 } from './BotAI.js';
 import type { LeadScoreTrace } from './BotMoveScorer.js';
+import type { EndgameSolverTrace } from './EndgameSolver.js';
 import { monteCarloEvaluateDetailed } from './MonteCarloSim.js';
 import type { TrackerDB } from './Database.js';
 import type { GameMonitor } from './GameMonitor.js';
@@ -106,6 +107,7 @@ export class BotController {
     branchTag: string | null,
     mcTrace: MonteCarloAdvisorTrace | null,
     leadScoreTrace: LeadScoreTrace | null,
+    endgameSolverTrace: EndgameSolverTrace | null,
   ): Record<string, unknown> {
     const trick = engine.state.currentTrick;
     const actingPlayer = engine.state.players[engine.state.currentPlayer];
@@ -151,6 +153,7 @@ export class BotController {
     };
     if (mcTrace) bot.mc = mcTrace;
     if (leadScoreTrace) bot.leadScorer = leadScoreTrace;
+    if (endgameSolverTrace) bot.endgameSolver = endgameSolverTrace;
     return { bot };
   }
 
@@ -293,6 +296,7 @@ export class BotController {
         botAI.lastBranch,
         botAI.lastMonteCarloTrace,
         botAI.lastLeadScoreTrace,
+        botAI.lastEndgameSolverTrace,
       );
 
       if (cardIds) {

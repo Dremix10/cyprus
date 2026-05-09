@@ -556,6 +556,48 @@ function renderLeadScorerDiagnostics(bot) {
   '</div>';
 }
 
+function formatEndgameCandidate(candidate) {
+  if (!candidate) return 'score unavailable';
+  if (candidate.rejectedReason) return 'rejected: ' + candidate.rejectedReason;
+  return 'score ' + formatNumber(candidate.score, 1);
+}
+
+function renderEndgameSolverCandidates(trace) {
+  if (!trace || !Array.isArray(trace.candidates) || trace.candidates.length === 0) return '';
+  const candidates = [...trace.candidates]
+    .sort((a, b) => Number(b.score ?? -Infinity) - Number(a.score ?? -Infinity))
+    .slice(0, 8);
+  return '<details class="mc-candidates"><summary>Endgame solver candidate scores</summary>' +
+    '<div class="mc-candidate-list">' +
+      candidates.map(candidate =>
+        '<div class="mc-candidate">' +
+          '<div>' + renderDecisionChips(candidate.cardIds) + '</div>' +
+          '<div class="mc-candidate-score">' + esc(formatEndgameCandidate(candidate)) + '</div>' +
+        '</div>'
+      ).join('') +
+    '</div>' +
+  '</details>';
+}
+
+function renderEndgameSolverDiagnostics(bot) {
+  const trace = bot?.endgameSolver || null;
+  if (!trace) return '';
+  const confidence = Number.isFinite(Number(trace.confidence)) ? formatNumber(trace.confidence, 1) : 'only viable candidate';
+  return '<div class="mc-diagnostics">' +
+    '<div class="mc-head">' +
+      '<strong>Endgame Solver</strong>' +
+      '<span class="badge badge-yellow">shadow diagnostic</span>' +
+    '</div>' +
+    '<div class="mc-grid">' +
+      renderMcChoice('Solver preferred', trace.cardIds, 'score: ' + formatNumber(trace.score, 1), null) +
+      renderMcInfo('Mode', trace.mode || '-', 'team-aware <=4-card solver') +
+      renderMcInfo('Confidence', confidence, '') +
+      renderMcInfo('Main reasons', trace.reason || '-', '') +
+    '</div>' +
+    renderEndgameSolverCandidates(trace) +
+  '</div>';
+}
+
 const SUIT_SYMBOLS = { JADE: '♣', PAGODA: '♦', STAR: '♥', SWORD: '♠' };
 const SUIT_COLORS = { JADE: '#2ecc71', PAGODA: '#3498db', STAR: '#e74c3c', SWORD: '#222' };
 const SPECIAL_CARDS = {
@@ -904,6 +946,7 @@ function renderBotReports(data) {
         '</div>' +
         renderMcDiagnostics(bot) +
         renderLeadScorerDiagnostics(bot) +
+        renderEndgameSolverDiagnostics(bot) +
         '<div class="report-review">' +
           '<select id="review-status-' + r.id + '">' + renderReviewOptions(statuses, status) + '</select>' +
           '<textarea id="review-note-' + r.id + '" maxlength="1000" placeholder="Classification note">' + esc(note) + '</textarea>' +
@@ -1249,6 +1292,7 @@ function renderReplayRoom() {
     renderReplayGameRoom(ev, snapshot) +
     renderMcDiagnostics(eventDataFor(ev)?.bot || null) +
     renderLeadScorerDiagnostics(eventDataFor(ev)?.bot || null) +
+    renderEndgameSolverDiagnostics(eventDataFor(ev)?.bot || null) +
     '<details class="replay-evidence"><summary>Replay metadata</summary>' + renderReplayMeta(ev, snapshot) + '</details>' +
     renderLegacyEvidence(ev, snapshot) +
   '</div>';
