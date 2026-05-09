@@ -712,6 +712,112 @@ describe('BotAI endgame lead planning', () => {
   });
 });
 
+describe('BotAI endgame solver diagnostics', () => {
+  it('does not rush out before a Grand Tichu partner when solver control is enabled', () => {
+    const bot = new BotAI('hard', { useEndgameSolver: true });
+    const hand: Card[] = [
+      nc(Suit.PAGODA, NormalRank.FIVE),
+      nc(Suit.SWORD, NormalRank.FIVE),
+    ];
+
+    const play = bot.choosePlay(hand, emptyTrick, inactiveWish, 2, report22Context({
+      playerCardCounts: new Map<PlayerPosition, number>([
+        [0, 1],
+        [1, 6],
+        [2, 2],
+        [3, 6],
+      ]),
+      tichuCalls: {
+        0: 'grand_tichu',
+        1: 'none',
+        2: 'none',
+        3: 'none',
+      } as Record<PlayerPosition, TichuCall>,
+    }));
+
+    expect(play).toHaveLength(1);
+    expect(play).not.toEqual(['PAGODA_5', 'SWORD_5']);
+    expect(bot.lastBranch).toBe('endgame:solver');
+    expect(bot.lastEndgameSolverTrace?.mode).toBe('partner-tichu-support');
+    expect(bot.lastEndgameSolverTrace?.reason).toContain('low-lead-for-partner');
+  });
+
+  it('passes over a winning Grand Tichu partner instead of going out', () => {
+    const bot = new BotAI('hard', { useEndgameSolver: true });
+    const hand: Card[] = [nc(Suit.PAGODA, NormalRank.FOUR)];
+
+    const play = bot.choosePlay(hand, singleTrick(0, nc(Suit.STAR, NormalRank.THREE)), inactiveWish, 2, report22Context({
+      playerCardCounts: new Map<PlayerPosition, number>([
+        [0, 1],
+        [1, 6],
+        [2, 1],
+        [3, 6],
+      ]),
+      tichuCalls: {
+        0: 'grand_tichu',
+        1: 'none',
+        2: 'none',
+        3: 'none',
+      } as Record<PlayerPosition, TichuCall>,
+    }));
+
+    expect(play).toBeNull();
+    expect(bot.lastBranch).toBe('endgame:solver');
+    expect(bot.lastEndgameSolverTrace?.cardIds).toBeNull();
+    expect(bot.lastEndgameSolverTrace?.reason).toContain('partner-winning-pass');
+  });
+
+  it('records shadow diagnostics without changing the live move', () => {
+    const bot = new BotAI('hard');
+    const hand: Card[] = [
+      nc(Suit.PAGODA, NormalRank.FIVE),
+      nc(Suit.SWORD, NormalRank.FIVE),
+    ];
+
+    const play = bot.choosePlay(hand, emptyTrick, inactiveWish, 2, report22Context({
+      playerCardCounts: new Map<PlayerPosition, number>([
+        [0, 1],
+        [1, 6],
+        [2, 2],
+        [3, 6],
+      ]),
+      tichuCalls: {
+        0: 'grand_tichu',
+        1: 'none',
+        2: 'none',
+        3: 'none',
+      } as Record<PlayerPosition, TichuCall>,
+    }));
+
+    expect(play).toEqual(['PAGODA_5', 'SWORD_5']);
+    expect(bot.lastBranch).toBe('lead:endgame-dump');
+    expect(bot.lastEndgameSolverTrace?.mode).toBe('partner-tichu-support');
+    expect(bot.lastEndgameSolverTrace?.cardIds).toHaveLength(1);
+  });
+
+  it('prefers the control card in a two-card urgent endgame', () => {
+    const bot = new BotAI('hard', { useEndgameSolver: true });
+    const hand: Card[] = [
+      nc(Suit.STAR, NormalRank.SIX),
+      nc(Suit.JADE, NormalRank.JACK),
+    ];
+
+    const play = bot.choosePlay(hand, emptyTrick, inactiveWish, 2, report22Context({
+      playerCardCounts: new Map<PlayerPosition, number>([
+        [0, 0],
+        [1, 0],
+        [2, 2],
+        [3, 2],
+      ]),
+      finishOrder: [0, 1],
+    }));
+
+    expect(play).toEqual(['JADE_11']);
+    expect(bot.lastBranch).toBe('endgame:solver');
+    expect(bot.lastEndgameSolverTrace?.mode).toBe('urgent-endgame');
+  });
+});
+
 describe('BotAI low-single initiative blocking', () => {
   it('does not let Monte Carlo pass on an opponent low single in the report #20 shape', () => {
     const bot = new BotAI('hard', { useMonteCarlo: true });
