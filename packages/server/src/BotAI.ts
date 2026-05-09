@@ -85,6 +85,11 @@ interface HandPlan {
   hasBomb: boolean;
 }
 
+type LowSingleInitiativeBlock = {
+  cards: Card[];
+  branch: 'follow:block-low-single-initiative' | 'follow:block-one-card-opponent';
+};
+
 /** Decompose a hand into an estimated optimal set of combos. */
 function planHand(hand: Card[]): HandPlan {
   const dragon = hand.find((c) => isSpecial(c, SpecialCardType.DRAGON));
@@ -1183,8 +1188,8 @@ export class BotAI {
     if (!isLeading) {
       const blockPlay = this.chooseLowSingleInitiativeBlock(hand, playable, currentTrick, botPosition, context);
       if (blockPlay) {
-        this.tag('follow:block-low-single-initiative');
-        return blockPlay.map((c) => c.id);
+        this.tag(blockPlay.branch);
+        return blockPlay.cards.map((c) => c.id);
       }
     }
 
@@ -1967,7 +1972,7 @@ export class BotAI {
     currentTrick: TrickState,
     botPosition: PlayerPosition,
     context?: GameContext
-  ): Card[] | null {
+  ): LowSingleInitiativeBlock | null {
     if (!context || currentTrick.plays.length === 0) return null;
 
     const winner = currentTrick.currentWinner;
@@ -1994,19 +1999,43 @@ export class BotAI {
       }
     }
 
-    const cheapNormalSingles = playable.filter((play) =>
+    const normalSingles = playable.filter((play) =>
       play.length === 1 &&
       isNormalCard(play[0]) &&
-      play[0].rank <= NR.TEN &&
       play[0].rank > topCombo.rank
     );
-    if (cheapNormalSingles.length === 0) return null;
+    if (normalSingles.length === 0) return null;
 
-    const singletonSingles = cheapNormalSingles.filter((play) =>
+    const singletonSingles = normalSingles.filter((play) =>
       isNormalCard(play[0]) && normalRankCounts.get(play[0].rank) === 1
     );
 
-    return this.sortByRank(singletonSingles.length > 0 ? singletonSingles : cheapNormalSingles)[0];
+    if (winnerCards <= 1) {
+      const looseSingles = singletonSingles.length > 0 ? singletonSingles : normalSingles;
+      const looseHighSingles = looseSingles.filter((play) => isNormalCard(play[0]) && play[0].rank >= NR.QUEEN);
+      const highSingles = normalSingles.filter((play) => isNormalCard(play[0]) && play[0].rank >= NR.QUEEN);
+      const sorted = this.sortByRank(
+        looseHighSingles.length > 0 ? looseHighSingles :
+        highSingles.length > 0 ? highSingles :
+        looseSingles,
+      );
+      return {
+        cards: looseHighSingles.length > 0 || highSingles.length > 0 ? sorted[0] : sorted[sorted.length - 1],
+        branch: 'follow:block-one-card-opponent',
+      };
+    }
+
+    const cheapNormalSingles = normalSingles.filter((play) => isNormalCard(play[0]) && play[0].rank <= NR.TEN);
+    if (cheapNormalSingles.length === 0) return null;
+
+    const cheapSingletonSingles = cheapNormalSingles.filter((play) =>
+      isNormalCard(play[0]) && normalRankCounts.get(play[0].rank) === 1
+    );
+
+    return {
+      cards: this.sortByRank(cheapSingletonSingles.length > 0 ? cheapSingletonSingles : cheapNormalSingles)[0],
+      branch: 'follow:block-low-single-initiative',
+    };
   }
 
   private chooseEndgameControlFollow(
