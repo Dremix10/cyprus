@@ -1,3 +1,4 @@
+import { useRef, type KeyboardEvent, type PointerEvent } from 'react';
 import type { Card } from '@cyprus/shared';
 import { Suit, SpecialCardType, getRankLabel } from '@cyprus/shared';
 
@@ -127,6 +128,38 @@ interface CardComponentProps {
 
 export function CardComponent({ card, selected, onClick, size = 'normal' }: CardComponentProps) {
   const isSmall = size === 'small';
+  const lastPointerActivation = useRef(0);
+
+  const handlePointerUp = (event: PointerEvent<HTMLDivElement>) => {
+    if (!onClick || event.pointerType === 'mouse') return;
+    event.preventDefault();
+    lastPointerActivation.current = Date.now();
+    onClick();
+  };
+
+  const handleClick = () => {
+    if (!onClick) return;
+    if (Date.now() - lastPointerActivation.current < 450) return;
+    onClick();
+  };
+
+  const handleKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
+    if (!onClick) return;
+    if (event.key !== 'Enter' && event.key !== ' ') return;
+    event.preventDefault();
+    onClick();
+  };
+
+  const interactiveProps = onClick
+    ? {
+        role: 'button' as const,
+        tabIndex: 0,
+        'aria-pressed': selected,
+        onPointerUp: handlePointerUp,
+        onClick: handleClick,
+        onKeyDown: handleKeyDown,
+      }
+    : {};
 
   if (card.type === 'special') {
     const display = SPECIAL_CARDS[card.specialType];
@@ -134,7 +167,7 @@ export function CardComponent({ card, selected, onClick, size = 'normal' }: Card
       <div
         className={`card special-card special-${card.specialType.toLowerCase()} ${selected ? 'card-selected' : ''} ${isSmall ? 'card-sm' : ''}`}
         style={{ background: display.bg, color: display.color }}
-        onClick={onClick}
+        {...interactiveProps}
       >
         <div className="card-corner special-corner">{display.label}</div>
         <div className="card-center">
@@ -153,7 +186,7 @@ export function CardComponent({ card, selected, onClick, size = 'normal' }: Card
     <div
       className={`card ${selected ? 'card-selected' : ''} ${isSmall ? 'card-sm' : ''}`}
       style={{ color }}
-      onClick={onClick}
+      {...interactiveProps}
     >
       <div className="card-corner">
         <span className="card-rank">{label}</span>
