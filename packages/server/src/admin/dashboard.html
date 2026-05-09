@@ -66,6 +66,7 @@
   .reports-hint { color: #888; font-size: 0.8rem; }
   .report-card { background: #12121f; border: 1px solid #2a2a4a; border-radius: 8px; padding: 1rem; display: grid; gap: 0.8rem; }
   .report-card-header { display: flex; justify-content: space-between; align-items: flex-start; gap: 1rem; flex-wrap: wrap; }
+  .report-card-actions { display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap; }
   .report-title { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; }
   .report-title strong { color: #f0f0f0; }
   .report-meta { color: #888; font-size: 0.78rem; margin-top: 0.25rem; }
@@ -97,6 +98,8 @@
   .report-review select, .report-review textarea { width: 100%; background: #0f0f1a; color: #e0e0e0; border: 1px solid #333; border-radius: 6px; padding: 0.55rem 0.65rem; font-size: 0.82rem; }
   .report-review textarea { min-height: 38px; resize: vertical; }
   .report-review button, .report-context-btn { background: #c9a84c; color: #0f0f1a; border: none; border-radius: 6px; padding: 0.55rem 0.9rem; cursor: pointer; font-weight: 600; }
+  .report-context-btn.secondary { background: #2a2a4a; color: #ddd; }
+  .report-context-btn.secondary:hover { background: #34345a; color: #f0f0f0; }
   .report-context-btn { width: fit-content; }
   .review-msg { color: #888; font-size: 0.75rem; min-height: 1rem; }
   .report-context { border-top: 1px solid #2a2a4a; padding-top: 0.8rem; }
@@ -798,7 +801,10 @@ function renderBotReports(data) {
             '</div>' +
             '<div class="report-meta">Reported by ' + esc(reporterText) + ' · latest ' + ago(r.created_at) + ' · event #' + r.game_event_id + '</div>' +
           '</div>' +
-          '<button class="report-context-btn" onclick="loadReportContext(' + r.id + ')">Show ±3 plays</button>' +
+          '<div class="report-card-actions">' +
+            '<button class="report-context-btn secondary" onclick="loadReportContext(' + r.id + ')">Show ±3 plays</button>' +
+            '<button class="report-context-btn" onclick="startInlineReportReplay(' + r.id + ')">Test replay</button>' +
+          '</div>' +
         '</div>' +
         renderFixedNote(r) +
         '<div class="report-grid">' +
@@ -1127,7 +1133,8 @@ function renderLegacyEvidence(ev, snapshot) {
 }
 
 function renderReplayRoom() {
-  const target = document.getElementById('report-replay-room');
+  const targetId = replayState?.targetId || 'report-replay-room';
+  const target = document.getElementById(targetId);
   if (!target || !replayState) return;
   const events = replayState.events || [];
   if (!events.length) {
@@ -1165,7 +1172,22 @@ async function startReportReplay() {
   target.innerHTML = '<div class="empty">Loading replay...</div>';
   try {
     const data = await api('bot-reports/' + select.value + '/replay?radius=3');
-    replayState = { ...data, index: 0 };
+    replayState = { ...data, index: 0, targetId: 'report-replay-room' };
+    renderReplayRoom();
+  } catch(e) {
+    const message = e instanceof Error ? e.message : 'Replay failed';
+    target.innerHTML = '<div class="query-error">' + esc(message) + '</div>';
+  }
+}
+
+async function startInlineReportReplay(reportId) {
+  const targetId = 'report-context-' + reportId;
+  const target = document.getElementById(targetId);
+  if (!target) return;
+  target.innerHTML = '<div class="empty">Loading replay...</div>';
+  try {
+    const data = await api('bot-reports/' + reportId + '/replay?radius=3');
+    replayState = { ...data, index: 0, targetId };
     renderReplayRoom();
   } catch(e) {
     const message = e instanceof Error ? e.message : 'Replay failed';
