@@ -567,6 +567,8 @@ export class BotAI {
       reason = 'missing-mc-score';
     } else if (mc.simCount < this.config.mcMinSimsPerCandidate || heuristic.simCount < this.config.mcMinSimsPerCandidate) {
       reason = 'low-sims';
+    } else if (result.cardIds === null && heuristicBranch === 'follow:dragon-block-opp-one-card') {
+      reason = 'pass-over-urgent-dragon';
     } else if (result.cardIds === null && this.isCheapHeuristicPlay(hand, heuristicCardIds)) {
       reason = 'pass-over-heuristic';
     } else {
@@ -1917,8 +1919,17 @@ export class BotAI {
     const lowestBeat = sorted[0];
     const lowestCombo = detectCombination(lowestBeat);
 
-    // Dragon wins singles — but only on tricks worth enough points (configurable)
+    // Dragon wins singles, but low-point Dragon follows are usually wasteful because
+    // the trick goes to an opponent. The exception is blocking a live opponent who is
+    // already winning the trick with one card left.
     if (lowestBeat.length === 1 && isSpecial(lowestBeat[0], SpecialCardType.DRAGON) && !partnerWinning) {
+      const currentWinnerHasOneCard = context
+        ? this.isCurrentWinnerOneCardOpponent(botPosition, currentTrick, context)
+        : false;
+      if (currentWinnerHasOneCard) {
+        this.tag('follow:dragon-block-opp-one-card');
+        return lowestBeat.map((c) => c.id);
+      }
       if (trickPoints >= this.config.dragonFollowMinPoints || hand.length <= 3) {
         this.tag('follow:dragon-play');
         return lowestBeat.map((c) => c.id);
@@ -2287,6 +2298,20 @@ export class BotAI {
       if ((call === 'tichu' || call === 'grand_tichu') && cards <= 4) return true;
     }
     return false;
+  }
+
+  private isCurrentWinnerOneCardOpponent(
+    botPosition: PlayerPosition,
+    currentTrick: TrickState,
+    context: GameContext,
+  ): boolean {
+    const winner = currentTrick.currentWinner;
+    if (winner === null || winner === undefined) return false;
+    if (winner % 2 === botPosition % 2) return false;
+    if (context.finishOrder.includes(winner)) return false;
+
+    const cards = context.playerCardCounts.get(winner) ?? 14;
+    return cards === 1;
   }
 
   // ─── Utility Methods ─────────────────────────────────────────────

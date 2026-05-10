@@ -1022,6 +1022,60 @@ describe('BotAI report-driven lead planning fixes', () => {
 });
 
 describe('BotAI report-driven follow fixes', () => {
+  it('spends Dragon to stop a live one-card opponent from keeping control', () => {
+    const bot = new BotAI('medium');
+    const hand: Card[] = [
+      nc(Suit.JADE, NormalRank.THREE),
+      nc(Suit.PAGODA, NormalRank.THREE),
+      nc(Suit.PAGODA, NormalRank.JACK),
+      nc(Suit.STAR, NormalRank.QUEEN),
+      sc(SpecialCardType.DRAGON),
+    ];
+
+    const play = bot.choosePlay(hand, singleTrick(1, nc(Suit.STAR, NormalRank.ACE)), inactiveWish, 2, report22Context({
+      playerCardCounts: new Map<PlayerPosition, number>([
+        [0, 3],
+        [1, 1],
+        [2, 5],
+        [3, 2],
+      ]),
+      scores: [370, 430],
+    }));
+
+    expect(play).toEqual([SpecialCardType.DRAGON]);
+    expect(bot.lastBranch).toBe('follow:dragon-block-opp-one-card');
+  });
+
+  it('still saves Dragon when the winning opponent is already out and the trick is cheap', () => {
+    const bot = new BotAI('medium');
+    const hand: Card[] = [
+      nc(Suit.STAR, NormalRank.FOUR),
+      nc(Suit.JADE, NormalRank.SEVEN),
+      nc(Suit.JADE, NormalRank.EIGHT),
+      nc(Suit.SWORD, NormalRank.NINE),
+      nc(Suit.SWORD, NormalRank.ACE),
+      sc(SpecialCardType.DRAGON),
+    ];
+    const trick = reportTrick([
+      { position: 2, card: nc(Suit.PAGODA, NormalRank.FOUR) },
+      { position: 3, card: nc(Suit.JADE, NormalRank.ACE) },
+    ], 3);
+
+    const play = bot.choosePlay(hand, trick, inactiveWish, 0, report22Context({
+      playerCardCounts: new Map<PlayerPosition, number>([
+        [0, 6],
+        [1, 6],
+        [2, 3],
+        [3, 0],
+      ]),
+      finishOrder: [3],
+      scores: [820, 80],
+    }));
+
+    expect(play).toBeNull();
+    expect(bot.lastBranch).toBe('follow:pass-dragon-save');
+  });
+
   it('uses the Ace to secure control in the report #17 two-card endgame', () => {
     const bot = new BotAI('medium');
     const hand: Card[] = [

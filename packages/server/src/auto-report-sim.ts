@@ -503,7 +503,7 @@ function analyzeEvent(input: {
     const winnerIsOpponent = winner !== null && winner !== undefined && bot.position !== undefined && winner % 2 !== bot.position % 2;
     const winnerCount = winner === null || winner === undefined ? null : countFor(bot, winner);
     const playableCount = playableCountForPass(bot);
-    if (winnerIsOpponent && winnerCount !== null && winnerCount <= 2 && playableCount !== null && playableCount > 0) {
+    if (winnerIsOpponent && winnerCount !== null && winnerCount > 0 && winnerCount <= 2 && playableCount !== null && playableCount > 0) {
       pushSuspicion(suspicions, base, {
         reasonTag: 'pass-to-near-out-opponent',
         reason: `Bot passed while an opponent with ${winnerCount} card(s) was winning and the bot had legal replies.`,
