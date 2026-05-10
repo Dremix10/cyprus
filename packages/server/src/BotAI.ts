@@ -92,6 +92,11 @@ type LowSingleInitiativeBlock = {
   branch: 'follow:block-low-single-initiative' | 'follow:block-one-card-opponent';
 };
 
+type SinglesOnlyLeadPressure = {
+  cards: Card[];
+  branch: 'lead:singles-second-low' | 'lead:one-card-pressure';
+};
+
 /** Decompose a hand into an estimated optimal set of combos. */
 function planHand(hand: Card[]): HandPlan {
   const dragon = hand.find((c) => isSpecial(c, SpecialCardType.DRAGON));
@@ -569,6 +574,11 @@ export class BotAI {
       reason = 'low-sims';
     } else if (result.cardIds === null && heuristicBranch === 'follow:dragon-block-opp-one-card') {
       reason = 'pass-over-urgent-dragon';
+    } else if (
+      heuristicBranch === 'lead:singles-second-low' ||
+      heuristicBranch === 'lead:one-card-pressure'
+    ) {
+      reason = 'protect-urgent-lead';
     } else if (result.cardIds === null && this.isCheapHeuristicPlay(hand, heuristicCardIds)) {
       reason = 'pass-over-heuristic';
     } else {
@@ -822,6 +832,44 @@ export class BotAI {
     if (normalSingles.length === 0) return null;
     const sorted = this.sortByRank(normalSingles);
     return sorted[sorted.length - 1];
+  }
+
+  private chooseSinglesOnlyPressureLead(
+    hand: Card[],
+    playable: Card[][],
+    botPosition: PlayerPosition,
+    context?: GameContext,
+  ): SinglesOnlyLeadPressure | null {
+    if (!context || hand.length < 4 || hand.length > 6 || this.hasLeadPrioritySpecial(playable)) return null;
+
+    const { regular } = this.splitBombs(playable);
+    if (regular.length === 0 || regular.some((play) => play.length !== 1)) return null;
+
+    const normalSingles = regular.filter((play) => play.length === 1 && isNormalCard(play[0]));
+    if (normalSingles.length !== hand.length || !hand.every(isNormalCard)) return null;
+
+    const sorted = this.sortByRank(normalSingles);
+    if (sorted.length < 2) return null;
+
+    const activeOpponents = ([0, 1, 2, 3] as PlayerPosition[]).filter((pos) =>
+      pos % 2 !== botPosition % 2 && !this.isPlayerOut(pos, context)
+    );
+    const partner = ((botPosition + 2) % 4) as PlayerPosition;
+    const partnerOut = this.isPlayerOut(partner, context);
+
+    if (partnerOut && activeOpponents.length >= 1 && activeOpponents.length <= 2) {
+      return { cards: sorted[1], branch: 'lead:singles-second-low' };
+    }
+
+    const oneCardOpponents = activeOpponents.filter((pos) => (context.playerCardCounts.get(pos) ?? 14) === 1);
+    if (oneCardOpponents.length === 1) {
+      const highBlockers = sorted.filter((play) => isNormalCard(play[0]) && play[0].rank >= NR.KING);
+      if (highBlockers.length > 0) {
+        return { cards: highBlockers[0], branch: 'lead:one-card-pressure' };
+      }
+    }
+
+    return null;
   }
 
   private chooseScoredLead(
@@ -1621,6 +1669,12 @@ export class BotAI {
           return this.pickLowestCombo(combos.nonSpecialSingles);
         }
       }
+    }
+
+    const singlesPressureLead = this.chooseSinglesOnlyPressureLead(hand, playable, botPosition, context);
+    if (singlesPressureLead) {
+      this.tag(singlesPressureLead.branch);
+      return singlesPressureLead.cards.map((c) => c.id);
     }
 
     // ── Counter opponent Tichu: force a pass or burn, without giving up the Dragon ──
