@@ -17,6 +17,41 @@ export const BOT_REPORT_REVIEW_STATUSES = [
 
 export type BotReportReviewStatus = typeof BOT_REPORT_REVIEW_STATUSES[number];
 
+type ReportEventRow = {
+  id: number;
+  game_id: number | null;
+  room_code: string | null;
+  event_type: string;
+  player_position: number | null;
+  data: string | null;
+  created_at: string;
+  offset: number;
+  snapshot: string | null;
+};
+
+type AutoBotReportRow = {
+  id: number;
+  game_event_id: number | null;
+  source: string;
+  reason_tag: string;
+  reason: string | null;
+  severity: number;
+  confidence: number | null;
+  branch_tag: string | null;
+  bot_tier: string | null;
+  auditor_data: string | null;
+  review_status: BotReportReviewStatus;
+  review_note: string | null;
+  reviewed_at: string | null;
+  reviewed_by: string | null;
+  game_id: number | null;
+  event_type: string | null;
+  event_data: string | null;
+  room_code: string | null;
+  event_created_at: string | null;
+  created_at: string;
+};
+
 export class TrackerDB {
   private db: BetterSqlite3.Database;
 
@@ -230,6 +265,28 @@ export class TrackerDB {
       CREATE INDEX IF NOT EXISTS idx_bot_reports_branch ON bot_play_reports(branch_tag);
       CREATE INDEX IF NOT EXISTS idx_bot_reports_at ON bot_play_reports(created_at);
 
+      CREATE TABLE IF NOT EXISTS auto_bot_play_reports (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        game_event_id INTEGER REFERENCES game_events(id),
+        source TEXT NOT NULL DEFAULT 'simulation',
+        reason_tag TEXT NOT NULL,
+        reason TEXT,
+        severity INTEGER NOT NULL DEFAULT 1,
+        confidence REAL,
+        branch_tag TEXT,
+        bot_tier TEXT,
+        auditor_data TEXT,
+        review_status TEXT NOT NULL DEFAULT 'unreviewed',
+        review_note TEXT,
+        reviewed_at TEXT,
+        reviewed_by TEXT,
+        created_at TEXT DEFAULT (datetime('now'))
+      );
+      CREATE INDEX IF NOT EXISTS idx_auto_bot_reports_event ON auto_bot_play_reports(game_event_id);
+      CREATE INDEX IF NOT EXISTS idx_auto_bot_reports_reason ON auto_bot_play_reports(reason_tag);
+      CREATE INDEX IF NOT EXISTS idx_auto_bot_reports_at ON auto_bot_play_reports(created_at);
+      CREATE INDEX IF NOT EXISTS idx_auto_bot_reports_review_status ON auto_bot_play_reports(review_status);
+
       CREATE TABLE IF NOT EXISTS game_event_snapshots (
         game_event_id INTEGER PRIMARY KEY REFERENCES game_events(id) ON DELETE CASCADE,
         snapshot TEXT NOT NULL,
@@ -264,6 +321,7 @@ export class TrackerDB {
       CREATE UNIQUE INDEX IF NOT EXISTS idx_users_email ON users(email);
       CREATE UNIQUE INDEX IF NOT EXISTS idx_users_google ON users(google_id);
       CREATE INDEX IF NOT EXISTS idx_bot_reports_review_status ON bot_play_reports(review_status);
+      CREATE INDEX IF NOT EXISTS idx_auto_bot_reports_review_status ON auto_bot_play_reports(review_status);
     `);
 
     // Seed bot_elo rows for each difficulty tier (no-op if already present)
@@ -792,6 +850,203 @@ export class TrackerDB {
         snapshot: string | null;
       }>,
     };
+  }
+
+  // ─── Auto Bot Play Reports ──────────────────────────────────────────
+
+  /** Store a suspected bad bot play found by offline/live auditing. Human reports stay separate. */
+  recordAutoBotPlayReport(input: {
+    gameEventId?: number | null;
+    source?: string;
+    reasonTag: string;
+    reason?: string | null;
+    severity?: number;
+    confidence?: number | null;
+    branchTag?: string | null;
+    botTier?: string | null;
+    auditorData?: unknown;
+  }): number {
+    const auditorData = input.auditorData == null
+      ? null
+      : (typeof input.auditorData === 'string' ? input.auditorData : JSON.stringify(input.auditorData));
+    const result = this.db.prepare(
+      `INSERT INTO auto_bot_play_reports
+         (game_event_id, source, reason_tag, reason, severity, confidence, branch_tag, bot_tier, auditor_data)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
+    ).run(
+      input.gameEventId ?? null,
+      input.source || 'simulation',
+      input.reasonTag,
+      input.reason ?? null,
+      input.severity ?? 1,
+      input.confidence ?? null,
+      input.branchTag ?? null,
+      input.botTier ?? null,
+      auditorData,
+    );
+    return Number(result.lastInsertRowid);
+  }
+
+  getAutoBotReportsGrouped(limit: number = 50): Array<{
+    source: string;
+    reason_tag: string;
+    bot_tier: string | null;
+    total_reports: number;
+    unreviewed_reports: number;
+    max_severity: number;
+    avg_confidence: number | null;
+    last_reported_at: string;
+  }> {
+    return this.db.prepare(
+      `SELECT source, reason_tag, bot_tier,
+              COUNT(*) AS total_reports,
+              SUM(CASE WHEN COALESCE(review_status, 'unreviewed') = 'unreviewed' THEN 1 ELSE 0 END) AS unreviewed_reports,
+              MAX(severity) AS max_severity,
+              AVG(confidence) AS avg_confidence,
+              MAX(created_at) AS last_reported_at
+       FROM auto_bot_play_reports
+       GROUP BY source, reason_tag, bot_tier
+       ORDER BY max_severity DESC, total_reports DESC, last_reported_at DESC
+       LIMIT ?`
+    ).all(limit) as Array<{
+      source: string;
+      reason_tag: string;
+      bot_tier: string | null;
+      total_reports: number;
+      unreviewed_reports: number;
+      max_severity: number;
+      avg_confidence: number | null;
+      last_reported_at: string;
+    }>;
+  }
+
+  getRecentAutoBotReports(limit: number = 50): AutoBotReportRow[] {
+    return this.db.prepare(
+      `SELECT r.id, r.game_event_id, r.source, r.reason_tag, r.reason,
+              r.severity, r.confidence, r.branch_tag, r.bot_tier, r.auditor_data,
+              COALESCE(r.review_status, 'unreviewed') AS review_status,
+              r.review_note, r.reviewed_at, r.reviewed_by,
+              r.created_at,
+              ev.game_id, ev.event_type, ev.data AS event_data, ev.room_code,
+              ev.created_at AS event_created_at
+       FROM auto_bot_play_reports r
+       LEFT JOIN game_events ev ON ev.id = r.game_event_id
+       ORDER BY r.created_at DESC, r.severity DESC
+       LIMIT ?`
+    ).all(limit) as AutoBotReportRow[];
+  }
+
+  updateAutoBotReportReview(
+    reportId: number,
+    status: BotReportReviewStatus,
+    note: string | null,
+    reviewedBy: string = 'admin',
+  ): boolean {
+    const result = this.db.prepare(
+      `UPDATE auto_bot_play_reports
+       SET review_status = ?, review_note = ?, reviewed_at = datetime('now'), reviewed_by = ?
+       WHERE id = ?`
+    ).run(status, note, reviewedBy, reportId);
+    return result.changes > 0;
+  }
+
+  getAutoBotReportContext(reportId: number, radius: number = 3): {
+    report: AutoBotReportRow;
+    events: ReportEventRow[];
+  } | undefined {
+    const report = this.getAutoBotReport(reportId);
+    if (!report) return undefined;
+    if (!report.game_event_id) return { report, events: [] };
+    return {
+      report,
+      events: this.getEventsAroundGameEvent(report.game_id, report.room_code, report.game_event_id, radius, false),
+    };
+  }
+
+  getAutoBotReportReplay(reportId: number, radius: number = 3): {
+    report: AutoBotReportRow;
+    events: ReportEventRow[];
+  } | undefined {
+    const report = this.getAutoBotReport(reportId);
+    if (!report) return undefined;
+    if (!report.game_event_id) return { report, events: [] };
+    return {
+      report,
+      events: this.getEventsAroundGameEvent(report.game_id, report.room_code, report.game_event_id, radius, true),
+    };
+  }
+
+  private getAutoBotReport(reportId: number): AutoBotReportRow | undefined {
+    return this.db.prepare(
+      `SELECT r.id, r.game_event_id, r.source, r.reason_tag, r.reason,
+              r.severity, r.confidence, r.branch_tag, r.bot_tier, r.auditor_data,
+              COALESCE(r.review_status, 'unreviewed') AS review_status,
+              r.review_note, r.reviewed_at, r.reviewed_by,
+              r.created_at,
+              ev.game_id, ev.event_type, ev.data AS event_data, ev.room_code,
+              ev.created_at AS event_created_at
+       FROM auto_bot_play_reports r
+       LEFT JOIN game_events ev ON ev.id = r.game_event_id
+       WHERE r.id = ?`
+    ).get(reportId) as AutoBotReportRow | undefined;
+  }
+
+  private getEventsAroundGameEvent(
+    gameId: number | null,
+    roomCode: string | null,
+    gameEventId: number,
+    radius: number,
+    replayableOnly: boolean,
+  ): ReportEventRow[] {
+    const boundedRadius = Math.max(0, Math.min(radius, 10));
+    const eventFilter = replayableOnly ? `AND event_type IN ('PLAY', 'PASS', 'BOMB')` : '';
+
+    if (gameId !== null) {
+      return this.db.prepare(
+        `WITH ordered AS (
+           SELECT id, game_id, room_code, event_type, player_position, data, created_at,
+                  ROW_NUMBER() OVER (ORDER BY id ASC) AS rn
+           FROM game_events
+           WHERE game_id = ?
+             ${eventFilter}
+         ),
+         target AS (
+           SELECT rn AS target_rn FROM ordered WHERE id = ?
+         )
+         SELECT ordered.id, ordered.game_id, ordered.room_code, ordered.event_type,
+                ordered.player_position, ordered.data, ordered.created_at,
+                snapshots.snapshot,
+                ordered.rn - target.target_rn AS offset
+         FROM ordered
+         CROSS JOIN target
+         LEFT JOIN game_event_snapshots snapshots ON snapshots.game_event_id = ordered.id
+         WHERE ordered.rn BETWEEN target.target_rn - ? AND target.target_rn + ?
+         ORDER BY ordered.rn ASC`
+      ).all(gameId, gameEventId, boundedRadius, boundedRadius) as ReportEventRow[];
+    }
+
+    if (!roomCode) return [];
+    return this.db.prepare(
+      `WITH ordered AS (
+         SELECT id, game_id, room_code, event_type, player_position, data, created_at,
+                ROW_NUMBER() OVER (ORDER BY id ASC) AS rn
+         FROM game_events
+         WHERE room_code = ?
+           ${eventFilter}
+       ),
+       target AS (
+         SELECT rn AS target_rn FROM ordered WHERE id = ?
+       )
+       SELECT ordered.id, ordered.game_id, ordered.room_code, ordered.event_type,
+              ordered.player_position, ordered.data, ordered.created_at,
+              snapshots.snapshot,
+              ordered.rn - target.target_rn AS offset
+       FROM ordered
+       CROSS JOIN target
+       LEFT JOIN game_event_snapshots snapshots ON snapshots.game_event_id = ordered.id
+       WHERE ordered.rn BETWEEN target.target_rn - ? AND target.target_rn + ?
+       ORDER BY ordered.rn ASC`
+    ).all(roomCode, gameEventId, boundedRadius, boundedRadius) as ReportEventRow[];
   }
 
   // ─── HTTP Requests ──────────────────────────────────────────────────
