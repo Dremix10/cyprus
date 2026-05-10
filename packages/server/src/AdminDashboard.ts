@@ -225,6 +225,76 @@ export function createAdminRouter(db: TrackerDB): express.Router {
     res.json({ success: true });
   });
 
+  router.get('/api/auto-bot-reports', requireAuth, (req, res) => {
+    const limit = Math.min(Number(req.query.limit) || 50, 500);
+    res.json({
+      reviewStatuses: BOT_REPORT_REVIEW_STATUSES,
+      grouped: db.getAutoBotReportsGrouped(limit),
+      recent: db.getRecentAutoBotReports(Math.min(limit, 100)),
+    });
+  });
+
+  router.get('/api/auto-bot-reports/:id/context', requireAuth, (req, res) => {
+    const reportId = Number(req.params.id);
+    const radius = Math.min(Math.max(Number(req.query.radius) || 3, 0), 10);
+    if (!Number.isInteger(reportId) || reportId <= 0) {
+      res.status(400).json({ error: 'Invalid report id' });
+      return;
+    }
+
+    const context = db.getAutoBotReportContext(reportId, radius);
+    if (!context) {
+      res.status(404).json({ error: 'Report not found' });
+      return;
+    }
+    res.json(context);
+  });
+
+  router.get('/api/auto-bot-reports/:id/replay', requireAuth, (req, res) => {
+    const reportId = Number(req.params.id);
+    const radius = Math.min(Math.max(Number(req.query.radius) || 3, 0), 10);
+    if (!Number.isInteger(reportId) || reportId <= 0) {
+      res.status(400).json({ error: 'Invalid report id' });
+      return;
+    }
+
+    const replay = db.getAutoBotReportReplay(reportId, radius);
+    if (!replay) {
+      res.status(404).json({ error: 'Report not found' });
+      return;
+    }
+
+    res.json(replay);
+  });
+
+  router.post('/api/auto-bot-reports/:id/review', requireAuth, express.json({ limit: '16kb' }), (req, res) => {
+    const reportId = Number(req.params.id);
+    if (!Number.isInteger(reportId) || reportId <= 0) {
+      res.status(400).json({ error: 'Invalid report id' });
+      return;
+    }
+
+    const status = req.body?.status;
+    if (!BOT_REPORT_REVIEW_STATUSES.includes(status)) {
+      res.status(400).json({ error: 'Invalid review status' });
+      return;
+    }
+
+    const rawNote = typeof req.body?.note === 'string' ? req.body.note.trim() : '';
+    if (rawNote.length > 1000) {
+      res.status(400).json({ error: 'Review note must be at most 1000 characters' });
+      return;
+    }
+
+    const updated = db.updateAutoBotReportReview(reportId, status, rawNote || null);
+    if (!updated) {
+      res.status(404).json({ error: 'Report not found' });
+      return;
+    }
+
+    res.json({ success: true });
+  });
+
   router.get('/api/audit', requireAuth, (_req, res) => {
     const now = new Date().toISOString();
     const stats = db.getStats();

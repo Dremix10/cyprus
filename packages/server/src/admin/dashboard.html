@@ -202,6 +202,7 @@
     <button class="tab" data-tab="games" onclick="showTab('games')">Games</button>
     <button class="tab" data-tab="events" onclick="showTab('events')">Events</button>
     <button class="tab" data-tab="botreports" onclick="showTab('botreports')">Reported Plays</button>
+    <button class="tab" data-tab="autobotreports" onclick="showTab('autobotreports')">Auto Reported Plays</button>
     <button class="tab" data-tab="requests" onclick="showTab('requests')">HTTP Requests</button>
     <button class="tab" data-tab="ips" onclick="showTab('ips')">Top IPs</button>
     <button class="tab" data-tab="users" onclick="showTab('users')">Users</button>
@@ -213,6 +214,7 @@
     <div id="panel-games" class="panel"></div>
     <div id="panel-events" class="panel"></div>
     <div id="panel-botreports" class="panel"></div>
+    <div id="panel-autobotreports" class="panel"></div>
     <div id="panel-requests" class="panel"></div>
     <div id="panel-ips" class="panel"></div>
     <div id="panel-users" class="panel"></div>
@@ -801,59 +803,88 @@ function groupReportsByEvent(reports) {
   }).sort((a, b) => reportTimestamp(b) - reportTimestamp(a));
 }
 
-function renderStatusBadges(report) {
+function reviewDomPrefix(kind = 'human') {
+  return kind === 'auto' ? 'auto-' : '';
+}
+
+function renderStatusBadges(report, kind = 'human') {
+  const prefix = reviewDomPrefix(kind);
   const statuses = report.review_statuses?.length ? report.review_statuses : [report.review_status || 'unreviewed'];
   return statuses.map((status, index) =>
-    '<span class="badge ' + reviewBadgeClass(status) + '" ' + (index === 0 ? 'id="review-badge-' + report.id + '"' : '') + '>' + esc(REVIEW_LABELS[status] || status) + '</span>'
+    '<span class="badge ' + reviewBadgeClass(status) + '" ' + (index === 0 ? 'id="' + prefix + 'review-badge-' + report.id + '"' : '') + '>' + esc(REVIEW_LABELS[status] || status) + '</span>'
   ).join('');
 }
 
-function renderReportOption(r) {
+function reportKindConfig(kind) {
+  const isAuto = kind === 'auto';
+  return {
+    apiBase: isAuto ? 'auto-bot-reports' : 'bot-reports',
+    chooserId: isAuto ? 'auto-report-test-chooser' : 'report-test-chooser',
+    selectId: isAuto ? 'auto-report-test-select' : 'report-test-select',
+    roomId: isAuto ? 'auto-report-replay-room' : 'report-replay-room',
+    contextPrefix: isAuto ? 'auto-report-context-' : 'report-context-',
+  };
+}
+
+function activeReportKind() {
+  return currentTab === 'autobotreports' ? 'auto' : 'human';
+}
+
+function renderReportOption(r, kind = 'human') {
+  if (kind === 'auto') {
+    const event = r.game_event_id ? ' · event #' + r.game_event_id : ' · no linked event';
+    const confidence = r.confidence != null ? ' · ' + Math.round(Number(r.confidence) * 100) + '% confidence' : '';
+    const label = 'Auto #' + r.id + ' · ' + (r.reason_tag || r.source || 'suspect') + event + confidence + ' · ' + ago(r.created_at);
+    return '<option value="' + r.id + '">' + esc(label) + '</option>';
+  }
   const reporters = r.reporter_names?.length ? ' · ' + r.reporter_names.join(', ') : '';
   const count = Number(r.report_count) > 1 ? ' · ' + r.report_count + ' reports' : '';
   const label = reportIdLabel(r) + ' · ' + (r.branch_tag || r.event_type || 'report') + count + reporters + ' · ' + ago(r.created_at);
   return '<option value="' + r.id + '">' + esc(label) + '</option>';
 }
 
-function renderReportTestPanel(recent) {
+function renderReportTestPanel(recent, kind = 'human', buttonLabel = 'Test Bot Reports', hint = 'Step through recorded moves before and after a report; old reports show partial evidence when full hands were not captured.') {
+  const cfg = reportKindConfig(kind);
   const hasReports = recent.length > 0;
   return '<div class="report-test">' +
     '<div class="report-test-bar">' +
-      '<button onclick="toggleReportTester()" ' + (!hasReports ? 'disabled' : '') + '>Test Bot Reports</button>' +
-      '<span class="reports-hint">Step through recorded moves before and after a report; old reports show partial evidence when full hands were not captured.</span>' +
+      '<button onclick="toggleReportTester(\'' + kind + '\')" ' + (!hasReports ? 'disabled' : '') + '>' + esc(buttonLabel) + '</button>' +
+      '<span class="reports-hint">' + esc(hint) + '</span>' +
     '</div>' +
-    '<div class="report-test-chooser" id="report-test-chooser" hidden>' +
+    '<div class="report-test-chooser" id="' + cfg.chooserId + '" hidden>' +
       '<div class="report-test-bar">' +
-        '<select id="report-test-select">' + recent.map(renderReportOption).join('') + '</select>' +
-        '<button onclick="startReportReplay()">Start Test</button>' +
+        '<select id="' + cfg.selectId + '">' + recent.map(r => renderReportOption(r, kind)).join('') + '</select>' +
+        '<button onclick="startReportReplay(\'' + kind + '\')">Start Test</button>' +
       '</div>' +
-      '<div id="report-replay-room" class="replay-room"></div>' +
+      '<div id="' + cfg.roomId + '" class="replay-room"></div>' +
     '</div>' +
   '</div>';
 }
 
-function toggleReportTester() {
-  const chooser = document.getElementById('report-test-chooser');
+function toggleReportTester(kind = 'human') {
+  const cfg = reportKindConfig(kind);
+  const chooser = document.getElementById(cfg.chooserId);
   if (!chooser) return;
   chooser.hidden = !chooser.hidden;
-  if (chooser.hidden && replayState?.targetId === 'report-replay-room') {
+  if (chooser.hidden && replayState?.targetId === cfg.roomId) {
     closeReplay();
   }
 }
 
-function isReportTesterOpen() {
-  const chooser = document.getElementById('report-test-chooser');
-  return currentTab === 'botreports' && !!chooser && chooser.hidden === false;
+function isReportTesterOpen(kind = activeReportKind()) {
+  const cfg = reportKindConfig(kind);
+  const chooser = document.getElementById(cfg.chooserId);
+  return (currentTab === 'botreports' || currentTab === 'autobotreports') && !!chooser && chooser.hidden === false;
 }
 
 function isReplayActive() {
-  if (currentTab !== 'botreports' || !replayState?.targetId) return false;
+  if ((currentTab !== 'botreports' && currentTab !== 'autobotreports') || !replayState?.targetId) return false;
   const target = document.getElementById(replayState.targetId);
   return !!target && !!target.querySelector('.replay-stage');
 }
 
 function shouldPreserveBotReportsPanel() {
-  return currentTab === 'botreports' && (isReportTesterOpen() || isReplayActive());
+  return (currentTab === 'botreports' || currentTab === 'autobotreports') && (isReportTesterOpen() || isReplayActive());
 }
 
 function renderFilePreviewNotice() {
@@ -965,6 +996,93 @@ function renderBotReports(data) {
   '</div>';
 }
 
+function autoBotInfoFromRow(row) {
+  const eventBot = botInfoFromRow(row);
+  if (eventBot) return eventBot;
+  const audit = parseJson(row.auditor_data);
+  return audit?.bot || audit?.decision?.bot || null;
+}
+
+function renderAutoBotReports(data) {
+  const statuses = data.reviewStatuses || Object.keys(REVIEW_LABELS);
+  const grouped = data.grouped || [];
+  const recent = data.recent || [];
+  const totalReports = grouped.reduce((sum, g) => sum + Number(g.total_reports || 0), 0);
+  const unreviewed = grouped.reduce((sum, g) => sum + Number(g.unreviewed_reports || 0), 0);
+  const replayable = recent.filter(r => r.game_event_id);
+
+  const groupedHtml = grouped.length
+    ? '<table><tr><th>Source</th><th>Reason</th><th>Tier</th><th>Total</th><th>Unreviewed</th><th>Max Severity</th><th>Confidence</th><th>Last</th></tr>' +
+      grouped.map(g => '<tr><td>' + esc(g.source) + '</td><td>' + esc(g.reason_tag) + '</td><td>' + esc(g.bot_tier || '-') + '</td><td>' + g.total_reports + '</td><td>' + g.unreviewed_reports + '</td><td>' + esc(g.max_severity ?? '-') + '</td><td>' + esc(g.avg_confidence == null ? '-' : Math.round(Number(g.avg_confidence) * 100) + '%') + '</td><td title="'+esc(g.last_reported_at)+'">' + ago(g.last_reported_at) + '</td></tr>').join('') +
+      '</table>'
+    : '<div class="empty">No auto report groups yet</div>';
+
+  const cardsHtml = recent.length
+    ? recent.map(r => {
+      const cfg = reportKindConfig('auto');
+      const bot = autoBotInfoFromRow(r);
+      const status = r.review_status || 'unreviewed';
+      const hand = bot?.hand ? bot.hand.join(' ') : '-';
+      const note = r.review_note || '';
+      const confidence = r.confidence == null ? '-' : Math.round(Number(r.confidence) * 100) + '%';
+      const moveText = r.game_event_id ? summarizeEventRow(r) : (r.reason || '-');
+      const rawAudit = r.auditor_data ? '<details class="replay-evidence"><summary>Raw auditor data</summary><pre class="raw-json">' + esc(r.auditor_data) + '</pre></details>' : '';
+      const actionHtml = r.game_event_id
+        ? '<button class="report-context-btn secondary" onclick="loadReportContext(' + r.id + ', \'auto\')">Show ±3 plays</button>' +
+          '<button class="report-context-btn" onclick="startInlineReportReplay(' + r.id + ', \'auto\')">Test replay</button>'
+        : '<span class="reports-hint">No linked game event yet, so replay is unavailable.</span>';
+      return '<div class="report-card" id="auto-report-card-' + r.id + '">' +
+        '<div class="report-card-header">' +
+          '<div>' +
+            '<div class="report-title">' +
+              '<strong>Auto Report #' + esc(r.id) + '</strong>' +
+              '<span id="auto-review-badges-' + r.id + '">' + renderStatusBadges(r, 'auto') + '</span>' +
+              '<span class="badge badge-blue">' + esc(r.source || 'simulation') + '</span>' +
+              '<span class="badge badge-yellow">severity ' + esc(r.severity ?? '-') + '</span>' +
+              (r.game_event_id ? '<span class="badge badge-green">event #' + esc(r.game_event_id) + '</span>' : '<span class="badge badge-muted">no event</span>') +
+            '</div>' +
+            '<div class="report-meta">' + esc(r.reason_tag || 'suspect') + ' · ' + ago(r.created_at) + ' · confidence ' + esc(confidence) + '</div>' +
+          '</div>' +
+          '<div class="report-card-actions">' + actionHtml + '</div>' +
+        '</div>' +
+        '<div class="report-grid">' +
+          '<div class="report-field"><div class="report-field-label">Detector</div><div class="report-field-value">' + esc(r.source || '-') + '</div></div>' +
+          '<div class="report-field"><div class="report-field-label">Reason</div><div class="report-field-value">' + esc(r.reason_tag || '-') + '</div></div>' +
+          '<div class="report-field"><div class="report-field-label">Explanation</div><div class="report-field-value">' + esc(r.reason || '-') + '</div></div>' +
+          '<div class="report-field"><div class="report-field-label">Severity</div><div class="report-field-value">' + esc(r.severity ?? '-') + '</div></div>' +
+          '<div class="report-field"><div class="report-field-label">Confidence</div><div class="report-field-value">' + esc(confidence) + '</div></div>' +
+          '<div class="report-field"><div class="report-field-label">Branch</div><div class="report-field-value">' + esc(r.branch_tag || bot?.branchTag || '-') + '</div></div>' +
+          '<div class="report-field"><div class="report-field-label">Tier</div><div class="report-field-value">' + esc(r.bot_tier || bot?.tier || '-') + '</div></div>' +
+          '<div class="report-field"><div class="report-field-label">Flagged move</div><div class="report-field-value">' + esc(moveText) + '</div></div>' +
+          '<div class="report-field"><div class="report-field-label">Bot hand</div><div class="report-field-value">' + esc(hand) + '</div></div>' +
+          '<div class="report-field"><div class="report-field-label">Review note</div><div class="report-field-value">' + esc(r.review_note || '-') + '</div></div>' +
+        '</div>' +
+        renderMcDiagnostics(bot) +
+        renderLeadScorerDiagnostics(bot) +
+        renderEndgameSolverDiagnostics(bot) +
+        rawAudit +
+        '<div class="report-review">' +
+          '<select id="auto-review-status-' + r.id + '">' + renderReviewOptions(statuses, status) + '</select>' +
+          '<textarea id="auto-review-note-' + r.id + '" maxlength="1000" placeholder="Classification note">' + esc(note) + '</textarea>' +
+          '<div><button onclick="saveReportReview(' + r.id + ', [' + r.id + '], \'auto\')">Save review</button><div class="review-msg" id="auto-review-msg-' + r.id + '"></div></div>' +
+        '</div>' +
+        '<div class="report-context" id="' + cfg.contextPrefix + r.id + '"></div>' +
+      '</div>';
+    }).join('')
+    : '<div class="empty">No auto reported plays yet</div>';
+
+  const hint = replayable.length
+    ? 'Step through simulator/auditor flagged plays that have linked game events.'
+    : 'Auto reports will appear here after we run a bot auditor. Reports without linked events can still be reviewed, but not replayed.';
+
+  return '<div class="reports-wrap">' +
+    '<div class="reports-heading"><h2>Auto Reported Plays</h2><div class="reports-hint">' + totalReports + ' total · ' + recent.length + ' recent · ' + replayable.length + ' replayable · ' + unreviewed + ' unreviewed</div></div>' +
+    renderReportTestPanel(replayable, 'auto', 'Test Auto Reports', hint) +
+    '<div class="reports-summary">' + groupedHtml + '</div>' +
+    cardsHtml +
+  '</div>';
+}
+
 async function loadTab(name) {
   const panel = document.getElementById('panel-' + name);
   try {
@@ -995,6 +1113,10 @@ async function loadTab(name) {
     else if (name === 'botreports') {
       const data = await api('bot-reports?limit=100');
       panel.innerHTML = renderBotReports(data);
+    }
+    else if (name === 'autobotreports') {
+      const data = await api('auto-bot-reports?limit=100');
+      panel.innerHTML = renderAutoBotReports(data);
     }
     else if (name === 'requests') {
       const data = await api('requests?limit=200');
@@ -1275,7 +1397,9 @@ function renderReplayRoom() {
   const ev = events[replayState.index];
   const snapshot = snapshotForEvent(ev);
   const snapshotNote = replayEvidenceBadge(ev, snapshot);
-  const offsetLabel = ev.offset === 0 ? 'Reported move' : (ev.offset > 0 ? '+' + ev.offset + ' after report' : ev.offset + ' before report');
+  const centerLabel = replayState.kind === 'auto' ? 'Flagged move' : 'Reported move';
+  const offsetBase = replayState.kind === 'auto' ? 'flag' : 'report';
+  const offsetLabel = ev.offset === 0 ? centerLabel : (ev.offset > 0 ? '+' + ev.offset + ' after ' + offsetBase : ev.offset + ' before ' + offsetBase);
   target.innerHTML = '<div class="replay-stage ' + (ev.offset === 0 ? 'reported ' : '') + (snapshot ? '' : 'legacy') + '">' +
     '<div class="replay-head">' +
       '<div class="replay-title">' +
@@ -1298,14 +1422,15 @@ function renderReplayRoom() {
   '</div>';
 }
 
-async function startReportReplay() {
-  const select = document.getElementById('report-test-select');
-  const target = document.getElementById('report-replay-room');
+async function startReportReplay(kind = 'human') {
+  const cfg = reportKindConfig(kind);
+  const select = document.getElementById(cfg.selectId);
+  const target = document.getElementById(cfg.roomId);
   if (!select || !target) return;
   target.innerHTML = '<div class="empty">Loading replay...</div>';
   try {
-    const data = await api('bot-reports/' + select.value + '/replay?radius=3');
-    replayState = { ...data, index: 0, targetId: 'report-replay-room' };
+    const data = await api(cfg.apiBase + '/' + select.value + '/replay?radius=3');
+    replayState = { ...data, index: 0, targetId: cfg.roomId, kind };
     renderReplayRoom();
   } catch(e) {
     const message = e instanceof Error ? e.message : 'Replay failed';
@@ -1313,14 +1438,15 @@ async function startReportReplay() {
   }
 }
 
-async function startInlineReportReplay(reportId) {
-  const targetId = 'report-context-' + reportId;
+async function startInlineReportReplay(reportId, kind = 'human') {
+  const cfg = reportKindConfig(kind);
+  const targetId = cfg.contextPrefix + reportId;
   const target = document.getElementById(targetId);
   if (!target) return;
   target.innerHTML = '<div class="empty">Loading replay...</div>';
   try {
-    const data = await api('bot-reports/' + reportId + '/replay?radius=3');
-    replayState = { ...data, index: 0, targetId };
+    const data = await api(cfg.apiBase + '/' + reportId + '/replay?radius=3');
+    replayState = { ...data, index: 0, targetId, kind };
     renderReplayRoom();
   } catch(e) {
     const message = e instanceof Error ? e.message : 'Replay failed';
@@ -1348,28 +1474,31 @@ function closeReplay() {
   if (target) target.innerHTML = '';
 }
 
-async function loadReportContext(reportId) {
-  const target = document.getElementById('report-context-' + reportId);
+async function loadReportContext(reportId, kind = 'human') {
+  const cfg = reportKindConfig(kind);
+  const target = document.getElementById(cfg.contextPrefix + reportId);
   if (!target) return;
   if (replayState?.targetId === target.id) replayState = null;
   target.innerHTML = '<div class="empty">Loading surrounding plays...</div>';
   try {
-    const data = await api('bot-reports/' + reportId + '/context?radius=3');
+    const data = await api(cfg.apiBase + '/' + reportId + '/context?radius=3');
     target.innerHTML = renderReportContext(data);
   } catch(e) {
     target.innerHTML = '<div class="query-error">Could not load context</div>';
   }
 }
 
-async function saveReportReview(reportId, reportIds) {
-  const status = document.getElementById('review-status-' + reportId)?.value;
-  const note = document.getElementById('review-note-' + reportId)?.value || '';
-  const msg = document.getElementById('review-msg-' + reportId);
+async function saveReportReview(reportId, reportIds, kind = 'human') {
+  const cfg = reportKindConfig(kind);
+  const prefix = reviewDomPrefix(kind);
+  const status = document.getElementById(prefix + 'review-status-' + reportId)?.value;
+  const note = document.getElementById(prefix + 'review-note-' + reportId)?.value || '';
+  const msg = document.getElementById(prefix + 'review-msg-' + reportId);
   const ids = Array.isArray(reportIds) && reportIds.length ? reportIds : [reportId];
   if (msg) msg.textContent = 'Saving...';
   try {
     for (const id of ids) {
-      const res = await fetch('/admin/api/bot-reports/' + id + '/review', {
+      const res = await fetch('/admin/api/' + cfg.apiBase + '/' + id + '/review', {
         method: 'POST',
         headers: {'Content-Type':'application/json'},
         body: JSON.stringify({ status, note }),
@@ -1380,9 +1509,9 @@ async function saveReportReview(reportId, reportIds) {
         return;
       }
     }
-    const badges = document.getElementById('review-badges-' + reportId);
-    if (badges) badges.innerHTML = '<span class="badge ' + reviewBadgeClass(status) + '" id="review-badge-' + reportId + '">' + esc(REVIEW_LABELS[status] || status) + '</span>';
-    const badge = document.getElementById('review-badge-' + reportId);
+    const badges = document.getElementById(prefix + 'review-badges-' + reportId);
+    if (badges) badges.innerHTML = '<span class="badge ' + reviewBadgeClass(status) + '" id="' + prefix + 'review-badge-' + reportId + '">' + esc(REVIEW_LABELS[status] || status) + '</span>';
+    const badge = document.getElementById(prefix + 'review-badge-' + reportId);
     if (badge) {
       badge.className = 'badge ' + reviewBadgeClass(status);
       badge.textContent = REVIEW_LABELS[status] || status;
