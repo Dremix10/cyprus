@@ -2146,17 +2146,14 @@ export class BotAI {
     if (winner === null || winner % 2 === botPosition % 2) return null;
 
     const topCombo = currentTrick.plays[currentTrick.plays.length - 1]?.combination;
-    if (
-      !topCombo ||
-      topCombo.type !== CombinationType.SINGLE ||
-      topCombo.rank > NR.FIVE
-    ) {
+    if (!topCombo || topCombo.type !== CombinationType.SINGLE) {
       return null;
     }
 
     const winnerCards = context.playerCardCounts.get(winner) ?? 14;
     const winnerCall = context.tichuCalls[winner];
     const winnerHasLiveTichu = winnerCall === 'tichu' || winnerCall === 'grand_tichu';
+    if (winnerCards > 1 && topCombo.rank > NR.FIVE) return null;
     if (winnerCards > 4 && !winnerHasLiveTichu) return null;
 
     const normalRankCounts = new Map<number, number>();
