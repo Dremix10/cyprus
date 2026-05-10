@@ -1142,6 +1142,7 @@ function renderAutoGenerationPanel(generation) {
 
 function autoReportMatchesFilter(report, filter) {
   const status = report.review_status || 'unreviewed';
+  if (filter === 'unlabelled') return status === 'unreviewed';
   if (filter === 'fixed') return status === 'fixed';
   if (filter === 'probably_ok') return status === 'probably_ok' || status === 'duplicate';
   if (filter === 'all') return true;
@@ -1149,6 +1150,7 @@ function autoReportMatchesFilter(report, filter) {
 }
 
 function autoReportEmptyMessage(filter) {
+  if (filter === 'unlabelled') return 'No unlabelled auto reports right now.';
   if (filter === 'fixed') return 'No fixed auto reports yet. Mark an auto report Fixed after the code change is shipped.';
   if (filter === 'probably_ok') return 'No probably OK or duplicate auto reports yet.';
   if (filter === 'all') return 'No auto reported plays yet.';
@@ -1158,6 +1160,7 @@ function autoReportEmptyMessage(filter) {
 function renderAutoReportFilters(recent) {
   const filters = [
     { id: 'active', label: 'Active' },
+    { id: 'unlabelled', label: 'Unlabelled' },
     { id: 'fixed', label: 'Fixed' },
     { id: 'probably_ok', label: 'Probably OK' },
     { id: 'all', label: 'All' },
@@ -1175,7 +1178,7 @@ function renderAutoReportFilters(recent) {
 }
 
 function setAutoReportFilter(filter) {
-  autoReportFilter = ['active', 'fixed', 'probably_ok', 'all'].includes(filter) ? filter : 'active';
+  autoReportFilter = ['active', 'unlabelled', 'fixed', 'probably_ok', 'all'].includes(filter) ? filter : 'active';
   loadTab('autobotreports');
 }
 
