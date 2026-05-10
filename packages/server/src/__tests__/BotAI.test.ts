@@ -1056,6 +1056,86 @@ describe('BotAI low-single initiative blocking', () => {
 });
 
 describe('BotAI report-driven lead planning fixes', () => {
+  it('leads a serious blocker when one opponent has one card in auto report #16', () => {
+    const bot = new BotAI('unfair', { useMonteCarlo: true });
+    let mcCalled = false;
+    const hand: Card[] = [
+      nc(Suit.SWORD, NormalRank.THREE),
+      nc(Suit.PAGODA, NormalRank.SEVEN),
+      nc(Suit.STAR, NormalRank.EIGHT),
+      nc(Suit.PAGODA, NormalRank.KING),
+    ];
+
+    const play = bot.choosePlay(
+      hand,
+      emptyTrick,
+      inactiveWish,
+      2,
+      report22Context({
+        playerCardCounts: new Map<PlayerPosition, number>([
+          [0, 10],
+          [1, 13],
+          [2, 4],
+          [3, 1],
+        ]),
+      }),
+      () => {
+        mcCalled = true;
+        return mcDecision(['SWORD_3'], [
+          { cardIds: ['SWORD_3'], avg: 80 },
+          { cardIds: ['PAGODA_13'], avg: 0 },
+        ]);
+      },
+    );
+
+    expect(mcCalled).toBe(true);
+    expect(play).toEqual(['PAGODA_13']);
+    expect(bot.lastBranch).toBe('lead:one-card-pressure');
+    expect(bot.lastMonteCarloTrace?.accepted).toBe(false);
+    expect(bot.lastMonteCarloTrace?.reason).toBe('protect-urgent-lead');
+  });
+
+  it('leads the second-lowest card in a singles-only 1v1 endgame in auto report #19', () => {
+    const bot = new BotAI('hard', { useMonteCarlo: true });
+    let mcCalled = false;
+    const hand: Card[] = [
+      nc(Suit.STAR, NormalRank.TWO),
+      nc(Suit.PAGODA, NormalRank.FIVE),
+      nc(Suit.PAGODA, NormalRank.NINE),
+      nc(Suit.STAR, NormalRank.JACK),
+    ];
+
+    const play = bot.choosePlay(
+      hand,
+      emptyTrick,
+      inactiveWish,
+      2,
+      report22Context({
+        playerCardCounts: new Map<PlayerPosition, number>([
+          [0, 0],
+          [1, 0],
+          [2, 4],
+          [3, 1],
+        ]),
+        finishOrder: [0, 1],
+        scores: [545, 555],
+      }),
+      () => {
+        mcCalled = true;
+        return mcDecision(['STAR_11'], [
+          { cardIds: ['PAGODA_5'], avg: 0 },
+          { cardIds: ['STAR_11'], avg: 80 },
+        ]);
+      },
+    );
+
+    expect(mcCalled).toBe(true);
+    expect(play).toEqual(['PAGODA_5']);
+    expect(bot.lastBranch).toBe('lead:singles-second-low');
+    expect(bot.lastMonteCarloTrace?.accepted).toBe(false);
+    expect(bot.lastMonteCarloTrace?.reason).toBe('protect-urgent-lead');
+  });
+
   it('leads low before a beatable high card in the report #38 two-card endgame', () => {
     const bot = new BotAI('unfair');
     const hand: Card[] = [
