@@ -3643,7 +3643,7 @@ span.pass-zone-avatar {
 
 /* ─── Responsive: Tablet (≤768px) ──────── */
 
-@media (max-width: 768px) {
+@media (max-width: 768px), (hover: none) and (pointer: coarse) {
   .lobby-fullscreen {
     min-height: 100dvh;
     align-items: center;
@@ -3841,7 +3841,7 @@ span.pass-zone-avatar {
 
 /* ─── Responsive: Phone (≤480px) ──────── */
 
-@media (max-width: 480px) {
+@media (max-width: 480px), (hover: none) and (pointer: coarse) and (orientation: portrait) {
   .lobby-fullscreen {
     align-items: center;
     justify-content: center;
