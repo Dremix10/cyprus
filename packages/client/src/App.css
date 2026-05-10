@@ -3644,6 +3644,102 @@ span.pass-zone-avatar {
 /* ─── Responsive: Tablet (≤768px) ──────── */
 
 @media (max-width: 768px) {
+  .lobby-fullscreen {
+    min-height: 100dvh;
+    align-items: center;
+    justify-content: center;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .lobby-bg-zeus {
+    background-size: min(118vw, 560px) auto;
+    background-position: center 44%;
+    opacity: 0.3;
+  }
+
+  .lobby-bg-overlay {
+    background:
+      radial-gradient(ellipse at 50% 48%, rgba(13, 21, 32, 0.45) 0%, rgba(13, 21, 32, 0.66) 42%, rgba(13, 21, 32, 0.9) 100%),
+      linear-gradient(180deg, rgba(13, 21, 32, 0.24) 0%, rgba(13, 21, 32, 0.45) 45%, rgba(13, 21, 32, 0.88) 100%);
+  }
+
+  .lobby-column {
+    display: none;
+  }
+
+  .lobby-content {
+    width: min(92vw, 430px);
+    max-width: none;
+    min-height: 100dvh;
+    padding: max(1.25rem, env(safe-area-inset-top)) 1rem max(1.25rem, env(safe-area-inset-bottom));
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+  }
+
+  .lobby-header {
+    margin-bottom: 1.25rem;
+  }
+
+  .title-greek {
+    font-size: 3.6rem;
+  }
+
+  .lobby-form-card {
+    width: 100%;
+    padding: 1.5rem;
+    border-radius: 18px;
+    background: rgba(13, 21, 32, 0.82);
+  }
+
+  .lobby-form {
+    gap: 1rem;
+  }
+
+  .input-greek,
+  .btn-olympus {
+    min-height: 48px;
+    font-size: 1rem;
+  }
+
+  .btn-olympus {
+    padding: 0.9rem 1rem;
+  }
+
+  .input-greek {
+    padding: 0.9rem 1rem;
+  }
+
+  .lobby-room-row,
+  .lobby-solo-row {
+    gap: 0.75rem;
+  }
+
+  .lobby-room-row .btn-create,
+  .lobby-join-group .btn-join,
+  .lobby-solo-row .input-select,
+  .lobby-solo-row .btn-solo-greek {
+    min-height: 48px;
+    font-size: 0.95rem;
+    padding: 0.85rem 0.75rem;
+  }
+
+  .input-room-code {
+    flex-basis: 86px;
+    width: 86px;
+    font-size: 1.05rem;
+  }
+
+  .lobby-link {
+    padding: 0.45rem 0.1rem;
+    font-size: 0.95rem;
+  }
+
+  .lobby-footer {
+    margin-top: 1rem;
+  }
+
   .card {
     width: 52px;
     height: 74px;
@@ -3747,11 +3843,34 @@ span.pass-zone-avatar {
 
 @media (max-width: 480px) {
   .lobby-fullscreen {
+    align-items: center;
     justify-content: center;
   }
 
   .lobby-content {
-    padding: 2rem 1.5rem;
+    width: min(90vw, 380px);
+    padding-left: 0.85rem;
+    padding-right: 0.85rem;
+  }
+
+  .lobby-bg-zeus {
+    background-size: min(136vw, 520px) auto;
+    background-position: center 46%;
+    opacity: 0.26;
+  }
+
+  .title-greek {
+    font-size: 3rem;
+    letter-spacing: 0.16em;
+  }
+
+  .subtitle-greek {
+    font-size: 0.78rem;
+    letter-spacing: 0.24em;
+  }
+
+  .lobby-form-card {
+    padding: 1.25rem;
   }
 
   .app {
@@ -4062,6 +4181,90 @@ span.pass-zone-avatar {
 /* ─── Responsive: Phone Landscape ──────── */
 
 @media (max-height: 450px) and (orientation: landscape) {
+  .lobby-fullscreen {
+    align-items: center;
+    justify-content: center;
+    min-height: 100dvh;
+    overflow-y: auto;
+  }
+
+  .lobby-column {
+    display: none;
+  }
+
+  .lobby-bg-zeus {
+    background-size: auto 118%;
+    background-position: center center;
+    opacity: 0.24;
+  }
+
+  .lobby-content {
+    width: min(50vw, 340px);
+    min-height: auto;
+    justify-content: flex-start;
+    padding-top: max(0.45rem, env(safe-area-inset-top));
+    padding-bottom: max(0.45rem, env(safe-area-inset-bottom));
+  }
+
+  .lobby-header {
+    margin-bottom: 0.2rem;
+  }
+
+  .title-greek {
+    font-size: 1.75rem;
+    line-height: 1;
+    margin-bottom: 0;
+  }
+
+  .subtitle-greek,
+  .lobby-footer,
+  .lobby-header .meander-border {
+    display: none;
+  }
+
+  .lobby-form-card {
+    padding: 0.6rem;
+  }
+
+  .lobby-form,
+  .auth-forms {
+    gap: 0.35rem;
+  }
+
+  .auth-form {
+    gap: 0.4rem;
+  }
+
+  .lobby-fullscreen .input-greek,
+  .lobby-fullscreen .btn-olympus {
+    min-height: 38px;
+    padding-top: 0.45rem;
+    padding-bottom: 0.45rem;
+    font-size: 0.85rem;
+  }
+
+  .lobby-fullscreen .lang-toggle {
+    margin-bottom: 0.2rem;
+  }
+
+  .lobby-fullscreen .lang-btn {
+    padding: 0.2rem 0.6rem;
+    font-size: 0.72rem;
+  }
+
+  .lobby-fullscreen .divider {
+    display: none;
+  }
+
+  .lobby-fullscreen .btn-link,
+  .lobby-fullscreen .auth-forgot-link,
+  .lobby-fullscreen .auth-back-link,
+  .lobby-fullscreen .lobby-link {
+    font-size: 0.74rem;
+    padding-top: 0.1rem;
+    padding-bottom: 0.1rem;
+  }
+
   .game-board {
     padding: 0.2rem 0.4rem;
     min-height: auto;
