@@ -924,6 +924,59 @@ describe('BotAI low-single initiative blocking', () => {
 });
 
 describe('BotAI report-driven lead planning fixes', () => {
+  it('leads low before a beatable high card in the report #38 two-card endgame', () => {
+    const bot = new BotAI('unfair');
+    const hand: Card[] = [
+      nc(Suit.JADE, NormalRank.THREE),
+      nc(Suit.SWORD, NormalRank.JACK),
+    ];
+
+    const play = bot.choosePlay(hand, emptyTrick, inactiveWish, 2, report22Context({
+      playerCardCounts: new Map<PlayerPosition, number>([
+        [0, 0],
+        [1, 4],
+        [2, 2],
+        [3, 4],
+      ]),
+      finishOrder: [0],
+      scores: [135, 65],
+      playedCards: [],
+    }));
+
+    expect(play).toEqual(['JADE_3']);
+    expect(bot.lastBranch).toBe('lead:endgame-control-ladder');
+  });
+
+  it('blocks a one-card opponent before leading Mahjong in the report #39 shape', () => {
+    const bot = new BotAI('unfair', { useMonteCarlo: true });
+    let mcCalled = false;
+    const hand: Card[] = [
+      sc(SpecialCardType.MAHJONG),
+      nc(Suit.PAGODA, NormalRank.SEVEN),
+      nc(Suit.SWORD, NormalRank.SEVEN),
+      nc(Suit.STAR, NormalRank.NINE),
+      nc(Suit.PAGODA, NormalRank.KING),
+    ];
+
+    const play = bot.choosePlay(hand, emptyTrick, inactiveWish, 2, report22Context({
+      playerCardCounts: new Map<PlayerPosition, number>([
+        [0, 3],
+        [1, 0],
+        [2, 5],
+        [3, 1],
+      ]),
+      finishOrder: [1],
+      scores: [425, 75],
+    }), () => {
+      mcCalled = true;
+      return undefined;
+    });
+
+    expect(mcCalled).toBe(false);
+    expect(play).toEqual(['PAGODA_13']);
+    expect(bot.lastBranch).toBe('lead:block-one-card-opponent');
+  });
+
   it('does not burn an Ace just because an opponent has a distant Tichu call', () => {
     const bot = new BotAI('medium');
     const hand: Card[] = [
@@ -1022,6 +1075,80 @@ describe('BotAI report-driven lead planning fixes', () => {
 });
 
 describe('BotAI report-driven follow fixes', () => {
+  it('does not let MC spend Phoenix over a low single in the report #36 shape', () => {
+    const bot = new BotAI('hard', { useMonteCarlo: true, mcOverrideMargin: 5 });
+    const hand: Card[] = [
+      sc(SpecialCardType.PHOENIX),
+      nc(Suit.PAGODA, NormalRank.THREE),
+      nc(Suit.SWORD, NormalRank.THREE),
+      nc(Suit.SWORD, NormalRank.NINE),
+      sc(SpecialCardType.DRAGON),
+    ];
+    const trick = reportTrick([
+      { position: 3, card: nc(Suit.SWORD, NormalRank.TWO) },
+      { position: 0, card: nc(Suit.JADE, NormalRank.THREE) },
+    ], 0);
+
+    const play = bot.choosePlay(hand, trick, inactiveWish, 1, report22Context({
+      playerCardCounts: new Map<PlayerPosition, number>([
+        [0, 13],
+        [1, 5],
+        [2, 13],
+        [3, 12],
+      ]),
+      tichuCalls: {
+        0: 'none',
+        1: 'tichu',
+        2: 'none',
+        3: 'none',
+      } as Record<PlayerPosition, TichuCall>,
+      scores: [400, 0],
+      playedCards: [],
+    }), (candidates) => {
+      const candidateIds = candidates.map((cards) => cards?.map((c) => c.id) ?? null);
+      expect(candidateIds).not.toContainEqual([SpecialCardType.PHOENIX]);
+      return mcDecision(['SWORD_9'], candidateIds.map((cardIds) => ({
+        cardIds,
+        avg: cardIds?.[0] === 'SWORD_9' ? 100 : 0,
+      })));
+    });
+
+    expect(play).toEqual(['SWORD_9']);
+    expect(bot.lastBranch).toBe('follow:smart-select');
+    expect(bot.lastMonteCarloTrace?.accepted).toBe(false);
+  });
+
+  it('sheds a cheap card when an out partner is winning in the report #37 shape', () => {
+    const bot = new BotAI('medium');
+    const hand: Card[] = [
+      nc(Suit.SWORD, NormalRank.FIVE),
+      nc(Suit.JADE, NormalRank.EIGHT),
+      nc(Suit.PAGODA, NormalRank.NINE),
+      nc(Suit.STAR, NormalRank.TEN),
+      nc(Suit.PAGODA, NormalRank.JACK),
+      nc(Suit.JADE, NormalRank.ACE),
+    ];
+
+    const play = bot.choosePlay(hand, singleTrick(3, nc(Suit.PAGODA, NormalRank.FIVE)), inactiveWish, 1, report22Context({
+      playerCardCounts: new Map<PlayerPosition, number>([
+        [0, 0],
+        [1, 6],
+        [2, 1],
+        [3, 0],
+      ]),
+      tichuCalls: {
+        0: 'tichu',
+        1: 'none',
+        2: 'none',
+        3: 'none',
+      } as Record<PlayerPosition, TichuCall>,
+      finishOrder: [0, 3],
+    }));
+
+    expect(play).toEqual(['JADE_8']);
+    expect(bot.lastBranch).toBe('follow:partner-out-shed');
+  });
+
   it('spends Dragon to stop a live one-card opponent from keeping control', () => {
     const bot = new BotAI('medium');
     const hand: Card[] = [

@@ -342,6 +342,42 @@ const FIXED_REPORTS = [
     summary: 'Bots now contest cheap low singles from a live Tichu or Grand Tichu caller even when that caller still has many cards.',
     changed: 'Extended the low-single initiative block to live Tichu callers, still using cheap normal singles only.',
   },
+  {
+    ids: [32],
+    title: 'One-card opponent block fixed',
+    summary: 'When an opponent has one card left and leads a low single, the bot now uses a real blocker instead of a token low card.',
+    changed: 'Added a one-card opponent follow branch before Monte Carlo so the bot chooses a meaningful stopper.',
+  },
+  {
+    ids: [35, 34, 33],
+    title: 'Endgame control ladder fixed',
+    summary: 'Small endgame hands now lead the card most likely to preserve control, such as Jack before Six, Ace before Ten, or Ten before tiny leftovers.',
+    changed: 'Improved the small-hand control ladder and added report-specific regression tests.',
+  },
+  {
+    ids: [39],
+    title: 'Mahjong urgent block fixed',
+    summary: 'When an opponent has one card left, bots now block with the highest normal single before falling back to the automatic Mahjong lead.',
+    changed: 'Added a one-card opponent lead block before priority-special leads.',
+  },
+  {
+    ids: [38],
+    title: 'Beatable high-card lead fixed',
+    summary: 'Two-card endgame leads now avoid spending a high card as fake control when multiple live opponents can still beat it.',
+    changed: 'The small-hand control ladder now leads low first when the high card is likely beatable by remaining cards.',
+  },
+  {
+    ids: [37],
+    title: 'Out-partner follow fixed',
+    summary: 'When a partner is already out and winning, bots now shed the cheapest safe regular card instead of passing with a full hand.',
+    changed: 'Expanded the partner-out follow exception beyond only three-card endgames.',
+  },
+  {
+    ids: [36],
+    title: 'Low Phoenix follow fixed',
+    summary: 'Monte Carlo can no longer spend Phoenix as a single over a low card when a normal card can already win the trick.',
+    changed: 'Wasteful Phoenix follow filtering now runs before Monte Carlo candidate evaluation, including five-card hands.',
+  },
 ];
 const FIXED_REPORT_LOOKUP = new Map();
 FIXED_REPORTS.forEach(fix => fix.ids.forEach(id => FIXED_REPORT_LOOKUP.set(id, fix)));
