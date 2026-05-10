@@ -13,6 +13,7 @@ export const BOT_REPORT_REVIEW_STATUSES = [
   'unclear',
   'needs_replay',
   'duplicate',
+  'fixed',
 ] as const;
 
 export type BotReportReviewStatus = typeof BOT_REPORT_REVIEW_STATUSES[number];

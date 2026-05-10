@@ -101,6 +101,10 @@
   .report-context-btn.secondary { background: #2a2a4a; color: #ddd; }
   .report-context-btn.secondary:hover { background: #34345a; color: #f0f0f0; }
   .report-context-btn { width: fit-content; }
+  .report-filters { display: flex; gap: 0.45rem; flex-wrap: wrap; align-items: center; }
+  .report-filter-btn { background: #161629; color: #bbb; border: 1px solid #2a2a4a; border-radius: 6px; padding: 0.45rem 0.75rem; cursor: pointer; font-weight: 700; font-size: 0.78rem; }
+  .report-filter-btn:hover { color: #f0f0f0; border-color: #3a3a62; }
+  .report-filter-btn.active { background: #c9a84c; border-color: #c9a84c; color: #0f0f1a; }
   .review-msg { color: #888; font-size: 0.75rem; min-height: 1rem; }
   .report-context { border-top: 1px solid #2a2a4a; padding-top: 0.8rem; }
   .report-test { background: #12121f; border: 1px solid #2a2a4a; border-radius: 8px; padding: 1rem; display: grid; gap: 0.8rem; }
@@ -243,6 +247,7 @@ const LIVE_ADMIN_URL = 'https://aegist.dev/admin';
 const isFilePreview = window.location.protocol === 'file:';
 let replayState = null;
 let autoGenerationPoll = null;
+let autoReportFilter = 'active';
 const REVIEW_LABELS = {
   unreviewed: 'Unreviewed',
   valid_mistake: 'Valid mistake',
@@ -250,6 +255,7 @@ const REVIEW_LABELS = {
   unclear: 'Unclear',
   needs_replay: 'Needs replay',
   duplicate: 'Duplicate',
+  fixed: 'Fixed',
 };
 const FIXED_REPORTS = [
   {
@@ -379,6 +385,7 @@ function formatBuildDate(value) {
 }
 
 function reviewBadgeClass(status) {
+  if (status === 'fixed') return 'badge-green';
   if (status === 'valid_mistake') return 'badge-red';
   if (status === 'probably_ok') return 'badge-green';
   if (status === 'unclear' || status === 'needs_replay') return 'badge-blue';
@@ -1133,6 +1140,45 @@ function renderAutoGenerationPanel(generation) {
   '</div>';
 }
 
+function autoReportMatchesFilter(report, filter) {
+  const status = report.review_status || 'unreviewed';
+  if (filter === 'fixed') return status === 'fixed';
+  if (filter === 'probably_ok') return status === 'probably_ok' || status === 'duplicate';
+  if (filter === 'all') return true;
+  return status !== 'fixed' && status !== 'probably_ok' && status !== 'duplicate';
+}
+
+function autoReportEmptyMessage(filter) {
+  if (filter === 'fixed') return 'No fixed auto reports yet. Mark an auto report Fixed after the code change is shipped.';
+  if (filter === 'probably_ok') return 'No probably OK or duplicate auto reports yet.';
+  if (filter === 'all') return 'No auto reported plays yet.';
+  return 'No active auto reports right now.';
+}
+
+function renderAutoReportFilters(recent) {
+  const filters = [
+    { id: 'active', label: 'Active' },
+    { id: 'fixed', label: 'Fixed' },
+    { id: 'probably_ok', label: 'Probably OK' },
+    { id: 'all', label: 'All' },
+  ];
+  const counts = Object.fromEntries(filters.map(f => [
+    f.id,
+    f.id === 'all' ? recent.length : recent.filter(r => autoReportMatchesFilter(r, f.id)).length,
+  ]));
+
+  return '<div class="report-filters">' + filters.map(f =>
+    '<button class="report-filter-btn ' + (autoReportFilter === f.id ? 'active' : '') + '" onclick="setAutoReportFilter(\'' + f.id + '\')">' +
+      esc(f.label) + ' · ' + esc(counts[f.id]) +
+    '</button>'
+  ).join('') + '</div>';
+}
+
+function setAutoReportFilter(filter) {
+  autoReportFilter = ['active', 'fixed', 'probably_ok', 'all'].includes(filter) ? filter : 'active';
+  loadTab('autobotreports');
+}
+
 function setAutoGenerationPolling(active) {
   if (active && !autoGenerationPoll) {
     autoGenerationPoll = setInterval(() => {
@@ -1152,7 +1198,8 @@ function renderAutoBotReports(data) {
   setAutoGenerationPolling(generation?.status === 'running');
   const totalReports = grouped.reduce((sum, g) => sum + Number(g.total_reports || 0), 0);
   const unreviewed = grouped.reduce((sum, g) => sum + Number(g.unreviewed_reports || 0), 0);
-  const replayable = recent.filter(r => r.game_event_id);
+  const filteredRecent = recent.filter(r => autoReportMatchesFilter(r, autoReportFilter));
+  const replayable = filteredRecent.filter(r => r.game_event_id);
 
   const groupedHtml = grouped.length
     ? '<table><tr><th>Source</th><th>Reason</th><th>Tier</th><th>Total</th><th>Unreviewed</th><th>Max Severity</th><th>Confidence</th><th>Last</th></tr>' +
@@ -1160,8 +1207,8 @@ function renderAutoBotReports(data) {
       '</table>'
     : '<div class="empty">No auto report groups yet</div>';
 
-  const cardsHtml = recent.length
-    ? recent.map(r => {
+  const cardsHtml = filteredRecent.length
+    ? filteredRecent.map(r => {
       const cfg = reportKindConfig('auto');
       const bot = autoBotInfoFromRow(r);
       const status = r.review_status || 'unreviewed';
@@ -1213,15 +1260,16 @@ function renderAutoBotReports(data) {
         '<div class="report-context" id="' + cfg.contextPrefix + r.id + '"></div>' +
       '</div>';
     }).join('')
-    : '<div class="empty">No auto reported plays yet</div>';
+    : '<div class="empty">' + esc(autoReportEmptyMessage(autoReportFilter)) + '</div>';
 
   const hint = replayable.length
     ? 'Step through simulator/auditor flagged plays that have linked game events.'
     : 'Auto reports will appear here after we run a bot auditor. Reports without linked events can still be reviewed, but not replayed.';
 
   return '<div class="reports-wrap">' +
-    '<div class="reports-heading"><h2>Auto Reported Plays</h2><div class="reports-hint">' + totalReports + ' total · ' + recent.length + ' recent · ' + replayable.length + ' replayable · ' + unreviewed + ' unreviewed</div></div>' +
+    '<div class="reports-heading"><h2>Auto Reported Plays</h2><div class="reports-hint">' + totalReports + ' total · ' + filteredRecent.length + ' shown · ' + recent.length + ' recent · ' + replayable.length + ' replayable · ' + unreviewed + ' unreviewed</div></div>' +
     renderAutoGenerationPanel(generation) +
+    renderAutoReportFilters(recent) +
     renderReportTestPanel(replayable, 'auto', 'Test Auto Reports', hint) +
     '<div class="reports-summary">' + groupedHtml + '</div>' +
     cardsHtml +
@@ -1690,6 +1738,11 @@ async function saveReportReview(reportId, reportIds, kind = 'human') {
       badge.textContent = REVIEW_LABELS[status] || status;
     }
     if (msg) msg.textContent = ids.length > 1 ? 'Saved ' + ids.length + ' reports' : 'Saved';
+    if (kind === 'auto') {
+      setTimeout(() => {
+        if (currentTab === 'autobotreports') loadTab('autobotreports');
+      }, 350);
+    }
   } catch(e) {
     if (msg) msg.textContent = 'Save failed';
   }
