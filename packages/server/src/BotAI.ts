@@ -629,18 +629,10 @@ export class BotAI {
     const hasPhoenixSingle = playable.some(
       (cards) => cards.length === 1 && isSpecial(cards[0], SpecialCardType.PHOENIX)
     );
-    if (!hasPhoenixSingle || hand.length <= this.config.phoenixFollowMaxCards) {
-      return playable;
-    }
+    if (!hasPhoenixSingle) return playable;
 
     const normalAlternatives = playable.filter((cards) => cards.length === 1 && isNormalCard(cards[0]));
     if (normalAlternatives.length === 0) return playable;
-    if (opponentAboutToOut) {
-      const filtered = playable.filter(
-        (cards) => !(cards.length === 1 && isSpecial(cards[0], SpecialCardType.PHOENIX))
-      );
-      return filtered.length > 0 ? filtered : playable;
-    }
 
     const topRank = currentTrick.plays[currentTrick.plays.length - 1]?.combination?.rank ?? 0;
     const phoenixResultingRank = topRank + 0.5;
@@ -653,12 +645,19 @@ export class BotAI {
       : false;
     const lowValuePhoenix = topRank < this.config.phoenixFollowMinRank;
 
-    if (!canBeOvertaken && !lowValuePhoenix) return playable;
+    if (!opponentAboutToOut && !canBeOvertaken && !lowValuePhoenix) return playable;
 
     const filtered = playable.filter(
       (cards) => !(cards.length === 1 && isSpecial(cards[0], SpecialCardType.PHOENIX))
     );
     return filtered.length > 0 ? filtered : playable;
+  }
+
+  private pickPartnerOutShedPlay(regular: Card[][]): Card[] | null {
+    if (regular.length === 0) return null;
+    const normalPlays = regular.filter((play) => play.every(isNormalCard));
+    const candidates = normalPlays.length > 0 ? normalPlays : regular;
+    return this.sortByRank(candidates)[0];
   }
 
   private withoutCards(hand: Card[], played: Card[]): Card[] {
@@ -783,6 +782,48 @@ export class BotAI {
     return bestPlay;
   }
 
+  private activeOpponentCount(botPosition: PlayerPosition, context: GameContext): number {
+    let count = 0;
+    for (const pos of [0, 1, 2, 3] as PlayerPosition[]) {
+      if (pos % 2 === botPosition % 2) continue;
+      if (!this.isPlayerOut(pos, context)) count++;
+    }
+    return count;
+  }
+
+  private hasLiveOneCardOpponent(botPosition: PlayerPosition, context: GameContext): boolean {
+    for (const pos of [0, 1, 2, 3] as PlayerPosition[]) {
+      if (pos % 2 === botPosition % 2) continue;
+      if (this.isPlayerOut(pos, context)) continue;
+      if ((context.playerCardCounts.get(pos) ?? 14) === 1) return true;
+    }
+    return false;
+  }
+
+  private canSingleBeOvertaken(card: Card, hand: Card[], context: GameContext): boolean {
+    if (!isNormalCard(card)) return true;
+    const cardInfo = analyzePlayedCards(context.playedCards, hand);
+    return cardInfo.remainingCards.some((remaining) => {
+      if (isSpecial(remaining, SpecialCardType.DRAGON) || isSpecial(remaining, SpecialCardType.PHOENIX)) {
+        return true;
+      }
+      return isNormalCard(remaining) && remaining.rank > card.rank;
+    });
+  }
+
+  private chooseOneCardOpponentLeadBlock(
+    playable: Card[][],
+    botPosition: PlayerPosition,
+    context?: GameContext,
+  ): Card[] | null {
+    if (!context || !this.hasLiveOneCardOpponent(botPosition, context)) return null;
+    const { regular } = this.splitBombs(playable);
+    const normalSingles = regular.filter((play) => play.length === 1 && isNormalCard(play[0]));
+    if (normalSingles.length === 0) return null;
+    const sorted = this.sortByRank(normalSingles);
+    return sorted[sorted.length - 1];
+  }
+
   private chooseScoredLead(
     hand: Card[],
     playable: Card[][],
@@ -839,7 +880,16 @@ export class BotAI {
       (context.finishOrder.length > 0 && minOppCards <= 4);
     if (!urgentEndgame) return null;
 
-    return this.sortByRank(normalSingles)[normalSingles.length - 1];
+    const sorted = this.sortByRank(normalSingles);
+    if (
+      hand.length === 2 &&
+      this.activeOpponentCount(botPosition, context) >= 2 &&
+      this.canSingleBeOvertaken(sorted[sorted.length - 1][0], hand, context)
+    ) {
+      return sorted[0];
+    }
+
+    return sorted[sorted.length - 1];
   }
 
   private isHighResourceLeadWaste(
@@ -1229,6 +1279,14 @@ export class BotAI {
       return this.choosePlayEasy(playable, isLeading);
     }
 
+    if (isLeading && this.hasLeadPrioritySpecial(playable)) {
+      const oneCardBlock = this.chooseOneCardOpponentLeadBlock(playable, botPosition, context);
+      if (oneCardBlock) {
+        this.tag('lead:block-one-card-opponent');
+        return oneCardBlock.map((c) => c.id);
+      }
+    }
+
     const solverDecision = this.chooseEndgameSolverDecision(
       hand,
       playable,
@@ -1310,24 +1368,14 @@ export class BotAI {
       // reliably detect this, so strip the candidate here.
       let filteredPlayable: Card[][] = playable;
       if (!isLeading) {
-        const topRank = currentTrick.plays[currentTrick.plays.length - 1]?.combination?.rank ?? 0;
         const oppAboutToOut = context ? this.isOpponentAboutToOut(botPosition, context) : false;
-        if (hand.length > this.config.phoenixFollowMaxCards && !oppAboutToOut) {
-          const phoenixResultingRank = topRank + 0.5;
-          const canBeBeaten = cardInfo
-            ? cardInfo.remainingCards.some((c) => {
-                if (isSpecial(c, SpecialCardType.DRAGON)) return true;
-                if (isNormalCard(c)) return c.rank > phoenixResultingRank;
-                return false;
-              })
-            : topRank < this.config.phoenixFollowMinRank; // fallback heuristic when no tracker
-          if (canBeBeaten) {
-            const withoutWastedPhoenix = filteredPlayable.filter(
-              (cards) => !(cards.length === 1 && isSpecial(cards[0], SpecialCardType.PHOENIX))
-            );
-            if (withoutWastedPhoenix.length > 0) filteredPlayable = withoutWastedPhoenix;
-          }
-        }
+        filteredPlayable = this.filterWastefulPhoenixFollowSingles(
+          filteredPlayable,
+          hand,
+          currentTrick,
+          oppAboutToOut,
+          cardInfo,
+        );
 
         // Filter wasteful Dragon-single candidates. Dragon-win rule means we always give the
         // trick pile to an opponent, so playing Dragon on a low-value trick is strictly a loss
@@ -1458,10 +1506,12 @@ export class BotAI {
     // Partner is winning — don't play on top of them, unless they are already out
     // and we can advance our own endgame with a regular play.
     if (partnerWinning) {
-      if (partnerOut && hand.length <= 3 && regular.length > 0) {
-        this.tag('follow:endgame-partner-out');
-        const sorted = this.sortByRank(regular);
-        return sorted[0].map((c) => c.id);
+      if (partnerOut) {
+        const shedPlay = this.pickPartnerOutShedPlay(regular);
+        if (shedPlay) {
+          this.tag(hand.length <= 3 ? 'follow:endgame-partner-out' : 'follow:partner-out-shed');
+          return shedPlay.map((c) => c.id);
+        }
       }
       if (this.isPartnerMahjongWish(currentTrick, wish, partnerPos)) {
         const play = this.pickLowestNormalSingle(regular);
@@ -1795,10 +1845,12 @@ export class BotAI {
         this.tag('follow:dragon-negative-out');
         return dragonOut.map((c) => c.id);
       }
-      if (partnerOut && hand.length <= 3 && regular.length > 0) {
-        this.tag('follow:endgame-partner-out');
-        const sorted = this.sortByRank(regular);
-        return sorted[0].map((c) => c.id);
+      if (partnerOut) {
+        const shedPlay = this.pickPartnerOutShedPlay(regular);
+        if (shedPlay) {
+          this.tag(hand.length <= 3 ? 'follow:endgame-partner-out' : 'follow:partner-out-shed');
+          return shedPlay.map((c) => c.id);
+        }
       }
       // Bomb only if opponent is about to go out (prevent them)
       if (opponentAboutToOut && bombs.length > 0) {
