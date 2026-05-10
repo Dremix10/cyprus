@@ -112,6 +112,10 @@
   .report-test-bar label { color: #888; font-size: 0.78rem; display: grid; gap: 0.25rem; }
   .generation-status { background: #10101b; border: 1px solid #24243e; border-radius: 8px; padding: 0.75rem 0.85rem; display: grid; gap: 0.5rem; }
   .generation-status pre { white-space: pre-wrap; color: #aaa; font-size: 0.75rem; max-height: 180px; overflow: auto; background: #0b0b13; border-radius: 6px; padding: 0.65rem; }
+  .auto-why { background: #151526; border: 1px solid #2a2a4a; border-radius: 8px; padding: 0.8rem; display: grid; gap: 0.55rem; }
+  .auto-why-title { color: #c9a84c; font-weight: 700; font-size: 0.86rem; }
+  .auto-why-body { color: #e0e0e0; font-size: 0.84rem; line-height: 1.45; }
+  .auto-why-list { display: flex; gap: 0.4rem; flex-wrap: wrap; }
   .report-test-chooser[hidden] { display: none; }
   .replay-room { display: grid; gap: 0.8rem; }
   .replay-stage { border: 1px solid #2a2a4a; border-radius: 8px; background: #0f0f1a; padding: 1rem; display: grid; gap: 0.8rem; }
@@ -1011,6 +1015,70 @@ function autoBotInfoFromRow(row) {
   return audit?.bot || audit?.decision?.bot || null;
 }
 
+function formatAutoChoice(value) {
+  if (value === null) return 'PASS';
+  if (Array.isArray(value)) return value.length ? value.join(' ') : '-';
+  return value || '-';
+}
+
+function renderAutoWhySummary(report) {
+  const audit = parseJson(report.auditor_data) || {};
+  const detector = audit.detector || {};
+  const actual = audit.actualCardIds !== undefined ? audit.actualCardIds : detector.actualCardIds;
+  const actualText = formatAutoChoice(actual);
+  const confidence = report.confidence == null ? '-' : Math.round(Number(report.confidence) * 100) + '%';
+  let summary = report.reason || 'The simulator marked this play as suspicious for review.';
+  const facts = [
+    'Actual: ' + actualText,
+    'Severity: ' + (report.severity ?? '-') + '/5',
+    'Confidence: ' + confidence,
+  ];
+
+  if (report.reason_tag === 'endgame-solver-disagreement') {
+    summary = 'The shadow endgame solver preferred ' + formatAutoChoice(detector.solverCardIds) + ' but the live bot chose ' + actualText + '.';
+    facts.push('Solver mode: ' + (detector.mode || '-'));
+    if (detector.solverConfidence != null) facts.push('Solver confidence: ' + detector.solverConfidence);
+  } else if (report.reason_tag === 'lead-scorer-disagreement') {
+    summary = 'The shadow lead scorer strongly preferred ' + formatAutoChoice(detector.scorerCardIds) + ' but the live bot chose ' + actualText + '.';
+    if (detector.scorerConfidence != null) facts.push('Scorer confidence: ' + detector.scorerConfidence);
+  } else if (report.reason_tag === 'mc-resource-override' || report.reason_tag === 'mc-override-review') {
+    summary = 'Monte Carlo overrode the heuristic from ' + formatAutoChoice(detector.heuristicCardIds) + ' to ' + actualText + '.';
+    if (detector.margin != null) facts.push('MC margin: ' + detector.margin);
+    if (detector.totalSims != null) facts.push('MC sims: ' + detector.totalSims);
+  } else if (report.reason_tag === 'mc-tried-suspect-pass') {
+    summary = 'Monte Carlo wanted ' + formatAutoChoice(detector.mcCardIds) + ' while the heuristic preferred ' + formatAutoChoice(detector.heuristicCardIds) + '.';
+    facts.push('MC reason: ' + (detector.mcReason || '-'));
+  } else if (report.reason_tag === 'pass-to-near-out-opponent') {
+    summary = 'The bot passed while opponent P' + (detector.currentWinner ?? '?') + ' was winning with ' + (detector.currentWinnerCards ?? '?') + ' card(s), and the bot still had legal replies.';
+    facts.push('Legal replies: ' + (detector.playableCount ?? '-'));
+    facts.push('Trick points: ' + (detector.trickPoints ?? '-'));
+  } else if (report.reason_tag === 'low-value-dragon') {
+    summary = 'The bot spent Dragon on a low-value trick without enough immediate danger.';
+    facts.push('Trick points: ' + (detector.trickPoints ?? '-'));
+    facts.push('Hand before: ' + (detector.handCount ?? '-') + ' cards');
+  } else if (report.reason_tag === 'phoenix-single-risk') {
+    summary = 'The bot used Phoenix as a single while it still had other cards, which is often a resource waste.';
+    facts.push('Hand before: ' + (detector.handCount ?? '-') + ' cards');
+  } else if (report.reason_tag === 'possible-bomb-waste') {
+    summary = 'The bot used a bomb on a low-value trick without a near-out opponent.';
+    facts.push('Trick points: ' + (detector.trickPoints ?? '-'));
+    facts.push('Hand before: ' + (detector.handCount ?? '-') + ' cards');
+  } else if (report.reason_tag === 'partner-tichu-rush-out') {
+    summary = 'The bot went out while its partner still had a live Tichu or Grand Tichu call.';
+    facts.push('Hand before: ' + (detector.handCount ?? '-') + ' cards');
+  } else if (report.reason_tag === 'low-single-into-danger') {
+    summary = 'The bot led a low single while an opponent was close to going out.';
+    facts.push('Rank: ' + (detector.rank ?? '-'));
+    facts.push('Danger score: ' + (detector.danger ?? '-'));
+  }
+
+  return '<div class="auto-why">' +
+    '<div class="auto-why-title">Why this was flagged</div>' +
+    '<div class="auto-why-body">' + esc(summary) + '</div>' +
+    '<div class="auto-why-list">' + facts.map(f => '<span class="badge badge-muted">' + esc(f) + '</span>').join('') + '</div>' +
+  '</div>';
+}
+
 function renderTierOptions(selected) {
   return ['medium', 'hard', 'extreme', 'unfair'].map(tier =>
     '<option value="' + tier + '" ' + (tier === selected ? 'selected' : '') + '>' + tier + '</option>'
@@ -1120,6 +1188,7 @@ function renderAutoBotReports(data) {
           '</div>' +
           '<div class="report-card-actions">' + actionHtml + '</div>' +
         '</div>' +
+        renderAutoWhySummary(r) +
         '<div class="report-grid">' +
           '<div class="report-field"><div class="report-field-label">Detector</div><div class="report-field-value">' + esc(r.source || '-') + '</div></div>' +
           '<div class="report-field"><div class="report-field-label">Reason</div><div class="report-field-value">' + esc(r.reason_tag || '-') + '</div></div>' +
