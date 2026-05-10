@@ -3653,29 +3653,44 @@ span.pass-zone-avatar {
   }
 
   .lobby-bg-zeus {
-    background-size: min(118vw, 560px) auto;
-    background-position: center 44%;
-    opacity: 0.3;
+    background-size: cover;
+    background-position: center center;
+    opacity: 0.44;
   }
 
   .lobby-bg-overlay {
     background:
-      radial-gradient(ellipse at 50% 48%, rgba(13, 21, 32, 0.45) 0%, rgba(13, 21, 32, 0.66) 42%, rgba(13, 21, 32, 0.9) 100%),
-      linear-gradient(180deg, rgba(13, 21, 32, 0.24) 0%, rgba(13, 21, 32, 0.45) 45%, rgba(13, 21, 32, 0.88) 100%);
+      radial-gradient(ellipse at 50% 46%, rgba(13, 21, 32, 0.36) 0%, rgba(13, 21, 32, 0.58) 48%, rgba(13, 21, 32, 0.86) 100%),
+      linear-gradient(180deg, rgba(13, 21, 32, 0.18) 0%, rgba(13, 21, 32, 0.38) 45%, rgba(13, 21, 32, 0.86) 100%);
   }
 
   .lobby-column {
-    display: none;
+    display: flex;
+    width: 34px;
+    opacity: 0.52;
+  }
+
+  .lobby-column-left {
+    left: 10px;
+  }
+
+  .lobby-column-right {
+    right: 10px;
+  }
+
+  .lobby-column .column-flutes {
+    width: 24px;
   }
 
   .lobby-content {
-    width: min(92vw, 430px);
+    width: min(88vw, 480px);
     max-width: none;
     min-height: 100dvh;
-    padding: max(1.25rem, env(safe-area-inset-top)) 1rem max(1.25rem, env(safe-area-inset-bottom));
+    padding: max(1.25rem, env(safe-area-inset-top)) 1.25rem max(1.5rem, env(safe-area-inset-bottom));
     display: flex;
     flex-direction: column;
     justify-content: center;
+    transform: translateY(-2dvh);
   }
 
   .lobby-header {
@@ -3690,7 +3705,9 @@ span.pass-zone-avatar {
     width: 100%;
     padding: 1.5rem;
     border-radius: 18px;
-    background: rgba(13, 21, 32, 0.82);
+    background: rgba(13, 21, 32, 0.78);
+    border-color: rgba(201, 168, 76, 0.24);
+    box-shadow: 0 16px 48px rgba(0, 0, 0, 0.62), 0 0 70px rgba(201, 168, 76, 0.08), inset 0 1px rgba(201, 168, 76, 0.16);
   }
 
   .lobby-form {
@@ -3699,16 +3716,16 @@ span.pass-zone-avatar {
 
   .input-greek,
   .btn-olympus {
-    min-height: 48px;
+    min-height: 52px;
     font-size: 1rem;
   }
 
   .btn-olympus {
-    padding: 0.9rem 1rem;
+    padding: 1rem 1rem;
   }
 
   .input-greek {
-    padding: 0.9rem 1rem;
+    padding: 1rem 1rem;
   }
 
   .lobby-room-row,
@@ -3720,9 +3737,9 @@ span.pass-zone-avatar {
   .lobby-join-group .btn-join,
   .lobby-solo-row .input-select,
   .lobby-solo-row .btn-solo-greek {
-    min-height: 48px;
-    font-size: 0.95rem;
-    padding: 0.85rem 0.75rem;
+    min-height: 52px;
+    font-size: 0.98rem;
+    padding: 0.9rem 0.75rem;
   }
 
   .input-room-code {
@@ -3848,19 +3865,19 @@ span.pass-zone-avatar {
   }
 
   .lobby-content {
-    width: min(90vw, 380px);
-    padding-left: 0.85rem;
-    padding-right: 0.85rem;
+    width: min(88vw, 480px);
+    padding-left: 1rem;
+    padding-right: 1rem;
   }
 
   .lobby-bg-zeus {
-    background-size: min(136vw, 520px) auto;
-    background-position: center 46%;
-    opacity: 0.26;
+    background-size: cover;
+    background-position: center center;
+    opacity: 0.46;
   }
 
   .title-greek {
-    font-size: 3rem;
+    font-size: 3.15rem;
     letter-spacing: 0.16em;
   }
 
@@ -3870,7 +3887,7 @@ span.pass-zone-avatar {
   }
 
   .lobby-form-card {
-    padding: 1.25rem;
+    padding: 1.4rem;
   }
 
   .app {
@@ -4189,17 +4206,31 @@ span.pass-zone-avatar {
   }
 
   .lobby-column {
-    display: none;
+    display: flex;
+    width: 28px;
+    opacity: 0.42;
+  }
+
+  .lobby-column-left {
+    left: 8px;
+  }
+
+  .lobby-column-right {
+    right: 8px;
+  }
+
+  .lobby-column .column-flutes {
+    width: 20px;
   }
 
   .lobby-bg-zeus {
-    background-size: auto 118%;
+    background-size: cover;
     background-position: center center;
-    opacity: 0.24;
+    opacity: 0.36;
   }
 
   .lobby-content {
-    width: min(50vw, 340px);
+    width: min(58vw, 460px);
     min-height: auto;
     justify-content: flex-start;
     padding-top: max(0.45rem, env(safe-area-inset-top));
