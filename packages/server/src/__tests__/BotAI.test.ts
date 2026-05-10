@@ -899,6 +899,138 @@ describe('BotAI low-single initiative blocking', () => {
     expect(bot.lastBranch).toBe('follow:block-one-card-opponent');
   });
 
+  it('blocks a one-card opponent on a mid single in auto report #11', () => {
+    const bot = new BotAI('hard', { useMonteCarlo: true });
+    let mcCalled = false;
+    const hand: Card[] = [
+      nc(Suit.JADE, NormalRank.FIVE),
+      nc(Suit.PAGODA, NormalRank.NINE),
+      nc(Suit.STAR, NormalRank.QUEEN),
+      nc(Suit.PAGODA, NormalRank.KING),
+      nc(Suit.PAGODA, NormalRank.ACE),
+      nc(Suit.SWORD, NormalRank.ACE),
+    ];
+
+    const play = bot.choosePlay(
+      hand,
+      singleTrick(0, nc(Suit.STAR, NormalRank.EIGHT)),
+      inactiveWish,
+      1,
+      report22Context({
+        playerCardCounts: new Map<PlayerPosition, number>([
+          [0, 1],
+          [1, 6],
+          [2, 0],
+          [3, 3],
+        ]),
+        finishOrder: [2],
+        scores: [360, 240],
+      }),
+      () => {
+        mcCalled = true;
+        return mcDecision(null, [
+          { cardIds: ['STAR_12'], avg: 0 },
+          { cardIds: null, avg: 80 },
+        ]);
+      },
+    );
+
+    expect(mcCalled).toBe(false);
+    expect(play).toEqual(['STAR_12']);
+    expect(bot.lastBranch).toBe('follow:block-one-card-opponent');
+  });
+
+  it('blocks a one-card opponent on a nine in auto report #12', () => {
+    const bot = new BotAI('hard', { useMonteCarlo: true });
+    let mcCalled = false;
+    const hand: Card[] = [
+      sc(SpecialCardType.DOG),
+      nc(Suit.SWORD, NormalRank.TWO),
+      nc(Suit.JADE, NormalRank.THREE),
+      nc(Suit.STAR, NormalRank.FOUR),
+      nc(Suit.SWORD, NormalRank.FOUR),
+      nc(Suit.JADE, NormalRank.SEVEN),
+      nc(Suit.STAR, NormalRank.SEVEN),
+      nc(Suit.PAGODA, NormalRank.EIGHT),
+      nc(Suit.STAR, NormalRank.EIGHT),
+      nc(Suit.JADE, NormalRank.QUEEN),
+      nc(Suit.STAR, NormalRank.QUEEN),
+    ];
+
+    const play = bot.choosePlay(
+      hand,
+      singleTrick(1, nc(Suit.PAGODA, NormalRank.NINE)),
+      inactiveWish,
+      0,
+      report22Context({
+        playerCardCounts: new Map<PlayerPosition, number>([
+          [0, 11],
+          [1, 1],
+          [2, 0],
+          [3, 3],
+        ]),
+        finishOrder: [2],
+        scores: [175, 125],
+      }),
+      () => {
+        mcCalled = true;
+        return mcDecision(null, [
+          { cardIds: ['JADE_12'], avg: 0 },
+          { cardIds: null, avg: 50 },
+        ]);
+      },
+    );
+
+    expect(mcCalled).toBe(false);
+    expect(play).toEqual(['JADE_12']);
+    expect(bot.lastBranch).toBe('follow:block-one-card-opponent');
+  });
+
+  it('blocks a one-card opponent on a seven in auto report #13', () => {
+    const bot = new BotAI('hard', { useMonteCarlo: true });
+    let mcCalled = false;
+    const hand: Card[] = [
+      nc(Suit.SWORD, NormalRank.THREE),
+      nc(Suit.JADE, NormalRank.FOUR),
+      nc(Suit.PAGODA, NormalRank.FOUR),
+      nc(Suit.SWORD, NormalRank.FOUR),
+      nc(Suit.JADE, NormalRank.FIVE),
+      nc(Suit.STAR, NormalRank.FIVE),
+      nc(Suit.SWORD, NormalRank.FIVE),
+      nc(Suit.JADE, NormalRank.NINE),
+      nc(Suit.SWORD, NormalRank.NINE),
+      nc(Suit.SWORD, NormalRank.QUEEN),
+      nc(Suit.PAGODA, NormalRank.KING),
+    ];
+
+    const play = bot.choosePlay(
+      hand,
+      singleTrick(3, nc(Suit.SWORD, NormalRank.SEVEN)),
+      inactiveWish,
+      0,
+      report22Context({
+        playerCardCounts: new Map<PlayerPosition, number>([
+          [0, 11],
+          [1, 3],
+          [2, 2],
+          [3, 1],
+        ]),
+        scores: [420, 780],
+      }),
+      () => {
+        mcCalled = true;
+        return mcDecision(null, [
+          { cardIds: ['SWORD_12'], avg: 15 },
+          { cardIds: null, avg: 58 },
+        ]);
+      },
+    );
+
+    expect(mcCalled).toBe(false);
+    expect(play).toEqual(['SWORD_12']);
+    expect(bot.lastBranch).toBe('follow:block-one-card-opponent');
+  });
+
   it('does not force an expensive card just because an opponent led low', () => {
     const bot = new BotAI('hard', { useMonteCarlo: true });
     const hand: Card[] = [
