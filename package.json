@@ -9,6 +9,7 @@
     "dev": "concurrently \"npm run dev --workspace=packages/server\" \"npm run dev --workspace=packages/client\"",
     "start": "NODE_ENV=production node packages/server/dist/index.js",
     "bot:arena": "npm run arena --workspace=packages/server --",
+    "bot:audit": "npm run audit --workspace=packages/server --",
     "test": "npm run test --workspaces --if-present",
     "lint": "eslint 'packages/*/src/**/*.{ts,tsx}'",
     "clean": "rm -rf packages/*/dist packages/client/dist-dev"
