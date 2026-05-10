@@ -107,7 +107,11 @@
   .report-test-bar { display: flex; gap: 0.6rem; align-items: center; flex-wrap: wrap; }
   .report-test-bar button, .replay-controls button { background: #c9a84c; color: #0f0f1a; border: none; border-radius: 6px; padding: 0.55rem 0.9rem; cursor: pointer; font-weight: 700; }
   .report-test-bar button:disabled, .replay-controls button:disabled { opacity: 0.45; cursor: not-allowed; }
-  .report-test-bar select { min-width: min(100%, 420px); flex: 1; background: #0f0f1a; color: #e0e0e0; border: 1px solid #333; border-radius: 6px; padding: 0.55rem 0.65rem; }
+  .report-test-bar select, .report-test-bar input { min-width: min(100%, 160px); background: #0f0f1a; color: #e0e0e0; border: 1px solid #333; border-radius: 6px; padding: 0.55rem 0.65rem; }
+  .report-test-bar select.report-select-wide { min-width: min(100%, 420px); flex: 1; }
+  .report-test-bar label { color: #888; font-size: 0.78rem; display: grid; gap: 0.25rem; }
+  .generation-status { background: #10101b; border: 1px solid #24243e; border-radius: 8px; padding: 0.75rem 0.85rem; display: grid; gap: 0.5rem; }
+  .generation-status pre { white-space: pre-wrap; color: #aaa; font-size: 0.75rem; max-height: 180px; overflow: auto; background: #0b0b13; border-radius: 6px; padding: 0.65rem; }
   .report-test-chooser[hidden] { display: none; }
   .replay-room { display: grid; gap: 0.8rem; }
   .replay-stage { border: 1px solid #2a2a4a; border-radius: 8px; background: #0f0f1a; padding: 1rem; display: grid; gap: 0.8rem; }
@@ -234,6 +238,7 @@ let currentTab = 'connections';
 const LIVE_ADMIN_URL = 'https://aegist.dev/admin';
 const isFilePreview = window.location.protocol === 'file:';
 let replayState = null;
+let autoGenerationPoll = null;
 const REVIEW_LABELS = {
   unreviewed: 'Unreviewed',
   valid_mistake: 'Valid mistake',
@@ -343,7 +348,10 @@ function esc(s) { if (s == null) return '-'; const d = document.createElement('d
 function parseJson(raw) { try { return raw ? JSON.parse(raw) : null; } catch(e) { return null; } }
 function ago(dt) {
   if (!dt) return '-';
-  const ms = Date.now() - new Date(dt + 'Z').getTime();
+  const raw = String(dt);
+  const hasZone = /(?:Z|[+-]\d{2}:?\d{2})$/i.test(raw);
+  const ms = Date.now() - new Date(hasZone ? raw : raw + 'Z').getTime();
+  if (!Number.isFinite(ms)) return '-';
   if (ms < 60000) return Math.floor(ms/1000) + 's ago';
   if (ms < 3600000) return Math.floor(ms/60000) + 'm ago';
   if (ms < 86400000) return Math.floor(ms/3600000) + 'h ago';
@@ -853,7 +861,7 @@ function renderReportTestPanel(recent, kind = 'human', buttonLabel = 'Test Bot R
     '</div>' +
     '<div class="report-test-chooser" id="' + cfg.chooserId + '" hidden>' +
       '<div class="report-test-bar">' +
-        '<select id="' + cfg.selectId + '">' + recent.map(r => renderReportOption(r, kind)).join('') + '</select>' +
+        '<select class="report-select-wide" id="' + cfg.selectId + '">' + recent.map(r => renderReportOption(r, kind)).join('') + '</select>' +
         '<button onclick="startReportReplay(\'' + kind + '\')">Start Test</button>' +
       '</div>' +
       '<div id="' + cfg.roomId + '" class="replay-room"></div>' +
@@ -1003,10 +1011,77 @@ function autoBotInfoFromRow(row) {
   return audit?.bot || audit?.decision?.bot || null;
 }
 
+function renderTierOptions(selected) {
+  return ['medium', 'hard', 'extreme', 'unfair'].map(tier =>
+    '<option value="' + tier + '" ' + (tier === selected ? 'selected' : '') + '>' + tier + '</option>'
+  ).join('');
+}
+
+function generationBadgeClass(status) {
+  if (status === 'running') return 'badge-yellow';
+  if (status === 'completed') return 'badge-green';
+  if (status === 'failed') return 'badge-red';
+  return 'badge-muted';
+}
+
+function renderAutoGenerationStatus(generation) {
+  const status = generation?.status || 'idle';
+  if (status === 'idle') return '<div class="generation-status"><span class="badge badge-muted">Idle</span><div class="reports-hint">No generation job has run since the server started.</div></div>';
+  const opts = generation.options || {};
+  const lines = Array.isArray(generation.outputTail) ? generation.outputTail.slice(-12) : [];
+  const summary = [
+    opts.games ? opts.games + ' game' + (Number(opts.games) === 1 ? '' : 's') : null,
+    opts.tier || null,
+    generation.insertedReports != null ? generation.insertedReports + ' inserted' : null,
+    generation.suspiciousPlays != null ? generation.suspiciousPlays + ' suspects' : null,
+  ].filter(Boolean).join(' · ');
+  return '<div class="generation-status">' +
+    '<div class="report-test-bar">' +
+      '<span class="badge ' + generationBadgeClass(status) + '">' + esc(status) + '</span>' +
+      '<span class="reports-hint">' + esc(summary || 'Generation job') + '</span>' +
+      (generation.finishedAt ? '<span class="reports-hint">finished ' + ago(generation.finishedAt) + '</span>' : '<span class="reports-hint">started ' + ago(generation.startedAt) + '</span>') +
+    '</div>' +
+    (generation.error ? '<div class="query-error">' + esc(generation.error) + '</div>' : '') +
+    (lines.length ? '<pre>' + esc(lines.join('\n')) + '</pre>' : '') +
+  '</div>';
+}
+
+function renderAutoGenerationPanel(generation) {
+  const status = generation?.status || 'idle';
+  const running = status === 'running';
+  const opts = generation?.options || {};
+  const tier = opts.tier || 'hard';
+  const games = opts.games || 1;
+  const maxReports = opts.maxReports || 10;
+  return '<div class="report-test">' +
+    '<div class="report-test-bar">' +
+      '<button id="auto-generate-btn" onclick="generateAutoReports()" ' + (running ? 'disabled' : '') + '>' + (running ? 'Generating...' : 'Generate Auto Reports') + '</button>' +
+      '<label>Tier<select id="auto-gen-tier">' + renderTierOptions(tier) + '</select></label>' +
+      '<label>Games<input id="auto-gen-games" type="number" min="1" max="10" value="' + esc(games) + '"></label>' +
+      '<label>Max reports<input id="auto-gen-max" type="number" min="1" max="50" value="' + esc(maxReports) + '"></label>' +
+      '<span class="reports-hint">Runs on the live server and writes directly to Auto Reported Plays.</span>' +
+    '</div>' +
+    '<div id="auto-generation-status">' + renderAutoGenerationStatus(generation) + '</div>' +
+  '</div>';
+}
+
+function setAutoGenerationPolling(active) {
+  if (active && !autoGenerationPoll) {
+    autoGenerationPoll = setInterval(() => {
+      if (currentTab === 'autobotreports') loadTab('autobotreports');
+    }, 3000);
+  } else if (!active && autoGenerationPoll) {
+    clearInterval(autoGenerationPoll);
+    autoGenerationPoll = null;
+  }
+}
+
 function renderAutoBotReports(data) {
   const statuses = data.reviewStatuses || Object.keys(REVIEW_LABELS);
   const grouped = data.grouped || [];
   const recent = data.recent || [];
+  const generation = data.generation || null;
+  setAutoGenerationPolling(generation?.status === 'running');
   const totalReports = grouped.reduce((sum, g) => sum + Number(g.total_reports || 0), 0);
   const unreviewed = grouped.reduce((sum, g) => sum + Number(g.unreviewed_reports || 0), 0);
   const replayable = recent.filter(r => r.game_event_id);
@@ -1077,10 +1152,39 @@ function renderAutoBotReports(data) {
 
   return '<div class="reports-wrap">' +
     '<div class="reports-heading"><h2>Auto Reported Plays</h2><div class="reports-hint">' + totalReports + ' total · ' + recent.length + ' recent · ' + replayable.length + ' replayable · ' + unreviewed + ' unreviewed</div></div>' +
+    renderAutoGenerationPanel(generation) +
     renderReportTestPanel(replayable, 'auto', 'Test Auto Reports', hint) +
     '<div class="reports-summary">' + groupedHtml + '</div>' +
     cardsHtml +
   '</div>';
+}
+
+async function generateAutoReports() {
+  const btn = document.getElementById('auto-generate-btn');
+  const status = document.getElementById('auto-generation-status');
+  const tier = document.getElementById('auto-gen-tier')?.value || 'hard';
+  const games = Number(document.getElementById('auto-gen-games')?.value || 1);
+  const maxReports = Number(document.getElementById('auto-gen-max')?.value || 10);
+  if (btn) btn.disabled = true;
+  if (status) status.innerHTML = '<div class="generation-status"><span class="badge badge-yellow">Starting</span><div class="reports-hint">Starting auto report generation...</div></div>';
+  try {
+    const res = await fetch('/admin/api/auto-bot-reports/generate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+      body: JSON.stringify({ tier, games, maxReports }),
+    });
+    const data = await res.json();
+    if (!res.ok || data.error) {
+      if (status) status.innerHTML = '<div class="query-error">' + esc(data.error || 'Generation failed to start') + '</div>';
+      if (btn) btn.disabled = false;
+      return;
+    }
+    setAutoGenerationPolling(true);
+    await loadTab('autobotreports');
+  } catch(e) {
+    if (status) status.innerHTML = '<div class="query-error">Generation request failed</div>';
+    if (btn) btn.disabled = false;
+  }
 }
 
 async function loadTab(name) {

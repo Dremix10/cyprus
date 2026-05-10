@@ -1,5 +1,6 @@
 import express, { type Request, type Response, type NextFunction } from 'express';
 import { createHash, timingSafeEqual, randomBytes, scrypt } from 'node:crypto';
+import { spawn } from 'node:child_process';
 import { existsSync, readFileSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -16,6 +17,27 @@ function readAdminHtml(filename: string): string {
 
 const LOGIN_HTML = readAdminHtml('login.html');
 const DASHBOARD_HTML = readAdminHtml('dashboard.html');
+
+type AutoAuditJobStatus = 'running' | 'completed' | 'failed';
+type AutoAuditJob = {
+  id: number;
+  status: AutoAuditJobStatus;
+  startedAt: string;
+  finishedAt: string | null;
+  options: {
+    games: number;
+    maxReports: number;
+    tier: string;
+  };
+  outputTail: string[];
+  suspiciousPlays: number | null;
+  insertedReports: number | null;
+  exitCode: number | null;
+  error: string | null;
+};
+
+let autoAuditJobSeq = 0;
+let autoAuditJob: AutoAuditJob | null = null;
 
 // SHA-256 hash of default password — override with ADMIN_PASSWORD env var
 const DEFAULT_HASH = '11b6968ce0b6e99c8952c32e0b65320e7b4c6119aebd56cc361158e20333636f';
@@ -35,6 +57,29 @@ function verifyPassword(input: string): boolean {
   } catch {
     return false;
   }
+}
+
+function boundedInt(value: unknown, fallback: number, min: number, max: number): number {
+  const parsed = typeof value === 'number' ? value : Number.parseInt(String(value ?? ''), 10);
+  if (!Number.isFinite(parsed)) return fallback;
+  return Math.max(min, Math.min(max, Math.floor(parsed)));
+}
+
+function parseAuditTier(value: unknown): string {
+  const tier = typeof value === 'string' ? value : '';
+  return ['medium', 'hard', 'extreme', 'unfair'].includes(tier) ? tier : 'hard';
+}
+
+function appendAuditOutput(job: AutoAuditJob, chunk: Buffer | string): void {
+  const text = chunk.toString();
+  const lines = text.split(/\r?\n/).map((line) => line.trimEnd()).filter(Boolean);
+  job.outputTail.push(...lines);
+  job.outputTail = job.outputTail.slice(-80);
+
+  const suspicious = text.match(/Suspicious plays found:\s*(\d+)/);
+  if (suspicious) job.suspiciousPlays = Number(suspicious[1]);
+  const inserted = text.match(/Inserted auto reports:\s*(\d+)/);
+  if (inserted) job.insertedReports = Number(inserted[1]);
 }
 
 function parseCookies(req: Request): Record<string, string> {
@@ -231,7 +276,73 @@ export function createAdminRouter(db: TrackerDB): express.Router {
       reviewStatuses: BOT_REPORT_REVIEW_STATUSES,
       grouped: db.getAutoBotReportsGrouped(limit),
       recent: db.getRecentAutoBotReports(Math.min(limit, 100)),
+      generation: autoAuditJob,
     });
+  });
+
+  router.get('/api/auto-bot-reports/generate/status', requireAuth, (_req, res) => {
+    res.json(autoAuditJob ?? { status: 'idle' });
+  });
+
+  router.post('/api/auto-bot-reports/generate', requireAuth, express.json({ limit: '8kb' }), (req, res) => {
+    if (autoAuditJob?.status === 'running') {
+      res.status(409).json({ error: 'Auto report generation is already running', generation: autoAuditJob });
+      return;
+    }
+
+    const games = boundedInt(req.body?.games, 1, 1, 10);
+    const maxReports = boundedInt(req.body?.maxReports, 10, 1, 50);
+    const tier = parseAuditTier(req.body?.tier);
+    const job: AutoAuditJob = {
+      id: ++autoAuditJobSeq,
+      status: 'running',
+      startedAt: new Date().toISOString(),
+      finishedAt: null,
+      options: { games, maxReports, tier },
+      outputTail: [`Starting ${games} ${tier} audit game(s), max ${maxReports} reports...`],
+      suspiciousPlays: null,
+      insertedReports: null,
+      exitCode: null,
+      error: null,
+    };
+    autoAuditJob = job;
+
+    const auditorArgs = [
+      `--games=${games}`,
+      `--max-reports=${maxReports}`,
+      `--tier=${tier}`,
+    ];
+    const distAuditor = join(process.cwd(), 'packages/server/dist/auto-report-sim.js');
+    const npmCmd = process.platform === 'win32' ? 'npm.cmd' : 'npm';
+    const command = existsSync(distAuditor) ? process.execPath : npmCmd;
+    const commandArgs = existsSync(distAuditor)
+      ? [distAuditor, ...auditorArgs]
+      : ['run', 'bot:audit', '--', ...auditorArgs];
+    const child = spawn(command, commandArgs, {
+      cwd: process.cwd(),
+      env: process.env,
+      stdio: ['ignore', 'pipe', 'pipe'],
+    });
+
+    child.stdout?.on('data', (chunk) => appendAuditOutput(job, chunk));
+    child.stderr?.on('data', (chunk) => appendAuditOutput(job, chunk));
+    child.on('error', (err) => {
+      job.status = 'failed';
+      job.finishedAt = new Date().toISOString();
+      job.error = err.message;
+      job.outputTail.push(`Failed to start auditor: ${err.message}`);
+    });
+    child.on('close', (code) => {
+      if (job.status === 'failed') return;
+      job.exitCode = code;
+      job.finishedAt = new Date().toISOString();
+      job.status = code === 0 ? 'completed' : 'failed';
+      if (code !== 0) job.error = `Auditor exited with code ${code}`;
+      job.outputTail.push(code === 0 ? 'Auto report generation complete.' : `Auto report generation failed with code ${code}.`);
+      job.outputTail = job.outputTail.slice(-80);
+    });
+
+    res.status(202).json({ success: true, generation: job });
   });
 
   router.get('/api/auto-bot-reports/:id/context', requireAuth, (req, res) => {
