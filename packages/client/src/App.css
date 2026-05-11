@@ -4114,14 +4114,14 @@ span.pass-zone-avatar {
   .player-hand {
     --hand-card-width: clamp(52px, 14vw, 58px);
     --hand-card-height: calc(var(--hand-card-width) * 1.42);
-    --hand-overlap: clamp(-16px, -3.8vw, -13px);
+    --hand-overlap: clamp(-12px, -2.8vw, -9px);
     --hand-hit-y: 11px;
     --hand-hit-x: 8px;
     --hand-lift-space: 26px;
     --card-selected-lift: -12px;
     --card-selected-scale: 1.035;
     min-height: calc(var(--hand-card-height) + var(--hand-lift-space) + 0.72rem);
-    padding: var(--hand-lift-space) 0.7rem 0.72rem;
+    padding: var(--hand-lift-space) 0.35rem 0.72rem;
     scroll-padding-inline: 1rem;
   }
 
@@ -4209,14 +4209,25 @@ span.pass-zone-avatar {
 
   .layout-middle {
     display: grid;
-    grid-template-columns: minmax(70px, 86px) minmax(0, 1fr) minmax(70px, 86px);
+    grid-template-columns: minmax(62px, 1fr) minmax(0, 66vw) minmax(62px, 1fr);
     align-items: center;
-    gap: 0.45rem;
+    justify-items: center;
+    column-gap: 0.55rem;
     flex: 0 0 auto;
     width: 100%;
   }
 
+  .layout-middle > .opponent-left {
+    grid-column: 1;
+  }
+
+  .layout-middle > .opponent-right {
+    grid-column: 3;
+  }
+
   .trick-area {
+    grid-column: 2;
+    justify-self: stretch;
     min-width: auto;
     width: 100%;
     min-height: clamp(130px, 24dvh, 190px);
@@ -4267,10 +4278,11 @@ span.pass-zone-avatar {
     flex-direction: column;
     width: 100%;
     min-height: 0;
-    gap: 0.55rem;
+    gap: 0.65rem;
     flex: 1;
     align-items: center;
     justify-content: flex-start;
+    margin-top: clamp(0.75rem, 2.2dvh, 1.35rem);
   }
 
   .playing-layout-has-actions {
