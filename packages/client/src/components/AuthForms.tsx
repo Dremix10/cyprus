@@ -192,10 +192,10 @@ export function AuthForms({ onGuest, onLegalPage }: { onGuest: () => void; onLeg
 
       {mode === 'register' && onLegalPage && (
         <p className="auth-legal-note">
-          By creating an account, you agree to the{' '}
-          <button className="btn-link auth-legal-link" onClick={() => onLegalPage('terms')}>Terms</button>
-          {' '}and{' '}
-          <button className="btn-link auth-legal-link" onClick={() => onLegalPage('privacy')}>Privacy Policy</button>.
+          {t('auth.legalPrefix')}{' '}
+          <button className="btn-link auth-legal-link" onClick={() => onLegalPage('terms')}>{t('legal.terms.short')}</button>
+          {' '}{t('auth.legalAnd')}{' '}
+          <button className="btn-link auth-legal-link" onClick={() => onLegalPage('privacy')}>{t('legal.privacy.title')}</button>.
         </p>
       )}
 
@@ -219,11 +219,11 @@ export function AuthForms({ onGuest, onLegalPage }: { onGuest: () => void; onLeg
 
       {onLegalPage && (
         <div className="auth-legal-links">
-          <button className="btn-link auth-legal-link" onClick={() => onLegalPage('privacy')}>Privacy</button>
+          <button className="btn-link auth-legal-link" onClick={() => onLegalPage('privacy')}>{t('legal.privacy.short')}</button>
           <span className="auth-legal-sep">|</span>
-          <button className="btn-link auth-legal-link" onClick={() => onLegalPage('terms')}>Terms</button>
+          <button className="btn-link auth-legal-link" onClick={() => onLegalPage('terms')}>{t('legal.terms.short')}</button>
           <span className="auth-legal-sep">|</span>
-          <button className="btn-link auth-legal-link" onClick={() => onLegalPage('contact')}>Contact</button>
+          <button className="btn-link auth-legal-link" onClick={() => onLegalPage('contact')}>{t('legal.contact.short')}</button>
         </div>
       )}
     </div>

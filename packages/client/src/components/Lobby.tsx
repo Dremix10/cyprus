@@ -94,11 +94,11 @@ export function Lobby({ onTutorial, onLeaderboard, onProfile, onLiveGames, onLeg
   );
   const renderLegalLinks = () => (
     <div className="lobby-legal-links">
-      <button className="btn-link lobby-legal-link" onClick={() => onLegalPage('privacy')}>Privacy</button>
+      <button className="btn-link lobby-legal-link" onClick={() => onLegalPage('privacy')}>{t('legal.privacy.short')}</button>
       <span className="lobby-link-sep">|</span>
-      <button className="btn-link lobby-legal-link" onClick={() => onLegalPage('terms')}>Terms</button>
+      <button className="btn-link lobby-legal-link" onClick={() => onLegalPage('terms')}>{t('legal.terms.short')}</button>
       <span className="lobby-link-sep">|</span>
-      <button className="btn-link lobby-legal-link" onClick={() => onLegalPage('contact')}>Contact</button>
+      <button className="btn-link lobby-legal-link" onClick={() => onLegalPage('contact')}>{t('legal.contact.short')}</button>
     </div>
   );
   // Pre-fill nickname from display name on first auth load
