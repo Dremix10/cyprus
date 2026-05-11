@@ -114,11 +114,17 @@ export function GrandTichuView() {
   }
 
   return (
-    <div className="phase-view">
+    <div className="phase-view grand-tichu-view">
       <h3>{t('phase.grandTichuQuestion')}</h3>
       <p className="info">{t('phase.seen8Cards')}</p>
-      <PlayerHand cards={gameState.myHand} selectedCards={selectedCards} onToggle={toggleCard} interactive={false} />
-      <div className="btn-group">
+      <PlayerHand
+        cards={gameState.myHand}
+        selectedCards={selectedCards}
+        onToggle={toggleCard}
+        interactive={false}
+        className="phase-hand-preview grand-tichu-hand"
+      />
+      <div className="btn-group phase-actions grand-tichu-actions">
         {confirming ? (
           <>
             <span className="confirm-label">{t('phase.callGrandTichu')}</span>
