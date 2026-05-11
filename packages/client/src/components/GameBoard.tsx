@@ -505,12 +505,6 @@ function PlayingLayout({
 
       {/* My hand */}
       <div className="my-hand-row">
-        {myInfo?.avatar && (
-          <div className="my-player-info">
-            <PlayerAvatar avatar={myInfo.avatar} alt={myInfo.nickname} className="player-avatar" />
-            <span className="my-name">{myInfo.nickname}</span>
-          </div>
-        )}
         {myInfo?.tichuCall !== 'none' && (
           <span className={`tichu-badge ${myInfo.tichuCall === 'grand_tichu' ? 'tichu-badge-grand' : ''}`}>
             {myInfo.tichuCall === 'grand_tichu' ? 'GRAND TICHU' : 'TICHU'}
@@ -540,6 +534,14 @@ function PlayingLayout({
 
       {/* Action buttons */}
       <div className="btn-group game-action-bar">
+        {hasActionBar && (
+          <div className="action-player-info">
+            {myInfo?.avatar && (
+              <PlayerAvatar avatar={myInfo.avatar} alt={myInfo.nickname} className="player-avatar action-player-avatar" />
+            )}
+            <span className="action-player-name">{myInfo?.nickname}</span>
+          </div>
+        )}
         {isDragonGive && gameState.currentTrick.currentWinner === gameState.myPosition && (
           <>
             <span className="info">{t('game.giveDragonTo')}</span>
