@@ -126,13 +126,15 @@ Players get a `sessionId` (UUID v4) on create/join, stored in localStorage. On p
 
 The server tracks connections, players, games, events, and HTTP requests in SQLite. You can query this data remotely via the admin API.
 
-**API key**: `REDACTED-ROTATED-KEY`
-(Source of truth: `/home/dev/cyprus/.env` on the droplet. Check via `ssh root@165.245.175.45 'grep ^DATA_API_KEY /home/dev/cyprus/.env'`. If the key is rotated, update this line.)
+**API key**: stored in `/home/dev/cyprus/.env` on the droplet as `DATA_API_KEY`.
+Do not paste the value into docs. Generate a replacement with `openssl rand -hex 32`, update the droplet env/1Password, then restart `cyprus.service`.
+Collaborators should use the encrypted repo secret flow in `docs/ACCESS.md`;
+the repo may contain `secrets/cyprus.production.env.age`, never plaintext.
 
 **Query any data** (read-only SELECT queries only):
 ```bash
 curl -s -X POST https://aegist.dev/admin/api/query \
-  -H "Authorization: Bearer REDACTED-ROTATED-KEY" \
+  -H "Authorization: Bearer <DATA_API_KEY_REDACTED>" \
   -H "Content-Type: application/json" \
   -d '{"sql": "SELECT * FROM players ORDER BY games_won DESC", "limit": 100}'
 ```
@@ -140,7 +142,7 @@ curl -s -X POST https://aegist.dev/admin/api/query \
 **List tables and row counts**:
 ```bash
 curl -s https://aegist.dev/admin/api/tables \
-  -H "Authorization: Bearer REDACTED-ROTATED-KEY"
+  -H "Authorization: Bearer <DATA_API_KEY_REDACTED>"
 ```
 
 **Available tables**: `connections`, `players`, `games`, `game_players`, `game_events`, `http_requests`, `admin_sessions`
