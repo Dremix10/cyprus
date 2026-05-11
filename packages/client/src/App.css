@@ -3921,7 +3921,7 @@ span.pass-zone-avatar {
     padding-left: 1rem;
     padding-right: 1rem;
     justify-content: flex-start;
-    padding-top: max(clamp(12.5rem, 30dvh, 15rem), env(safe-area-inset-top));
+    padding-top: max(clamp(14.5rem, 34dvh, 17rem), env(safe-area-inset-top));
     transform: none;
   }
 
