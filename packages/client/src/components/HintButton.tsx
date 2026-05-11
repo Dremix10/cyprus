@@ -26,15 +26,15 @@ export function HintButton() {
 
   return (
     <button
-      className={`hint-btn ${hintStatus === 'used' ? 'hint-btn-used' : ''} ${hintStatus === 'loading' ? 'hint-btn-loading' : ''}`}
+      className={`hint-btn ${hintStatus === 'used' ? 'hint-btn-used' : ''} ${hintStatus === 'loading' ? 'hint-btn-loading' : ''} ${hintRecommendedPass ? 'hint-btn-pass' : ''}`}
       onClick={() => requestHint()}
       disabled={disabled}
       title={title}
-      aria-label="Hint"
+      aria-label={hintRecommendedPass ? 'Hint suggests passing' : 'Hint'}
     >
       <span className="hint-bulb" aria-hidden>{'💡'}</span>
       {hintStatus === 'used' && hintRecommendedPass && (
-        <span className="hint-label">pass</span>
+        <span className="hint-label">Pass</span>
       )}
     </button>
   );
