@@ -6,15 +6,25 @@ import { FriendsPanel } from './Friends.js';
 import { useT } from '../i18n.js';
 import type { LegalPageType } from './LegalPages.js';
 
+const MEANDER_UNIT_WIDTH = 48;
+const MEANDER_UNITS = 7;
+const MEANDER_WIDTH = MEANDER_UNIT_WIDTH * MEANDER_UNITS;
+const MEANDER_PATH = Array.from({ length: MEANDER_UNITS }, (_, index) => {
+  const x = index * MEANDER_UNIT_WIDTH;
+  return `M${x} 9 H${x + 12} V3 H${x + 24} V9 H${x + 36} V15 H${x + 48} V9`;
+}).join(' ');
+
 function MeanderBorder() {
   return (
-    <div className="meander-border">
-      <svg viewBox="0 0 400 12" preserveAspectRatio="none" className="meander-svg">
+    <div className="meander-border" aria-hidden="true">
+      <svg viewBox={`0 0 ${MEANDER_WIDTH} 18`} preserveAspectRatio="xMidYMid meet" className="meander-svg" focusable="false">
         <path
-          d="M0 6 h8 v-6 h6 v6 h6 v6 h6 v-6 h6 v-6 h6 v6 h6 v6 h6 v-6 h6 v-6 h6 v6 h6 v6 h6 v-6 h6 v-6 h6 v6 h6 v6 h6 v-6 h6 v-6 h6 v6 h6 v6 h6 v-6 h6 v-6 h6 v6 h6 v6 h6 v-6 h6 v-6 h6 v6 h6 v6 h6 v-6 h6 v-6 h6 v6 h6 v6 h6 v-6 h6 v-6 h6 v6 h6 v6 h6 v-6 h6 v-6 h6 v6 h6 v6 h6 v-6 h6 v-6 h6 v6 h6 v6 h6 v-6 h6 v-6 h6 v6 h6 v6 h8"
+          d={MEANDER_PATH}
           stroke="#c9a84c"
-          strokeWidth="1.5"
+          strokeWidth="1.6"
           fill="none"
+          strokeLinecap="square"
+          strokeLinejoin="miter"
           opacity="0.6"
         />
       </svg>
