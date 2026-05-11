@@ -160,8 +160,8 @@ generally needs none of these (server runs without auth providers fine):
 | `APP_URL` | Base URL used in password-reset email links (default `https://aegist.dev`) | optional |
 
 The current production `DATA_API_KEY` value is not documented in git. Source of
-truth is `/home/dev/cyprus/.env` on the droplet, and collaborators should get
-the value from the shared 1Password item `Cyprus production DATA_API_KEY`.
+truth is `/home/dev/cyprus/.env` on the droplet. Collaborators should use the
+encrypted repo secret flow in `docs/ACCESS.md`.
 See `docs/ACCESS.md` for collaborator setup.
 
 ### Develop locally
@@ -1146,7 +1146,7 @@ Two browsers, two accounts (or guest + auth), one creates room, the other joins.
 
 ### Exposed env vars
 
-- `DATA_API_KEY` is not documented in git. The current rotated value lives at `/home/dev/cyprus/.env` and should be shared through 1Password. It's a bearer token for admin API. **Treat as secret.**
+- `DATA_API_KEY` is not documented in plaintext git. The current rotated value lives at `/home/dev/cyprus/.env` and may be committed only as encrypted `secrets/cyprus.production.env.age`. It's a bearer token for admin API. **Treat as secret.**
 - Google client ID is public-by-design in client builds; the secret lives only on the server.
 
 ### Pre-public-deploy checklist

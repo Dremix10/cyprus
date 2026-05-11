@@ -128,8 +128,8 @@ The server tracks connections, players, games, events, and HTTP requests in SQLi
 
 **API key**: stored in `/home/dev/cyprus/.env` on the droplet as `DATA_API_KEY`.
 Do not paste the value into docs. Generate a replacement with `openssl rand -hex 32`, update the droplet env/1Password, then restart `cyprus.service`.
-Collaborators should get the current value from the shared 1Password item
-`Cyprus production DATA_API_KEY`, then set it locally as `DATA_API_KEY`.
+Collaborators should use the encrypted repo secret flow in `docs/ACCESS.md`;
+the repo may contain `secrets/cyprus.production.env.age`, never plaintext.
 
 **Query any data** (read-only SELECT queries only):
 ```bash
