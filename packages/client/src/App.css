@@ -3769,7 +3769,7 @@ span.pass-zone-avatar {
     display: grid;
     width: 100%;
     gap: 0.55rem;
-    margin-top: 0.9rem;
+    margin-top: clamp(2.5rem, 7dvh, 5.5rem);
     padding: 0.85rem 1rem 0.75rem;
     border: 1px solid rgba(201, 168, 76, 0.22);
     border-radius: 18px;
@@ -3920,6 +3920,9 @@ span.pass-zone-avatar {
     width: min(88vw, 480px);
     padding-left: 1rem;
     padding-right: 1rem;
+    justify-content: flex-start;
+    padding-top: max(2.4rem, env(safe-area-inset-top));
+    transform: none;
   }
 
   .lobby-bg-zeus {
