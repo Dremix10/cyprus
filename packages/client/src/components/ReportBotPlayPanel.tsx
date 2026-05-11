@@ -28,7 +28,7 @@ export function ReportBotPlayButton() {
         title={disabledReason}
         disabled={!user || plays.length === 0}
       >
-        Report bot play
+        Report
       </button>
       {open && <ReportBotPlayModal onClose={() => setOpen(false)} />}
     </>
