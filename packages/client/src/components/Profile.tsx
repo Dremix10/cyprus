@@ -271,15 +271,12 @@ export function Profile({ onBack, onLegalPage }: { onBack: () => void; onLegalPa
 
         {/* Data & Legal */}
         <div className="profile-section profile-legal-section">
-          <h3 className="profile-section-title">Data & Legal</h3>
-          <p className="profile-legal-copy">
-            Deleting your account removes your login, profile, friends, and account settings. Some game records,
-            scores, reports, and security logs may be retained for integrity and abuse prevention.
-          </p>
+          <h3 className="profile-section-title">{t('profile.dataLegal')}</h3>
+          <p className="profile-legal-copy">{t('profile.dataLegalCopy')}</p>
           <div className="profile-legal-actions">
-            <button className="btn-link profile-legal-link" onClick={() => onLegalPage('privacy')}>Privacy Policy</button>
-            <button className="btn-link profile-legal-link" onClick={() => onLegalPage('terms')}>Terms & Fair Play</button>
-            <button className="btn-link profile-legal-link" onClick={() => onLegalPage('contact')}>Contact / Support</button>
+            <button className="btn-link profile-legal-link" onClick={() => onLegalPage('privacy')}>{t('legal.privacy.title')}</button>
+            <button className="btn-link profile-legal-link" onClick={() => onLegalPage('terms')}>{t('legal.terms.title')}</button>
+            <button className="btn-link profile-legal-link" onClick={() => onLegalPage('contact')}>{t('legal.contact.title')}</button>
           </div>
         </div>
 

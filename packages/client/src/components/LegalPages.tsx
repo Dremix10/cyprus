@@ -1,3 +1,5 @@
+import { useT } from '../i18n.js';
+
 export type LegalPageType = 'privacy' | 'terms' | 'contact';
 
 type LegalPagesProps = {
@@ -5,17 +7,16 @@ type LegalPagesProps = {
   onBack: () => void;
 };
 
-const UPDATED_AT = 'May 11, 2026';
-
 export function LegalPages({ page, onBack }: LegalPagesProps) {
-  const title = page === 'privacy' ? 'Privacy Policy' : page === 'terms' ? 'Terms & Fair Play' : 'Contact & Support';
+  const t = useT();
+  const title = page === 'privacy' ? t('legal.privacy.title') : page === 'terms' ? t('legal.terms.title') : t('legal.contact.title');
 
   return (
     <div className="legal-fullscreen">
       <main className="legal-container">
-        <button className="btn-link legal-back" onClick={onBack}>&larr; Back</button>
+        <button className="btn-link legal-back" onClick={onBack}>&larr; {t('legal.back')}</button>
         <section className="legal-panel">
-          <p className="legal-updated">Last updated: {UPDATED_AT}</p>
+          <p className="legal-updated">{t('legal.updated')}</p>
           <h1 className="legal-title">{title}</h1>
           {page === 'privacy' && <PrivacyPolicy />}
           {page === 'terms' && <TermsAndFairPlay />}
@@ -27,81 +28,65 @@ export function LegalPages({ page, onBack }: LegalPagesProps) {
 }
 
 function PrivacyPolicy() {
+  const t = useT();
   return (
     <div className="legal-copy">
-      <p>
-        Cyprus is an online Tichu game. We collect only the information needed to run accounts,
-        games, matchmaking, support, security, and basic game statistics.
-      </p>
+      <p>{t('legal.privacy.intro')}</p>
 
-      <h2>Information We Collect</h2>
+      <h2>{t('legal.privacy.collectTitle')}</h2>
       <ul>
-        <li>Account details such as username, display name, email address, password login method, avatar, language, and friends.</li>
-        <li>Game information such as room codes, game events, scores, bot reports, rankings, and leaderboard stats.</li>
-        <li>Connection and security information such as IP address, user agent, socket connection records, request logs, and timestamps.</li>
-        <li>Session tokens stored in secure cookies for signed-in users and local browser storage for reconnecting to active games.</li>
+        <li>{t('legal.privacy.collect.0')}</li>
+        <li>{t('legal.privacy.collect.1')}</li>
+        <li>{t('legal.privacy.collect.2')}</li>
+        <li>{t('legal.privacy.collect.3')}</li>
       </ul>
 
-      <h2>How We Use It</h2>
+      <h2>{t('legal.privacy.useTitle')}</h2>
       <ul>
-        <li>To create accounts, keep players signed in, reconnect games, and support guest play.</li>
-        <li>To run multiplayer rooms, matchmaking, friends, invitations, spectating, scoring, and leaderboards.</li>
-        <li>To prevent abuse, debug issues, investigate bot reports, and keep the service reliable.</li>
+        <li>{t('legal.privacy.use.0')}</li>
+        <li>{t('legal.privacy.use.1')}</li>
+        <li>{t('legal.privacy.use.2')}</li>
       </ul>
 
-      <h2>Account Deletion</h2>
-      <p>
-        Deleting your account removes your login, profile, friends, and account settings. Some game records,
-        scores, reports, security logs, and anti-abuse records may be retained so games stay fair and the
-        service can be protected.
-      </p>
+      <h2>{t('legal.privacy.deletionTitle')}</h2>
+      <p>{t('legal.privacy.deletion')}</p>
 
-      <h2>Third Parties</h2>
-      <p>
-        Google Sign-In may be used if enabled. Password reset emails may be sent through an email provider.
-        We do not sell player data.
-      </p>
+      <h2>{t('legal.privacy.thirdTitle')}</h2>
+      <p>{t('legal.privacy.third')}</p>
     </div>
   );
 }
 
 function TermsAndFairPlay() {
+  const t = useT();
   return (
     <div className="legal-copy">
-      <p>
-        By using Cyprus, you agree to play fairly, respect other players, and avoid behavior that damages
-        the game or service.
-      </p>
+      <p>{t('legal.terms.intro')}</p>
 
-      <h2>Fair Play</h2>
+      <h2>{t('legal.terms.fairTitle')}</h2>
       <ul>
-        <li>Do not cheat, coordinate through spectator information, exploit bugs, automate play, or abuse matchmaking.</li>
-        <li>Do not harass players or use offensive names, messages, or profile information.</li>
-        <li>Report suspicious bot or game behavior through the in-game report tools when available.</li>
+        <li>{t('legal.terms.fair.0')}</li>
+        <li>{t('legal.terms.fair.1')}</li>
+        <li>{t('legal.terms.fair.2')}</li>
       </ul>
 
-      <h2>Accounts</h2>
+      <h2>{t('legal.terms.accountsTitle')}</h2>
       <ul>
-        <li>You are responsible for keeping your account secure.</li>
-        <li>We may remove accounts, names, stats, rooms, or access if needed for safety, abuse prevention, or service integrity.</li>
+        <li>{t('legal.terms.accounts.0')}</li>
+        <li>{t('legal.terms.accounts.1')}</li>
       </ul>
 
-      <h2>Service Availability</h2>
-      <p>
-        Cyprus is provided as-is. Games may be interrupted by updates, bugs, network issues, or maintenance.
-        We try to preserve active games where possible, but cannot guarantee uninterrupted play.
-      </p>
+      <h2>{t('legal.terms.serviceTitle')}</h2>
+      <p>{t('legal.terms.service')}</p>
     </div>
   );
 }
 
 function ContactSupport() {
+  const t = useT();
   return (
     <div className="legal-copy">
-      <p>
-        For support, account questions, data requests, bug reports, or fair-play concerns, contact the project
-        through the GitHub repository.
-      </p>
+      <p>{t('legal.contact.intro')}</p>
 
       <p>
         <a href="https://github.com/Dremix10/cyprus" target="_blank" rel="noreferrer">
@@ -109,16 +94,14 @@ function ContactSupport() {
         </a>
       </p>
 
-      <h2>What To Include</h2>
+      <h2>{t('legal.contact.includeTitle')}</h2>
       <ul>
-        <li>Your username or display name.</li>
-        <li>The room code or approximate time of the issue, if it happened during a game.</li>
-        <li>A short description of what happened and what you expected.</li>
+        <li>{t('legal.contact.include.0')}</li>
+        <li>{t('legal.contact.include.1')}</li>
+        <li>{t('legal.contact.include.2')}</li>
       </ul>
 
-      <p>
-        For account deletion, you can also use the delete account option in your profile.
-      </p>
+      <p>{t('legal.contact.deletion')}</p>
     </div>
   );
 }
