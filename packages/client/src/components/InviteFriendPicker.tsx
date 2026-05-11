@@ -1,8 +1,10 @@
 import { useEffect, useState } from 'react';
 import { useFriendStore } from '../stores/friendStore.js';
 import { useAuthStore } from '../stores/authStore.js';
+import { useT } from '../i18n.js';
 
 export function InviteFriendPicker({ onClose }: { onClose: () => void }) {
+  const t = useT();
   const friends = useFriendStore((s) => s.friends);
   const fetchFriends = useFriendStore((s) => s.fetchFriends);
   const sendInvite = useFriendStore((s) => s.sendInvite);
@@ -29,11 +31,11 @@ export function InviteFriendPicker({ onClose }: { onClose: () => void }) {
     <div className="invite-picker-overlay" onClick={onClose}>
       <div className="invite-picker" onClick={(e) => e.stopPropagation()}>
         <div className="invite-picker-header">
-          <h3>Invite a friend</h3>
-          <button className="btn btn-small" onClick={onClose}>Close</button>
+          <h3>{t('friends.inviteFriend')}</h3>
+          <button className="btn btn-small" onClick={onClose}>{t('friends.close')}</button>
         </div>
         {online.length === 0 ? (
-          <p className="invite-picker-empty">No friends are online right now.</p>
+          <p className="invite-picker-empty">{t('friends.noOnlineFriends')}</p>
         ) : (
           <ul className="invite-picker-list">
             {online.map((f) => {
@@ -43,14 +45,14 @@ export function InviteFriendPicker({ onClose }: { onClose: () => void }) {
                   <span className="friend-dot online" />
                   <span className="friend-name">{f.displayName}</span>
                   {status?.kind === 'sent' ? (
-                    <span className="invite-sent">Invited</span>
+                    <span className="invite-sent">{t('friends.invited')}</span>
                   ) : (
                     <button
                       className="btn btn-small"
                       onClick={() => onInvite(f.id)}
                       disabled={busyId === f.id}
                     >
-                      {busyId === f.id ? 'Sending…' : 'Invite'}
+                      {busyId === f.id ? t('friends.sending') : t('friends.invite')}
                     </button>
                   )}
                   {status?.kind === 'error' && (
@@ -67,13 +69,14 @@ export function InviteFriendPicker({ onClose }: { onClose: () => void }) {
 }
 
 export function InviteFriendButton() {
+  const t = useT();
   const user = useAuthStore((s) => s.user);
   const [open, setOpen] = useState(false);
   if (!user) return null; // invites are authenticated-only
   return (
     <>
       <button className="btn btn-small" onClick={() => setOpen(true)}>
-        Invite friend
+        {t('friends.inviteFriend')}
       </button>
       {open && <InviteFriendPicker onClose={() => setOpen(false)} />}
     </>
