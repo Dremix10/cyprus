@@ -9,9 +9,18 @@ interface PlayerHandProps {
   interactive?: boolean;
   lockedCards?: Set<string>;
   receivedCards?: ReceivedCard[];
+  className?: string;
 }
 
-export function PlayerHand({ cards, selectedCards, onToggle, interactive = true, lockedCards, receivedCards }: PlayerHandProps) {
+export function PlayerHand({
+  cards,
+  selectedCards,
+  onToggle,
+  interactive = true,
+  lockedCards,
+  receivedCards,
+  className,
+}: PlayerHandProps) {
   const pointerStart = useRef<{ cardId: string; x: number; y: number } | null>(null);
   const receivedMap = receivedCards
     ? new Map(receivedCards.map((rc) => [rc.cardId, rc.fromTeammate]))
@@ -43,7 +52,7 @@ export function PlayerHand({ cards, selectedCards, onToggle, interactive = true,
   };
 
   return (
-    <div className="player-hand">
+    <div className={`player-hand${className ? ` ${className}` : ''}`}>
       <div className="player-hand-track">
         {cards.map((card, i) => {
           const offset = cards.length > 1 ? (i - (cards.length - 1) / 2) * 2 : 0;

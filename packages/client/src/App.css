@@ -2167,6 +2167,27 @@ body {
   align-items: center;
   gap: 1rem;
   justify-content: center;
+  width: 100%;
+  min-width: 0;
+}
+
+.grand-tichu-view {
+  align-self: center;
+  max-width: min(680px, 100%);
+}
+
+.phase-hand-preview {
+  width: min(100%, 560px);
+  overflow-x: hidden;
+  padding-inline: 0.75rem;
+}
+
+.phase-hand-preview .player-hand-track {
+  justify-content: center;
+}
+
+.phase-actions {
+  width: min(100%, 420px);
 }
 
 /* ─── Cards ─────────────────────────────── */
@@ -3835,7 +3856,7 @@ span.pass-zone-avatar {
   }
 
   .player-hand-track {
-    justify-content: flex-start;
+    justify-content: center;
   }
 
   .player-hand .card {
@@ -3889,8 +3910,77 @@ span.pass-zone-avatar {
   }
 
   .game-info {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, auto) minmax(0, 1fr);
+    align-items: center;
+    gap: 0.35rem;
     padding: 0.4rem 0.75rem;
     font-size: 0.8rem;
+  }
+
+  .game-info > .name-teammate,
+  .game-info > .name-opponent {
+    min-width: 0;
+    white-space: nowrap;
+  }
+
+  .game-info > .name-opponent {
+    text-align: right;
+  }
+
+  .phase-label {
+    min-width: 0;
+    justify-content: center;
+    flex-wrap: wrap;
+    row-gap: 0.2rem;
+    text-align: center;
+    line-height: 1.1;
+  }
+
+  .phase-view {
+    justify-content: flex-start;
+    min-height: 0;
+    padding: clamp(3rem, 14dvh, 7rem) 0.35rem max(1rem, env(safe-area-inset-bottom));
+    gap: 0.8rem;
+  }
+
+  .grand-tichu-view {
+    padding-top: clamp(4.5rem, 20dvh, 9rem);
+  }
+
+  .phase-hand-preview {
+    --hand-card-width: clamp(44px, 7vw, 54px);
+    --hand-card-height: calc(var(--hand-card-width) * 1.42);
+    --hand-overlap: clamp(-14px, -1.8vw, -10px);
+    --hand-lift-space: 16px;
+    width: 100%;
+    max-width: 430px;
+    padding-inline: 0.5rem;
+  }
+
+  .phase-actions {
+    gap: 0.6rem;
+  }
+
+  .phase-actions .btn {
+    flex: 1 1 0;
+    min-height: 50px;
+    padding: 0.7rem 1rem;
+  }
+
+  .phase-actions .confirm-label {
+    flex: 0 0 100%;
+    text-align: center;
+  }
+
+  .grand-tichu-actions .btn-tichu {
+    flex-grow: 1.35;
+    min-width: 165px;
+  }
+
+  .grand-tichu-actions .btn-secondary {
+    flex-grow: 0.75;
+    min-width: 92px;
   }
 
   .pass-zones {
@@ -3950,7 +4040,7 @@ span.pass-zone-avatar {
   }
 
   .game-board {
-    padding: 0.3rem;
+    padding: max(0.35rem, env(safe-area-inset-top)) 0.35rem max(0.45rem, env(safe-area-inset-bottom));
     min-height: auto;
     height: 100dvh;
     overflow: hidden;
@@ -4085,11 +4175,25 @@ span.pass-zone-avatar {
     padding: 0.25rem 0.5rem;
     font-size: 0.7rem;
     margin-bottom: 0.2rem;
+    border-radius: 8px;
+  }
+
+  .game-info > .name-teammate,
+  .game-info > .name-opponent {
+    font-size: clamp(0.64rem, 2.7vw, 0.74rem);
+  }
+
+  .phase-label {
+    gap: 0.22rem;
+    font-size: clamp(0.62rem, 2.5vw, 0.72rem);
+    letter-spacing: 0.04em;
   }
 
   .btn {
-    padding: 0.45rem 0.8rem;
-    font-size: 0.8rem;
+    min-height: 44px;
+    padding: 0.6rem 0.95rem;
+    font-size: 0.88rem;
+    border-radius: 10px;
   }
 
   .btn-small {
@@ -4098,21 +4202,55 @@ span.pass-zone-avatar {
   }
 
   .btn-group {
-    gap: 0.3rem;
+    gap: 0.45rem;
   }
 
   .play-pass-group {
-    gap: 1.5rem;
+    width: min(100%, 340px);
+    gap: 0.75rem;
+  }
+
+  .play-pass-group .btn {
+    flex: 1 1 0;
   }
 
   .btn-play,
   .btn-pass,
   .btn-tichu {
-    min-height: 44px;
+    min-height: 48px;
+  }
+
+  .phase-view {
+    padding: clamp(3.75rem, 16dvh, 7rem) 0.25rem max(0.75rem, env(safe-area-inset-bottom));
+    gap: 0.7rem;
+  }
+
+  .grand-tichu-view {
+    padding-top: clamp(4.75rem, 21dvh, 9.5rem);
+  }
+
+  .phase-hand-preview {
+    --hand-card-width: clamp(42px, 12.2vw, 50px);
+    --hand-card-height: calc(var(--hand-card-width) * 1.42);
+    --hand-overlap: clamp(-14px, -3.2vw, -10px);
+    --hand-lift-space: 14px;
+    max-width: 360px;
+    padding-inline: 0.4rem;
+  }
+
+  .phase-actions {
+    width: min(100%, 340px);
+    gap: 0.55rem;
+  }
+
+  .phase-actions .btn {
+    min-height: 52px;
+    padding: 0.75rem 0.8rem;
+    font-size: 0.9rem;
   }
 
   .phase-view h3 {
-    font-size: 1rem;
+    font-size: 1.08rem;
   }
 
   .info {
@@ -4462,7 +4600,7 @@ span.pass-zone-avatar {
   }
 
   .player-hand-track {
-    justify-content: flex-start;
+    justify-content: center;
   }
 
   .player-hand .card {
