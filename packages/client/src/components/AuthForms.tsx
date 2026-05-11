@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useAuthStore } from '../stores/authStore.js';
 import { useT, useLangStore } from '../i18n.js';
 import type { Lang } from '../i18n.js';
+import type { LegalPageType } from './LegalPages.js';
 
 // ─── Language Selector ──────────────────────────────────────────────
 
@@ -105,7 +106,7 @@ export function ResetPasswordForm({ token, onDone }: { token: string; onDone: ()
 
 // ─── Auth Forms (Login / Register / Forgot Password) ────────────────
 
-export function AuthForms({ onGuest }: { onGuest: () => void }) {
+export function AuthForms({ onGuest, onLegalPage }: { onGuest: () => void; onLegalPage?: (page: LegalPageType) => void }) {
   const [mode, setMode] = useState<'login' | 'register' | 'forgot'>('login');
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
@@ -189,6 +190,15 @@ export function AuthForms({ onGuest }: { onGuest: () => void }) {
         </button>
       </form>
 
+      {mode === 'register' && onLegalPage && (
+        <p className="auth-legal-note">
+          By creating an account, you agree to the{' '}
+          <button className="btn-link auth-legal-link" onClick={() => onLegalPage('terms')}>Terms</button>
+          {' '}and{' '}
+          <button className="btn-link auth-legal-link" onClick={() => onLegalPage('privacy')}>Privacy Policy</button>.
+        </p>
+      )}
+
       {mode === 'login' && (
         <button className="btn-link auth-forgot-link" onClick={() => switchMode('forgot')}>{t('auth.forgotPassword')}</button>
       )}
@@ -206,6 +216,16 @@ export function AuthForms({ onGuest }: { onGuest: () => void }) {
       <button className="btn btn-olympus btn-guest" onClick={onGuest}>
         {t('auth.playAsGuest')}
       </button>
+
+      {onLegalPage && (
+        <div className="auth-legal-links">
+          <button className="btn-link auth-legal-link" onClick={() => onLegalPage('privacy')}>Privacy</button>
+          <span className="auth-legal-sep">|</span>
+          <button className="btn-link auth-legal-link" onClick={() => onLegalPage('terms')}>Terms</button>
+          <span className="auth-legal-sep">|</span>
+          <button className="btn-link auth-legal-link" onClick={() => onLegalPage('contact')}>Contact</button>
+        </div>
+      )}
     </div>
   );
 }

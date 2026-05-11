@@ -4,6 +4,7 @@ import { useAuthStore } from '../stores/authStore.js';
 import { AuthForms, UserBadge } from './AuthForms.js';
 import { FriendsPanel } from './Friends.js';
 import { useT } from '../i18n.js';
+import type { LegalPageType } from './LegalPages.js';
 
 function MeanderBorder() {
   return (
@@ -51,7 +52,7 @@ function GreekColumn({ side }: { side: 'left' | 'right' }) {
   );
 }
 
-export function Lobby({ onTutorial, onLeaderboard, onProfile, onLiveGames }: { onTutorial: () => void; onLeaderboard: () => void; onProfile: () => void; onLiveGames: () => void }) {
+export function Lobby({ onTutorial, onLeaderboard, onProfile, onLiveGames, onLegalPage }: { onTutorial: () => void; onLeaderboard: () => void; onProfile: () => void; onLiveGames: () => void; onLegalPage: (page: LegalPageType) => void }) {
   const t = useT();
   const [roomCode, setRoomCode] = useState('');
   const [difficulty, setDifficulty] = useState('medium');
@@ -89,6 +90,15 @@ export function Lobby({ onTutorial, onLeaderboard, onProfile, onLiveGames }: { o
       <button className="btn-link lobby-link" onClick={onLiveGames}>
         Watch Live
       </button>
+    </div>
+  );
+  const renderLegalLinks = () => (
+    <div className="lobby-legal-links">
+      <button className="btn-link lobby-legal-link" onClick={() => onLegalPage('privacy')}>Privacy</button>
+      <span className="lobby-link-sep">|</span>
+      <button className="btn-link lobby-legal-link" onClick={() => onLegalPage('terms')}>Terms</button>
+      <span className="lobby-link-sep">|</span>
+      <button className="btn-link lobby-legal-link" onClick={() => onLegalPage('contact')}>Contact</button>
     </div>
   );
   // Pre-fill nickname from display name on first auth load
@@ -137,7 +147,7 @@ export function Lobby({ onTutorial, onLeaderboard, onProfile, onLiveGames }: { o
             {authLoading ? (
               <p className="auth-loading">{t('lobby.loading')}</p>
             ) : !showGameForm ? (
-              <AuthForms onGuest={() => setGuestMode(true)} />
+              <AuthForms onGuest={() => setGuestMode(true)} onLegalPage={onLegalPage} />
             ) : (
               <>
                 <input
@@ -307,12 +317,14 @@ export function Lobby({ onTutorial, onLeaderboard, onProfile, onLiveGames }: { o
 
         <div className="lobby-footer">
           <MeanderBorder />
+          {renderLegalLinks()}
           <p className="lobby-updated">Last updated: {new Date(__BUILD_TIME__).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</p>
         </div>
 
         {showGameForm && (
           <div className="lobby-mobile-bottom">
             {renderSecondaryLinks()}
+            {renderLegalLinks()}
             <p className="lobby-updated">Last updated: {new Date(__BUILD_TIME__).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</p>
           </div>
         )}

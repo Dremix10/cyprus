@@ -707,6 +707,19 @@ body {
   animation: form-entrance 0.6s ease-out 0.4s both;
 }
 
+.lobby-legal-links {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 0.35rem;
+  margin-top: 0.65rem;
+}
+
+.lobby-legal-link {
+  font-size: 0.78rem;
+  color: rgba(201, 168, 76, 0.58);
+}
+
 .lobby-mobile-bottom {
   display: none;
 }
@@ -736,6 +749,35 @@ body {
   text-align: center;
 }
 
+.auth-legal-note {
+  margin: -0.1rem 0 0;
+  color: rgba(255, 255, 255, 0.42);
+  font-size: 0.72rem;
+  line-height: 1.45;
+  text-align: center;
+}
+
+.auth-legal-link {
+  display: inline;
+  padding: 0;
+  font-size: inherit;
+  color: rgba(201, 168, 76, 0.78);
+  vertical-align: baseline;
+}
+
+.auth-legal-links {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 0.35rem;
+  margin-top: 0.1rem;
+}
+
+.auth-legal-sep {
+  color: rgba(201, 168, 76, 0.28);
+  font-size: 0.7rem;
+}
+
 .btn-link {
   background: none;
   border: none;
@@ -756,6 +798,85 @@ body {
 
 .btn-guest:hover {
   opacity: 1;
+}
+
+/* ─── Legal Pages ─────────────────────────────────────────── */
+
+.legal-fullscreen {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  overflow-y: auto;
+  background:
+    radial-gradient(circle at 50% 0%, rgba(201, 168, 76, 0.08), transparent 34rem),
+    #0a0a1a;
+  padding: 2rem 1rem;
+}
+
+.legal-container {
+  width: 100%;
+  max-width: 760px;
+  display: flex;
+  flex-direction: column;
+  gap: 0.9rem;
+}
+
+.legal-back {
+  align-self: flex-start;
+  color: #c9a84c;
+  font-size: 1rem;
+}
+
+.legal-panel {
+  background: rgba(201, 168, 76, 0.06);
+  border: 1px solid rgba(201, 168, 76, 0.16);
+  border-radius: 12px;
+  padding: 1.4rem 1.55rem;
+}
+
+.legal-updated {
+  margin: 0 0 0.35rem;
+  color: rgba(255, 255, 255, 0.38);
+  font-size: 0.76rem;
+}
+
+.legal-title {
+  font-family: 'Cinzel', serif;
+  color: #c9a84c;
+  font-size: clamp(1.6rem, 5vw, 2.3rem);
+  line-height: 1.1;
+  margin: 0 0 1rem;
+}
+
+.legal-copy {
+  color: rgba(232, 224, 208, 0.9);
+  font-size: 0.95rem;
+  line-height: 1.65;
+}
+
+.legal-copy h2 {
+  color: #c9a84c;
+  font-size: 1rem;
+  margin: 1.35rem 0 0.45rem;
+}
+
+.legal-copy p {
+  margin: 0 0 0.8rem;
+}
+
+.legal-copy ul {
+  margin: 0.4rem 0 0.9rem;
+  padding-left: 1.2rem;
+}
+
+.legal-copy li {
+  margin: 0.34rem 0;
+}
+
+.legal-copy a {
+  color: #c9a84c;
 }
 
 .auth-title {
@@ -1507,6 +1628,32 @@ body {
 .profile-confirm-text {
   color: rgba(255, 255, 255, 0.6);
   font-size: 0.85rem;
+}
+
+/* Data & legal */
+.profile-legal-section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.profile-legal-copy {
+  margin: 0;
+  color: rgba(232, 224, 208, 0.68);
+  font-size: 0.82rem;
+  line-height: 1.5;
+}
+
+.profile-legal-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem 0.65rem;
+}
+
+.profile-legal-link {
+  padding: 0;
+  color: rgba(201, 168, 76, 0.78);
+  font-size: 0.8rem;
 }
 
 /* Delete account (subtle) */
