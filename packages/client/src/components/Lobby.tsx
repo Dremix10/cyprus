@@ -76,6 +76,21 @@ export function Lobby({ onTutorial, onLeaderboard, onProfile, onLiveGames }: { o
   const authUser = useAuthStore((s) => s.user);
   const authLoading = useAuthStore((s) => s.loading);
   const showGameForm = authUser || guestMode;
+  const renderSecondaryLinks = () => (
+    <div className="lobby-links">
+      <button className="btn-link lobby-link" onClick={onTutorial}>
+        {t('lobby.howToPlay')}
+      </button>
+      <span className="lobby-link-sep">|</span>
+      <button className="btn-link lobby-link" onClick={onLeaderboard}>
+        {t('lobby.leaderboard')}
+      </button>
+      <span className="lobby-link-sep">|</span>
+      <button className="btn-link lobby-link" onClick={onLiveGames}>
+        Watch Live
+      </button>
+    </div>
+  );
   // Pre-fill nickname from display name on first auth load
   const [authPrefilled, setAuthPrefilled] = useState(false);
   if (authUser && !authPrefilled && !nickname) {
@@ -278,19 +293,7 @@ export function Lobby({ onTutorial, onLeaderboard, onProfile, onLiveGames }: { o
 
                 {error && <p className="error">{error}</p>}
 
-                <div className="lobby-links">
-                  <button className="btn-link lobby-link" onClick={onTutorial}>
-                    {t('lobby.howToPlay')}
-                  </button>
-                  <span className="lobby-link-sep">|</span>
-                  <button className="btn-link lobby-link" onClick={onLeaderboard}>
-                    {t('lobby.leaderboard')}
-                  </button>
-                  <span className="lobby-link-sep">|</span>
-                  <button className="btn-link lobby-link" onClick={onLiveGames}>
-                    Watch Live
-                  </button>
-                </div>
+                <div className="lobby-links-inline">{renderSecondaryLinks()}</div>
 
                 {!authUser && guestMode && (
                   <button className="btn-link auth-back-link" onClick={() => setGuestMode(false)}>
@@ -304,6 +307,11 @@ export function Lobby({ onTutorial, onLeaderboard, onProfile, onLiveGames }: { o
 
         <div className="lobby-footer">
           <MeanderBorder />
+          <p className="lobby-updated">Last updated: {new Date(__BUILD_TIME__).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</p>
+        </div>
+
+        <div className="lobby-mobile-bottom">
+          {renderSecondaryLinks()}
           <p className="lobby-updated">Last updated: {new Date(__BUILD_TIME__).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</p>
         </div>
       </div>
