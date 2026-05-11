@@ -352,13 +352,16 @@ body {
 /* Meander border */
 .meander-border {
   margin: 0.5rem auto 0;
-  max-width: 320px;
-  overflow: hidden;
+  width: min(320px, 72vw);
+  display: flex;
+  justify-content: center;
+  overflow: visible;
 }
 
 .meander-svg {
+  display: block;
   width: 100%;
-  height: 12px;
+  height: 18px;
 }
 
 /* Form card with glass effect */
