@@ -239,19 +239,21 @@ export function GameBoard() {
         </span>
         <span className="phase-label">
           {roomCode && <span className="room-code-badge">{roomCode}</span>}
-          {formatPhase(gameState.phase)}
-          <SoundToggle />
-          <QuickGuideButton />
-          {hasHistory && (
-            <button className="history-btn" onClick={() => setShowHistory(true)} title={t('game.scoreHistory')}>
-              {'\uD83D\uDCCA'}
+          <span className="game-phase-title">{formatPhase(gameState.phase)}</span>
+          <span className="game-controls">
+            <SoundToggle />
+            <QuickGuideButton />
+            {hasHistory && (
+              <button className="history-btn" onClick={() => setShowHistory(true)} title={t('game.scoreHistory')}>
+                {'\uD83D\uDCCA'}
+              </button>
+            )}
+            <HintButton />
+            {!gameState.isSpectator && <ReportBotPlayButton />}
+            <button className="leave-btn" onClick={() => gameState.isSpectator ? reset() : setLeaveConfirm(true)}>
+              {gameState.isSpectator ? 'Exit' : t('game.exit')}
             </button>
-          )}
-          <HintButton />
-          {!gameState.isSpectator && <ReportBotPlayButton />}
-          <button className="leave-btn" onClick={() => gameState.isSpectator ? reset() : setLeaveConfirm(true)}>
-            {gameState.isSpectator ? 'Exit' : t('game.exit')}
-          </button>
+          </span>
         </span>
         <span className="name-opponent">
           {t('game.opponents')}: {gameState.scores[1 - myTeam]} / {gameState.targetScore}
@@ -401,9 +403,10 @@ function PlayingLayout({
   const canPass = gameState.canPass ?? false;
   const canCallTichu = gameState.canCallTichu ?? false;
   const mustPlayWish = gameState.mustPlayWish ?? false;
+  const hasActionBar = isDragonGive || (isMyTurn && canAct) || canCallTichu;
 
   return (
-    <div className="playing-layout">
+    <div className={`playing-layout ${hasActionBar ? 'playing-layout-has-actions' : ''}`}>
       {/* Top opponent (partner) */}
       <div className="layout-top">
         <OpponentHand
@@ -536,7 +539,7 @@ function PlayingLayout({
       {showWishSelector && <WishSelector />}
 
       {/* Action buttons */}
-      <div className="btn-group">
+      <div className="btn-group game-action-bar">
         {isDragonGive && gameState.currentTrick.currentWinner === gameState.myPosition && (
           <>
             <span className="info">{t('game.giveDragonTo')}</span>
