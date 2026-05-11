@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useAuthStore } from '../stores/authStore.js';
 import { useT } from '../i18n.js';
 import { LanguageSelector } from './AuthForms.js';
+import type { LegalPageType } from './LegalPages.js';
 
 const AVATARS = [
   'zeus', 'athena', 'poseidon', 'apollo', 'artemis', 'hermes',
@@ -23,7 +24,7 @@ function canChangeDisplayName(changedAt: string | null): { canChange: boolean; d
   return { canChange: false, daysLeft: Math.ceil((thirtyDays - elapsed) / (24 * 60 * 60 * 1000)) };
 }
 
-export function Profile({ onBack }: { onBack: () => void }) {
+export function Profile({ onBack, onLegalPage }: { onBack: () => void; onLegalPage: (page: LegalPageType) => void }) {
   const t = useT();
   const user = useAuthStore((s) => s.user);
   const changeDisplayName = useAuthStore((s) => s.changeDisplayName);
@@ -266,6 +267,20 @@ export function Profile({ onBack }: { onBack: () => void }) {
               <button className="btn-link" onClick={() => setShowSignOutConfirm(false)}>{t('profile.cancel')}</button>
             </div>
           )}
+        </div>
+
+        {/* Data & Legal */}
+        <div className="profile-section profile-legal-section">
+          <h3 className="profile-section-title">Data & Legal</h3>
+          <p className="profile-legal-copy">
+            Deleting your account removes your login, profile, friends, and account settings. Some game records,
+            scores, reports, and security logs may be retained for integrity and abuse prevention.
+          </p>
+          <div className="profile-legal-actions">
+            <button className="btn-link profile-legal-link" onClick={() => onLegalPage('privacy')}>Privacy Policy</button>
+            <button className="btn-link profile-legal-link" onClick={() => onLegalPage('terms')}>Terms & Fair Play</button>
+            <button className="btn-link profile-legal-link" onClick={() => onLegalPage('contact')}>Contact / Support</button>
+          </div>
         </div>
 
         {/* Delete Account */}

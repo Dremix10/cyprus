@@ -14,11 +14,17 @@ import { ConnectionStatus } from './components/ConnectionStatus.js';
 import { ResetPasswordForm } from './components/AuthForms.js';
 import { LiveGames } from './components/LiveGames.js';
 import { FriendInvitePopup } from './components/FriendInvitePopup.js';
+import { LegalPages, type LegalPageType } from './components/LegalPages.js';
 import './App.css';
 
 function getResetToken(): string | null {
   const params = new URLSearchParams(window.location.search);
   return params.get('resetToken');
+}
+
+function getLegalPageFromPath(): LegalPageType | null {
+  const path = window.location.pathname.replace(/^\/+/, '').replace(/\/+$/, '');
+  return path === 'privacy' || path === 'terms' || path === 'contact' ? path : null;
 }
 
 export default function App() {
@@ -32,6 +38,17 @@ export default function App() {
   const [showProfile, setShowProfile] = useState(false);
   const [showLiveGames, setShowLiveGames] = useState(false);
   const [resetToken, setResetToken] = useState<string | null>(getResetToken);
+  const [legalPage, setLegalPage] = useState<LegalPageType | null>(getLegalPageFromPath);
+
+  const openLegalPage = (page: LegalPageType) => {
+    window.history.pushState({}, '', `/${page}`);
+    setLegalPage(page);
+  };
+
+  const closeLegalPage = () => {
+    window.history.pushState({}, '', '/');
+    setLegalPage(null);
+  };
 
   // Check auth and attempt session reconnect on mount
   useEffect(() => {
@@ -42,6 +59,12 @@ export default function App() {
     }
     checkAuth();
     trySessionReconnect();
+  }, []);
+
+  useEffect(() => {
+    const onPopState = () => setLegalPage(getLegalPageFromPath());
+    window.addEventListener('popstate', onPopState);
+    return () => window.removeEventListener('popstate', onPopState);
   }, []);
 
   const t = useT();
@@ -78,6 +101,10 @@ export default function App() {
     );
   }
 
+  if (legalPage) {
+    return <LegalPages page={legalPage} onBack={closeLegalPage} />;
+  }
+
   if (showTutorial) {
     return (
       <div className="app">
@@ -97,7 +124,7 @@ export default function App() {
   if (showProfile) {
     return (
       <div className="app">
-        <Profile onBack={() => setShowProfile(false)} />
+        <Profile onBack={() => setShowProfile(false)} onLegalPage={openLegalPage} />
       </div>
     );
   }
@@ -114,7 +141,7 @@ export default function App() {
     <div className="app">
       <ConnectionStatus />
       <MaintenanceBanner />
-      {view === 'lobby' && <Lobby onTutorial={() => setShowTutorial(true)} onLeaderboard={() => setShowLeaderboard(true)} onProfile={() => setShowProfile(true)} onLiveGames={() => setShowLiveGames(true)} />}
+      {view === 'lobby' && <Lobby onTutorial={() => setShowTutorial(true)} onLeaderboard={() => setShowLeaderboard(true)} onProfile={() => setShowProfile(true)} onLiveGames={() => setShowLiveGames(true)} onLegalPage={openLegalPage} />}
       {view === 'queue' && <MatchmakingQueue />}
       {view === 'waiting' && <WaitingRoom />}
       {view === 'game' && <GameBoard />}
