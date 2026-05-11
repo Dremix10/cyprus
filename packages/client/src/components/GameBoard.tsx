@@ -342,6 +342,7 @@ function PlayingLayout({
   const t = useT();
   const gameState = useGameStore((s) => s.gameState)!;
   const selectedCards = useGameStore((s) => s.selectedCards);
+  const hintRecommendedPass = useGameStore((s) => s.hintRecommendedPass);
   const toggleCard = useGameStore((s) => s.toggleCard);
   const playCards = useGameStore((s) => s.playCards);
   const passTurn = useGameStore((s) => s.passTurn);
@@ -574,7 +575,7 @@ function PlayingLayout({
             </button>
             {canPass && !mustPlayWish && (
               <button
-                className={`btn btn-pass ${gameState.mustPass ? 'btn-pass-recommended' : ''}`}
+                className={`btn btn-pass ${gameState.mustPass ? 'btn-pass-recommended' : ''} ${hintRecommendedPass ? 'btn-pass-hint' : ''}`}
                 onClick={passTurn}
               >
                 {t('game.pass')}

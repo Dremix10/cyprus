@@ -179,6 +179,13 @@ body {
   animation: pass-pulse 1.8s ease-in-out infinite;
 }
 
+.btn-pass-hint {
+  border-color: #ffd700;
+  color: #ffd700;
+  background: rgba(255, 215, 0, 0.1);
+  box-shadow: 0 0 0 2px rgba(255, 215, 0, 0.18);
+}
+
 @keyframes pass-pulse {
   0%, 100% { box-shadow: 0 0 0 0 rgba(243, 156, 18, 0.35); }
   50%      { box-shadow: 0 0 0 6px rgba(243, 156, 18, 0); }
@@ -4107,7 +4114,7 @@ span.pass-zone-avatar {
   .player-hand {
     --hand-card-width: clamp(52px, 14vw, 58px);
     --hand-card-height: calc(var(--hand-card-width) * 1.42);
-    --hand-overlap: clamp(-20px, -4.6vw, -16px);
+    --hand-overlap: clamp(-16px, -3.8vw, -13px);
     --hand-hit-y: 11px;
     --hand-hit-x: 8px;
     --hand-lift-space: 26px;
@@ -4345,6 +4352,15 @@ span.pass-zone-avatar {
     display: none;
   }
 
+  .hint-btn-pass {
+    min-width: 64px;
+  }
+
+  .hint-btn-pass .hint-label {
+    display: inline;
+    font-size: 0.62rem;
+  }
+
   .btn {
     min-height: 44px;
     padding: 0.6rem 0.95rem;
@@ -4525,7 +4541,7 @@ span.pass-zone-avatar {
     overflow-x: auto;
     justify-content: flex-start;
     margin: 0.1rem auto 0.7rem;
-    padding: 0 0.45rem 0.25rem;
+    padding: 0.7rem 0.45rem 0.25rem;
     scrollbar-width: none;
   }
 
@@ -5584,6 +5600,14 @@ span.pass-zone-avatar {
   border-color: rgba(120, 120, 120, 0.4);
   background: rgba(120, 120, 120, 0.1);
   color: #999;
+}
+
+.hint-btn-pass {
+  border-color: rgba(255, 215, 0, 0.75);
+  background: rgba(255, 215, 0, 0.16);
+  color: #ffd700;
+  opacity: 1;
+  min-width: 70px;
 }
 
 .hint-bulb {
