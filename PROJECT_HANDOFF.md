@@ -151,6 +151,7 @@ generally needs none of these (server runs without auth providers fine):
 | Variable | Purpose | Required for |
 |---|---|---|
 | `PORT` | Server port (default `3001`) | optional |
+| `HOST` / `BIND_HOST` | Server bind address. Production should use `127.0.0.1` so only nginx is public. Defaults to `0.0.0.0`. | production hardening |
 | `NODE_ENV` | `production` enables CSP / disables CORS-dev-mode | production |
 | `CLIENT_URL` | CORS origin in dev (default `http://localhost:5173`) | dev |
 | `DATA_API_KEY` | Bearer token for `/admin/api/*` and `/admin/api/shutdown` etc. | production |
