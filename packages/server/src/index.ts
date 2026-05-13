@@ -294,8 +294,13 @@ app.get('/admin/api/drain-status', (req, res) => {
 
 // Serve the client build (always — not just production)
 const clientDist = path.resolve(__dirname, '../../client/dist');
+const clientDistProd = path.resolve(__dirname, '../../client/dist-prod');
 const legacyClientDist = path.resolve(__dirname, '../../client/dist-dev');
-const clientBuild = existsSync(path.join(clientDist, 'index.html')) ? clientDist : legacyClientDist;
+const clientBuild = existsSync(path.join(clientDistProd, 'index.html'))
+  ? clientDistProd
+  : existsSync(path.join(clientDist, 'index.html'))
+    ? clientDist
+    : legacyClientDist;
 app.use(express.static(clientBuild));
 app.get('*', (_req, res) => {
   res.sendFile(path.join(clientBuild, 'index.html'));
