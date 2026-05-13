@@ -24,6 +24,7 @@ const httpServer = createServer(app);
 
 const isProduction = process.env.NODE_ENV === 'production';
 const PORT = Number(process.env.PORT) || 3001;
+const HOST = process.env.HOST || process.env.BIND_HOST || '0.0.0.0';
 
 // ─── Database & Auth ────────────────────────────────────────────────
 const db = new TrackerDB();
@@ -316,8 +317,8 @@ httpServer.on('error', (err: NodeJS.ErrnoException) => {
   }
 });
 
-httpServer.listen(PORT, '0.0.0.0', () => {
-  console.log(`Server running on 0.0.0.0:${PORT}`);
+httpServer.listen(PORT, HOST, () => {
+  console.log(`Server running on ${HOST}:${PORT}`);
 });
 
 // ─── Graceful Shutdown ──────────────────────────────────────────────

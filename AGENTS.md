@@ -38,7 +38,7 @@ npm run clean        # Remove all dist/ folders
 - **Auto-deploy**: pushes to `main` trigger GitHub Actions → SSH → pull + build + restart
 - **Server**: Digital Ocean droplet at `165.245.175.45`
 - **User**: `dev` (no sudo — need root for process management)
-- **Nginx** proxies port 80 -> localhost:3001
+- **Nginx** proxies port 80 -> localhost:3001; production sets `HOST=127.0.0.1` so Node is not directly exposed
 - **Deploy**: `sudo bash deploy/killstart.sh` (kills old server, starts new one)
 - **Full deploy** (pull + build + restart): `sudo bash deploy/restart.sh`
 - **Rebuild only**: `bash deploy/rebuild.sh`
