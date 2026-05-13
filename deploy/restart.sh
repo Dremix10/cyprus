@@ -62,17 +62,22 @@ wait_for_port_free() {
 }
 
 wait_for_health() {
+  local health_file
+  health_file="$(mktemp)"
+
   echo "Waiting for health check..."
   for _ in $(seq 1 20); do
-    if curl -fsS http://localhost:3001/health >/tmp/cyprus-health.json 2>/dev/null; then
-      cat /tmp/cyprus-health.json
+    if curl -fsS http://localhost:3001/health >"$health_file" 2>/dev/null; then
+      cat "$health_file"
       echo ""
       echo "=== Deploy successful ==="
+      rm -f "$health_file"
       return 0
     fi
     sleep 1
   done
 
+  rm -f "$health_file"
   return 1
 }
 
