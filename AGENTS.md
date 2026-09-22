@@ -36,7 +36,7 @@ npm run clean        # Remove all dist/ folders
 ## Deployment
 
 - **Auto-deploy**: pushes to `main` trigger GitHub Actions → SSH → pull + build + restart
-- **Server**: Digital Ocean droplet at `165.245.175.45`
+- **Server**: Digital Ocean droplet at `104.131.94.154`
 - **User**: `dev` (no sudo — need root for process management)
 - **Nginx** proxies port 80 -> localhost:3001; production sets `HOST=127.0.0.1` so Node is not directly exposed
 - **Deploy**: `sudo bash deploy/killstart.sh` (kills old server, starts new one)
@@ -126,13 +126,15 @@ Players get a `sessionId` (UUID v4) on create/join, stored in localStorage. On p
 
 The server tracks connections, players, games, events, and HTTP requests in SQLite. You can query this data remotely via the admin API.
 
-**API key**: `4dd4daf3be64b48c9d9c23fa1d16bc7b29ed34bbf1eda1270f10792a7a2be816`
-(Source of truth: `/home/dev/cyprus/.env` on the droplet. Check via `ssh root@165.245.175.45 'grep ^DATA_API_KEY /home/dev/cyprus/.env'`. If the key is rotated, update this line.)
+**API key**: stored in `/home/dev/cyprus/.env` on the droplet as `DATA_API_KEY`. Fetch it live:
+```bash
+KEY=$(ssh cyprus 'grep ^DATA_API_KEY /home/dev/cyprus/.env' | cut -d= -f2)
+```
 
 **Query any data** (read-only SELECT queries only):
 ```bash
 curl -s -X POST https://aegist.dev/admin/api/query \
-  -H "Authorization: Bearer 4dd4daf3be64b48c9d9c23fa1d16bc7b29ed34bbf1eda1270f10792a7a2be816" \
+  -H "Authorization: Bearer $KEY" \
   -H "Content-Type: application/json" \
   -d '{"sql": "SELECT * FROM players ORDER BY games_won DESC", "limit": 100}'
 ```
@@ -140,7 +142,7 @@ curl -s -X POST https://aegist.dev/admin/api/query \
 **List tables and row counts**:
 ```bash
 curl -s https://aegist.dev/admin/api/tables \
-  -H "Authorization: Bearer 4dd4daf3be64b48c9d9c23fa1d16bc7b29ed34bbf1eda1270f10792a7a2be816"
+  -H "Authorization: Bearer $KEY"
 ```
 
 **Available tables**: `connections`, `players`, `games`, `game_players`, `game_events`, `http_requests`, `admin_sessions`
