@@ -160,8 +160,10 @@ generally needs none of these (server runs without auth providers fine):
 | `SMTP_HOST` / `SMTP_PORT` / `SMTP_USER` / `SMTP_PASS` / `SMTP_FROM` | Forgot-password emails | optional |
 | `APP_URL` | Base URL used in password-reset email links (default `https://aegist.dev`) | optional |
 
-The current production `DATA_API_KEY` is documented in `CLAUDE.md`. Source of truth is
-`/home/dev/cyprus/.env` on the droplet.
+The current production `DATA_API_KEY` value is not documented in git. Source of
+truth is `/home/dev/cyprus/.env` on the droplet. Collaborators should use the
+encrypted repo secret flow in `docs/ACCESS.md`.
+See `docs/ACCESS.md` for collaborator setup.
 
 ### Develop locally
 
@@ -1145,7 +1147,7 @@ Two browsers, two accounts (or guest + auth), one creates room, the other joins.
 
 ### Exposed env vars
 
-- `DATA_API_KEY` is documented in CLAUDE.md (current rotated value lives at `/home/dev/cyprus/.env`). It's a bearer token for admin API. **Treat as secret.**
+- `DATA_API_KEY` is not documented in plaintext git. The current rotated value lives at `/home/dev/cyprus/.env` and may be committed only as encrypted `secrets/cyprus.production.env.age`. It's a bearer token for admin API. **Treat as secret.**
 - Google client ID is public-by-design in client builds; the secret lives only on the server.
 
 ### Pre-public-deploy checklist
@@ -1272,7 +1274,7 @@ curl https://aegist.dev/health
 ### Read first
 
 1. **This file** end to end.
-2. **`CLAUDE.md`** — has project conventions, command shortcuts, the auto-deploy info, and the live `DATA_API_KEY`.
+2. **`CLAUDE.md`** — has project conventions, command shortcuts, auto-deploy info, and `DATA_API_KEY` handling instructions.
 3. `packages/shared/src/types/game.ts` and `packages/shared/src/types/events.ts` — the contract between server and client.
 4. `packages/server/src/GameEngine.ts` — the rules engine.
 5. `packages/server/src/BotAI.ts` (top of file: `BotConfig`, `DEFAULT_BOT_CONFIG`, the choosePlay flow).
