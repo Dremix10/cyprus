@@ -1,0 +1,35 @@
+# Guest solo game against the live server: Grand Tichu -> pass 3 -> first plays.
+appId: com.growzonecy.cyprus
+---
+- launchApp:
+    clearState: true
+- extendedWaitUntil:
+    visible: "TITSU"
+    timeout: 20000
+- tapOn:
+    id: "nickname"
+- inputText: "Maestro"
+- tapOn: "Done"
+- takeScreenshot: 01-lobby
+- tapOn:
+    id: "play-solo"
+- extendedWaitUntil:
+    visible: "Grand Tichu?"
+    timeout: 20000
+- takeScreenshot: 02-grand-tichu
+- tapOn: "Pass"
+- extendedWaitUntil:
+    visible: "Pass three cards"
+    timeout: 30000
+- tapOn:
+    id: "hand-0"
+- tapOn:
+    id: "hand-1"
+- tapOn:
+    id: "hand-2"
+- takeScreenshot: 03-passing
+- tapOn: "Pass cards"
+- extendedWaitUntil:
+    visible: "Your turn.*|.*'s turn"
+    timeout: 60000
+- takeScreenshot: 04-table

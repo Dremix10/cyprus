@@ -1,10 +1,10 @@
 import type { PlayerPosition } from '@cyprus/shared';
 import { GamePhase, findPlayableFromHand } from '@cyprus/shared';
-import type { RoomManager, Room } from './RoomManager.js';
+import { RECONNECT_GRACE_MS, type RoomManager, type Room } from './RoomManager.js';
 import type { GameMonitor } from './GameMonitor.js';
 
 const TURN_TIMEOUT_MS = 60_000;
-const DISCONNECT_REPLACE_MS = 30_000;
+const DISCONNECT_REPLACE_MS = RECONNECT_GRACE_MS;
 
 
 type BroadcastFn = (roomCode: string) => void;
@@ -83,10 +83,49 @@ export class TimerManager {
     this.turnTimerPlayer.delete(roomCode);
   }
 
+  private clearDisconnectTimers(roomCode: string): void {
+    for (const pos of [0, 1, 2, 3] as PlayerPosition[]) {
+      this.cancelDisconnectTimer(roomCode, pos);
+    }
+  }
+
+  private connectedHumanCount(room: Room): number {
+    let n = 0;
+    for (const [pos, player] of room.players) {
+      if (player.connected && !room.botPositions.has(pos)) n++;
+    }
+    return n;
+  }
+
   scheduleTurnTimer(roomCode: string): void {
     const room = this.rooms.getRoom(roomCode);
-    if (!room || !room.engine) { this.clearTurnTimer(roomCode); return; }
-    if (room.botPositions.size >= 3) { this.clearTurnTimer(roomCode); return; }
+    if (!room || !room.engine) {
+      this.clearTurnTimer(roomCode);
+      this.clearDisconnectTimers(roomCode);
+      return;
+    }
+
+    // Solo keeps the human's seat. Nobody else is waiting, and a bot
+    // taking the only human would leave four bots playing each other.
+    if (room.botPositions.size >= 3) {
+      this.clearTurnTimer(roomCode);
+      this.clearDisconnectTimers(roomCode);
+      return;
+    }
+
+    const someoneThere = this.connectedHumanCount(room) > 0;
+    for (const pos of [0, 1, 2, 3] as PlayerPosition[]) {
+      if (room.botPositions.has(pos)) {
+        this.cancelDisconnectTimer(roomCode, pos);
+        continue;
+      }
+      const player = room.players.get(pos);
+      if (player && !player.connected && someoneThere) {
+        this.scheduleDisconnectReplace(roomCode, pos, player.nickname);
+      } else {
+        this.cancelDisconnectTimer(roomCode, pos);
+      }
+    }
 
     const engine = room.engine;
     if (engine.state.phase !== GamePhase.PLAYING) { this.clearTurnTimer(roomCode); return; }
@@ -95,21 +134,12 @@ export class TimerManager {
     const currentPlayer = engine.state.currentPlayer;
     if (room.botPositions.has(currentPlayer)) { this.clearTurnTimer(roomCode); return; }
 
-    // Disconnect→bot replacement only counts down during the disconnected player's turn.
-    // Clear any timers for non-current disconnected players.
-    for (const pos of [0, 1, 2, 3] as PlayerPosition[]) {
-      if (pos !== currentPlayer) this.cancelDisconnectTimer(roomCode, pos);
-    }
-
     const currentPlayerData = room.players.get(currentPlayer);
-    if (currentPlayerData && !currentPlayerData.connected) {
-      // Disconnected player's turn — start the 30s bot-replacement timer in parallel with
-      // the turn timer. Whichever fires first handles it. We preserve the turn timer so
-      // that on a quick reconnect (page refresh) the remaining time is unchanged.
-      this.scheduleDisconnectReplace(roomCode, currentPlayer, currentPlayerData.nickname);
-    } else {
-      // Connected player's turn — cancel any pending bot replacement for them.
-      this.cancelDisconnectTimer(roomCode, currentPlayer);
+    // Their clock waits. Coming back starts a fresh minute. We do not
+    // play a card for someone whose link just dropped.
+    if (!currentPlayerData || !currentPlayerData.connected) {
+      this.clearTurnTimer(roomCode);
+      return;
     }
 
     // If a timer is already running for this same player, preserve its deadline.
@@ -134,6 +164,8 @@ export class TimerManager {
       const eng = currentRoom.engine;
       if (eng.state.phase !== GamePhase.PLAYING) return;
       if (eng.state.currentPlayer !== currentPlayer) return;
+      const seat = currentRoom.players.get(currentPlayer);
+      if (!seat || !seat.connected || currentRoom.botPositions.has(currentPlayer)) return;
 
       try {
         let events;
@@ -198,7 +230,9 @@ export class TimerManager {
       this.disconnectDeadlines.delete(timerKey);
 
       const roomBeforeReplace = this.rooms.getRoom(roomCode);
-      const playerBeforeReplace = roomBeforeReplace?.players.get(position);
+      // An empty table should sit quietly, not turn into four bots.
+      if (!roomBeforeReplace || this.connectedHumanCount(roomBeforeReplace) === 0) return;
+      const playerBeforeReplace = roomBeforeReplace.players.get(position);
       if (playerBeforeReplace?.userId) {
         if (!this.disconnectedPlayers.has(roomCode)) {
           this.disconnectedPlayers.set(roomCode, new Map());
@@ -216,7 +250,7 @@ export class TimerManager {
       const botName = botPlayer?.nickname ?? 'Bot';
 
       this.monitor?.playerReplacedByBot(roomCode, nickname, botName, playerBeforeReplace?.userId);
-      this.emit(roomCode, 'room:player_disconnected', `${nickname} was replaced by ${botName}`);
+      this.emit(roomCode, 'room:player_disconnected', nickname);
       this.broadcastGameState(roomCode);
     }, DISCONNECT_REPLACE_MS);
 

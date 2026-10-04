@@ -226,15 +226,14 @@ export class BotController {
     if (phase === GamePhase.PLAYING) {
       if (engine.state.wishPending !== null) {
         const wishPos = engine.state.wishPending;
-        const wishPlayer = room.players.get(wishPos);
-        // Auto-resolve wish if player is a bot OR disconnected (prevents game freeze)
-        if (room.botPositions.has(wishPos) || !wishPlayer?.connected) {
+        // A dropped human still gets the grace period to choose the wish.
+        if (room.botPositions.has(wishPos)) {
           const hand = engine.state.players[wishPos].hand;
           const gameContext = this.buildGameContext(engine);
           const rank = botAI.chooseWish(hand, gameContext);
           return () => engine.setWish(wishPos, rank);
         }
-        return null; // Connected human — wait for their wish
+        return null; // Human still chooses, including during the grace period
       }
 
       const currentPlayer = engine.state.currentPlayer;
