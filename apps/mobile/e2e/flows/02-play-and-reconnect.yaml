@@ -1,6 +1,6 @@
 # Guest solo vs the live server: illegal play -> game:error toast, Hint -> Play a trick,
 # then kill the app mid-game and reopen: the table ticket must put us back at the table.
-appId: com.growzonecy.cyprus
+appId: dev.aegist.titsu
 ---
 - launchApp:
     clearState: true

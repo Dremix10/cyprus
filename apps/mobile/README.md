@@ -4,7 +4,7 @@ A phone window onto the live game at https://aegist.dev. The server is the judge
 `game:state` and sends actions. Not an npm workspace (Expo uses React 19, the website React 18).
 Types and a few runtime enums come from `packages/shared/src` via `metro.config.js`.
 
-- Bundle id `com.growzonecy.cyprus`, EAS owner `growzone-cy`, Expo SDK 54, New Architecture.
+- Bundle id `dev.aegist.titsu`, EAS owner `growzone-cy`, Expo SDK 54, New Architecture.
 - Liquid Glass only on floating bars (`components/GlassSurface.tsx`); cards and table are solid.
 - Guest play only so far. Accounts (cookie `cyprus_auth`) and friends are not started.
 

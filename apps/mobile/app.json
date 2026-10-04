@@ -10,8 +10,7 @@
     "newArchEnabled": true,
     "ios": {
       "supportsTablet": false,
-      "bundleIdentifier": "com.growzonecy.cyprus",
-      "buildNumber": "1",
+      "bundleIdentifier": "dev.aegist.titsu",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false
       },
@@ -33,9 +32,19 @@
       "typedRoutes": true
     },
     "extra": {
-      "router": {}
+      "router": {},
+      "eas": {
+        "projectId": "fa6e1148-a0f6-4773-9be9-6aef33a39323"
+      }
     },
     "icon": "./assets/images/icon.png",
-    "owner": "growzone-cy"
+    "owner": "growzone-cy",
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/fa6e1148-a0f6-4773-9be9-6aef33a39323"
+    },
+    "android": {}
   }
 }

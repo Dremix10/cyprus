@@ -1,5 +1,5 @@
 # Guest solo game against the live server: Grand Tichu -> pass 3 -> first plays.
-appId: com.growzonecy.cyprus
+appId: dev.aegist.titsu
 ---
 - launchApp:
     clearState: true
