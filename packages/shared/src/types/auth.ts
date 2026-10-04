@@ -5,6 +5,7 @@ export interface AuthUser {
   email: string | null;
   hasPassword: boolean;
   hasGoogle: boolean;
+  hasApple: boolean;
   createdAt: string;
   gamesPlayed: number;
   gamesWon: number;

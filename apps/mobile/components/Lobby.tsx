@@ -2,9 +2,12 @@ import { useState } from 'react';
 import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Btn } from './Btn';
+import { GlassCard, GoldTitle, Hall } from './Olympus';
 import { color, radius } from '@/lib/theme';
-import { useApp } from '@/lib/store';
 import { DIFFICULTIES, SCORE_OPTIONS } from '@/lib/config';
+import { useApp } from '@/lib/store';
+import { useAuth } from '@/lib/authStore';
+import { useLangStore, useT, type Lang } from '@/lib/i18n';
 
 function Segmented<T extends string | number>({
   options,
@@ -34,7 +37,22 @@ function Segmented<T extends string | number>({
   );
 }
 
-export function Lobby({ onRules }: { onRules: () => void }) {
+export function Lobby({
+  onRules,
+  onAuth,
+  onLeaderboard,
+  onFriends,
+  onLive,
+  onProfile,
+}: {
+  onRules: () => void;
+  onAuth: () => void;
+  onLeaderboard: () => void;
+  onFriends: () => void;
+  onLive: () => void;
+  onProfile: () => void;
+}) {
+  const t = useT();
   const insets = useSafeAreaInsets();
   const nickname = useApp((s) => s.nickname);
   const setNickname = useApp((s) => s.setNickname);
@@ -44,94 +62,137 @@ export function Lobby({ onRules }: { onRules: () => void }) {
   const setDifficulty = useApp((s) => s.setDifficulty);
   const busy = useApp((s) => s.busy);
   const conn = useApp((s) => s.conn);
+  const maintenance = useApp((s) => s.maintenance);
   const createSolo = useApp((s) => s.createSolo);
   const createRoom = useApp((s) => s.createRoom);
   const joinRoom = useApp((s) => s.joinRoom);
+  const joinQueue = useApp((s) => s.joinQueue);
+  const user = useAuth((s) => s.user);
+  const lang = useLangStore((s) => s.lang);
+  const changeLanguage = useAuth((s) => s.changeLanguage);
   const [code, setCode] = useState('');
-  const canGo = nickname.trim().length > 0 && !busy;
+  const [panel, setPanel] = useState<'home' | 'create' | 'join' | 'solo'>('home');
+  const canGo = nickname.trim().length > 0 && !busy && conn === 'connected';
+
+  const setLang = (next: Lang) => { void changeLanguage(next); };
 
   return (
-    <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-      <ScrollView
-        keyboardShouldPersistTaps="handled"
-        contentContainerStyle={[styles.scroll, { paddingTop: insets.top + 36, paddingBottom: insets.bottom + 24 }]}
-      >
-        <Text style={styles.title}>TITSU</Text>
-        <Text style={styles.sub}>Cyprus · four players, two teams</Text>
+    <Hall>
+      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+        <ScrollView
+          keyboardShouldPersistTaps="handled"
+          contentContainerStyle={[styles.scroll, { paddingTop: insets.top + 28, paddingBottom: insets.bottom + 28 }]}
+        >
+          <View style={styles.langRow}>
+            <Pressable onPress={() => setLang('en')}><Text style={[styles.lang, lang === 'en' && styles.langOn]}>EN</Text></Pressable>
+            <Pressable onPress={() => setLang('el')}><Text style={[styles.lang, lang === 'el' && styles.langOn]}>ΕΛ</Text></Pressable>
+          </View>
+          <GoldTitle title={t('lobby.title')} subtitle={t('lobby.subtitle')} />
+          {maintenance ? <Text style={styles.banner}>{maintenance}</Text> : null}
 
-        <View style={styles.card}>
-          <Text style={styles.label}>Nickname</Text>
-          <TextInput
-            value={nickname}
-            onChangeText={setNickname}
-            testID="nickname"
-            placeholder="Your name"
-            placeholderTextColor={color.textFaint}
-            autoCorrect={false}
-            maxLength={20}
-            returnKeyType="done"
-            style={styles.input}
-          />
+          <GlassCard>
+            <Text style={styles.label}>{t('lobby.enterName')}</Text>
+            <TextInput
+              value={nickname}
+              onChangeText={setNickname}
+              testID="nickname"
+              placeholder={t('lobby.enterName')}
+              placeholderTextColor={color.textFaint}
+              autoCorrect={false}
+              maxLength={20}
+              returnKeyType="done"
+              style={styles.input}
+            />
+            {panel === 'home' && (
+              <View style={{ gap: 10 }}>
+                <Btn label={t('lobby.playOnline')} kind="gold" disabled={!canGo} onPress={() => { void joinQueue(); }} />
+                <Btn label={t('lobby.createRoom')} kind="ghost" disabled={!canGo} onPress={() => setPanel('create')} />
+                <Btn label={t('lobby.joinRoom')} kind="ghost" disabled={conn !== 'connected'} onPress={() => setPanel('join')} />
+                <Btn label={t('lobby.soloGame')} kind="gold" disabled={!canGo} onPress={() => setPanel('solo')} />
+              </View>
+            )}
+            {panel === 'create' && (
+              <View style={{ gap: 10 }}>
+                <Text style={styles.label}>{t('lobby.playTo')}</Text>
+                <Segmented options={SCORE_OPTIONS} value={targetScore as (typeof SCORE_OPTIONS)[number]} onChange={setTargetScore} label={(n) => `${n}`} />
+                <Text style={styles.label}>{t('lobby.botLevel')}</Text>
+                <Segmented options={DIFFICULTIES} value={difficulty as (typeof DIFFICULTIES)[number]} onChange={setDifficulty} label={(d) => t(`lobby.${d}`)} />
+                <Btn label={busy ? t('lobby.loading') : t('lobby.createRoom')} kind="gold" disabled={!canGo} onPress={() => { void createRoom(); }} />
+                <Btn label={t('lobby.back')} kind="ghost" onPress={() => setPanel('home')} />
+              </View>
+            )}
+            {panel === 'join' && (
+              <View style={{ gap: 10 }}>
+                <TextInput
+                  value={code}
+                  onChangeText={(v) => setCode(v.toUpperCase())}
+                  placeholder={t('lobby.roomCode')}
+                  placeholderTextColor={color.textFaint}
+                  autoCapitalize="characters"
+                  autoCorrect={false}
+                  maxLength={8}
+                  style={styles.input}
+                />
+                <Btn label={t('lobby.join')} kind="gold" disabled={!canGo || !code.trim()} onPress={() => { void joinRoom(code); }} />
+                <Btn label={t('lobby.back')} kind="ghost" onPress={() => setPanel('home')} />
+              </View>
+            )}
+            {panel === 'solo' && (
+              <View style={{ gap: 10 }}>
+                <Text style={styles.label}>{t('lobby.playTo')}</Text>
+                <Segmented options={SCORE_OPTIONS} value={targetScore as (typeof SCORE_OPTIONS)[number]} onChange={setTargetScore} label={(n) => `${n}`} />
+                <Text style={styles.label}>{t('lobby.botLevel')}</Text>
+                <Segmented options={DIFFICULTIES} value={difficulty as (typeof DIFFICULTIES)[number]} onChange={setDifficulty} label={(d) => t(`lobby.${d}`)} />
+                <Btn testID="play-solo" label={busy ? t('lobby.loading') : t('lobby.start')} kind="gold" disabled={!canGo} onPress={() => { void createSolo(); }} />
+                <Btn label={t('lobby.back')} kind="ghost" onPress={() => setPanel('home')} />
+              </View>
+            )}
+          </GlassCard>
 
-          <Text style={styles.label}>Play to</Text>
-          <Segmented options={SCORE_OPTIONS} value={targetScore as (typeof SCORE_OPTIONS)[number]} onChange={setTargetScore} label={String} />
+          <View style={styles.links}>
+            <Link label={t('lobby.howToPlay')} onPress={onRules} />
+            <Link label={t('lobby.leaderboard')} onPress={onLeaderboard} />
+            <Link label="Live Games" onPress={onLive} />
+            <Link label={t('friends.title')} onPress={user ? onFriends : onAuth} />
+            <Link label={user ? user.displayName : t('auth.signIn')} onPress={user ? onProfile : onAuth} />
+          </View>
+          {conn !== 'connected' && <Text style={styles.hint}>{t('app.reconnecting')}</Text>}
+        </ScrollView>
+      </KeyboardAvoidingView>
+    </Hall>
+  );
+}
 
-          <Text style={styles.label}>Bot difficulty</Text>
-          <Segmented
-            options={DIFFICULTIES}
-            value={difficulty as (typeof DIFFICULTIES)[number]}
-            onChange={setDifficulty}
-            label={(d) => d[0].toUpperCase() + d.slice(1)}
-          />
-        </View>
-
-        <Btn testID="play-solo" label={busy ? 'Starting…' : 'Play solo'} kind="gold" disabled={!canGo || conn !== 'connected'} onPress={createSolo} haptic="medium" />
-        <Btn label="Create room" kind="ghost" disabled={!canGo || conn !== 'connected'} onPress={createRoom} />
-
-        <View style={styles.joinRow}>
-          <TextInput
-            value={code}
-            onChangeText={(t) => setCode(t.toUpperCase())}
-            placeholder="Room code"
-            placeholderTextColor={color.textFaint}
-            autoCapitalize="characters"
-            autoCorrect={false}
-            maxLength={8}
-            style={[styles.input, { flex: 1 }]}
-          />
-          <Btn label="Join" kind="ghost" disabled={!canGo || !code.trim() || conn !== 'connected'} onPress={() => joinRoom(code)} />
-        </View>
-
-        <Pressable onPress={onRules} accessibilityRole="button" style={styles.rules}>
-          <Text style={styles.rulesText}>How to play</Text>
-        </Pressable>
-        {conn !== 'connected' && <Text style={styles.hint}>Connecting to the server…</Text>}
-      </ScrollView>
-    </KeyboardAvoidingView>
+function Link({ label, onPress }: { label: string; onPress: () => void }) {
+  return (
+    <Pressable onPress={onPress} style={styles.linkHit} accessibilityRole="button">
+      <Text style={styles.link}>{label}</Text>
+    </Pressable>
   );
 }
 
 const styles = StyleSheet.create({
-  scroll: { paddingHorizontal: 20, gap: 14 },
-  title: { color: color.gold, fontSize: 52, fontWeight: '900', letterSpacing: 8, textAlign: 'center' },
-  sub: { color: color.textDim, fontSize: 15, textAlign: 'center', marginBottom: 14 },
-  card: { backgroundColor: color.surface, borderRadius: radius.lg, padding: 18, gap: 10, borderWidth: StyleSheet.hairlineWidth, borderColor: color.line },
-  label: { color: color.textDim, fontSize: 13, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.8, marginTop: 4 },
+  scroll: { paddingHorizontal: 28, gap: 16 },
+  langRow: { flexDirection: 'row', justifyContent: 'flex-end', gap: 12 },
+  lang: { color: color.textFaint, fontSize: 14, fontWeight: '700' },
+  langOn: { color: color.gold },
+  banner: { color: color.gold, textAlign: 'center' },
+  label: { color: color.gold, fontSize: 12, letterSpacing: 0.8, textTransform: 'uppercase' },
   input: {
-    minHeight: 52,
+    minHeight: 48,
     borderRadius: radius.md,
-    backgroundColor: color.surfaceRaised,
+    backgroundColor: 'rgba(15,52,96,0.55)',
     color: color.text,
-    paddingHorizontal: 16,
+    paddingHorizontal: 14,
     fontSize: 18,
   },
-  seg: { flexDirection: 'row', backgroundColor: color.surfaceRaised, borderRadius: radius.md, padding: 3 },
-  segItem: { flex: 1, minHeight: 44, borderRadius: radius.md - 3, alignItems: 'center', justifyContent: 'center' },
-  segActive: { backgroundColor: '#1F9D63' },
-  segText: { color: color.textDim, fontSize: 14, fontWeight: '600' },
-  segTextActive: { color: color.white },
-  joinRow: { flexDirection: 'row', gap: 10, alignItems: 'center' },
-  rules: { minHeight: 44, alignItems: 'center', justifyContent: 'center' },
-  rulesText: { color: color.textDim, fontSize: 15, textDecorationLine: 'underline' },
+  seg: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
+  segItem: { minHeight: 40, paddingHorizontal: 10, borderRadius: radius.md, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(15,52,96,0.45)' },
+  segActive: { backgroundColor: color.gold },
+  segText: { color: color.textDim, fontSize: 13, fontWeight: '600' },
+  segTextActive: { color: color.goldInk },
+  links: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: 8 },
+  linkHit: { minHeight: 44, justifyContent: 'center', paddingHorizontal: 8 },
+  link: { color: color.gold, fontSize: 15 },
   hint: { color: color.textFaint, textAlign: 'center' },
 });

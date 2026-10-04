@@ -34,28 +34,26 @@ export function GlassSurface({
   tint?: string;
 }) {
   const reduce = useReduceTransparency();
-  if (LIQUID_GLASS && !reduce) {
-    return (
-      <GlassView glassEffectStyle="regular" tintColor={tint} style={style}>
-        {children}
-      </GlassView>
-    );
-  }
-  if (Platform.OS === 'ios' && !reduce) {
-    return (
-      <BlurView intensity={55} tint="systemChromeMaterialDark" style={[style, styles.clip]}>
-        {children}
-      </BlurView>
-    );
-  }
-  return <View style={[style, styles.solid]}>{children}</View>;
+  const inner = LIQUID_GLASS && !reduce ? (
+    <GlassView glassEffectStyle="regular" tintColor={tint ?? 'rgba(201,168,76,0.16)'} style={style}>
+      {children}
+    </GlassView>
+  ) : Platform.OS === 'ios' && !reduce ? (
+    <BlurView intensity={80} tint="systemChromeMaterialDark" style={[style, styles.clip]}>
+      {children}
+    </BlurView>
+  ) : (
+    <View style={[style, styles.solid]}>{children}</View>
+  );
+  return <View style={styles.rim}>{inner}</View>;
 }
 
 const styles = StyleSheet.create({
-  clip: { overflow: 'hidden' },
-  solid: {
-    backgroundColor: color.surfaceRaised,
+  rim: {
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: color.line,
+    borderRadius: 22,
   },
+  clip: { overflow: 'hidden' },
+  solid: { backgroundColor: color.surface },
 });

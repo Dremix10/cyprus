@@ -1,28 +1,27 @@
-/** Design tokens. Cards, tiles and the table are solid; only floating bars use glass. */
+/** The website's Greek hall: night blue, gold meander, columns. Glass floats on top of it. */
 export const color = {
-  felt: '#0E4D33',
-  feltDeep: '#0A3624',
-  feltEdge: '#07281A',
-  surface: '#14261D',
-  surfaceRaised: '#1C3629',
-  line: 'rgba(255,255,255,0.12)',
-  text: '#F4F7F5',
-  textDim: 'rgba(244,247,245,0.68)',
-  textFaint: 'rgba(244,247,245,0.42)',
-  gold: '#F2C14E',
-  goldInk: '#3A2A00',
-  danger: '#E5484D',
-  ok: '#3FCB7E',
-  teamUs: '#7FD6A8',
-  teamThem: '#F2A38A',
+  felt: '#12122A',
+  feltDeep: '#0D0D1A',
+  feltEdge: '#1A1A3E',
+  surface: '#16213E',
+  surfaceRaised: '#0F3460',
+  line: 'rgba(201,168,76,0.45)',
+  text: '#EEEAF4',
+  textDim: 'rgba(237,232,245,0.72)',
+  textFaint: 'rgba(201,168,76,0.55)',
+  gold: '#C9A84C',
+  goldInk: '#1A1A2E',
+  danger: '#E94560',
+  ok: '#2ECC71',
+  teamUs: '#3498DB',
+  teamThem: '#E74C3C',
   cardFace: '#FBF8F1',
   cardEdge: '#CFC7B4',
   cardBack: '#7A1F2B',
   white: '#FFFFFF',
+  navy: '#1A1A2E',
 } as const;
 
 export const radius = { sm: 8, md: 14, lg: 22, pill: 999 } as const;
 
-export const font = {
-  rounded: undefined as string | undefined,
-} as const;
+export const greekFont = 'Georgia' as const;

@@ -469,6 +469,15 @@ describe('AuthService', () => {
       expect(secondLogin.user.hasGoogle).toBe(true);
     });
 
+    it('creates an account from Sign in with Apple', async () => {
+      const result = await auth.loginWithApple('apple-sub-1', 'ada@privaterelay.appleid.com', 'Ada', null, null);
+      expect(result.user.hasApple).toBe(true);
+      expect(result.user.displayName).toBe('Ada');
+      const again = await auth.loginWithApple('apple-sub-1', null, null, null, null);
+      expect(again.user.username).toBe(result.user.username);
+      expect(again.user.hasApple).toBe(true);
+    });
+
     it('returns existing account for same Google ID', async () => {
       await auth.loginWithGoogle('google-789', 'first@example.com', 'First Login', null, null);
       const result = await auth.loginWithGoogle('google-789', 'first@example.com', 'First Login', null, null);

@@ -157,6 +157,7 @@ export class TrackerDB {
         password_hash TEXT,
         email TEXT COLLATE NOCASE,
         google_id TEXT,
+        apple_id TEXT,
         created_at TEXT DEFAULT (datetime('now')),
         updated_at TEXT DEFAULT (datetime('now')),
         locked_until TEXT,
@@ -300,6 +301,7 @@ export class TrackerDB {
     const addColumnMigrations = [
       `ALTER TABLE users ADD COLUMN email TEXT COLLATE NOCASE`,
       `ALTER TABLE users ADD COLUMN google_id TEXT`,
+      `ALTER TABLE users ADD COLUMN apple_id TEXT`,
       `ALTER TABLE game_players ADD COLUMN user_id INTEGER`,
       `ALTER TABLE users ADD COLUMN avatar TEXT`,
       `ALTER TABLE users ADD COLUMN display_name_changed_at TEXT`,
@@ -321,6 +323,7 @@ export class TrackerDB {
     this.db.exec(`
       CREATE UNIQUE INDEX IF NOT EXISTS idx_users_email ON users(email);
       CREATE UNIQUE INDEX IF NOT EXISTS idx_users_google ON users(google_id);
+      CREATE UNIQUE INDEX IF NOT EXISTS idx_users_apple ON users(apple_id);
       CREATE INDEX IF NOT EXISTS idx_bot_reports_review_status ON bot_play_reports(review_status);
       CREATE INDEX IF NOT EXISTS idx_auto_bot_reports_review_status ON auto_bot_play_reports(review_status);
     `);
@@ -1253,32 +1256,32 @@ export class TrackerDB {
 
   // ─── Users ──────────────────────────────────────────────────────────
 
-  createUser(username: string, displayName: string, passwordHash: string | null, email: string | null = null, googleId: string | null = null): number {
+  createUser(username: string, displayName: string, passwordHash: string | null, email: string | null = null, googleId: string | null = null, appleId: string | null = null): number {
     const result = this.db.prepare(
-      `INSERT INTO users (username, display_name, password_hash, email, google_id) VALUES (?, ?, ?, ?, ?)`
-    ).run(username, displayName, passwordHash, email, googleId);
+      `INSERT INTO users (username, display_name, password_hash, email, google_id, apple_id) VALUES (?, ?, ?, ?, ?, ?)`
+    ).run(username, displayName, passwordHash, email, googleId, appleId);
     return Number(result.lastInsertRowid);
   }
 
   getUserByUsername(username: string): {
     id: number; username: string; display_name: string; password_hash: string | null;
-    email: string | null; google_id: string | null;
+    email: string | null; google_id: string | null; apple_id: string | null;
     created_at: string; locked_until: string | null; failed_login_attempts: number;
   } | undefined {
     return this.db.prepare(
-      `SELECT id, username, display_name, password_hash, email, google_id, created_at, locked_until, failed_login_attempts FROM users WHERE username = ?`
+      `SELECT id, username, display_name, password_hash, email, google_id, apple_id, created_at, locked_until, failed_login_attempts FROM users WHERE username = ?`
     ).get(username) as ReturnType<TrackerDB['getUserByUsername']>;
   }
 
   getUserByEmail(email: string): ReturnType<TrackerDB['getUserByUsername']> {
     return this.db.prepare(
-      `SELECT id, username, display_name, password_hash, email, google_id, created_at, locked_until, failed_login_attempts FROM users WHERE email = ?`
+      `SELECT id, username, display_name, password_hash, email, google_id, apple_id, created_at, locked_until, failed_login_attempts FROM users WHERE email = ?`
     ).get(email) as ReturnType<TrackerDB['getUserByEmail']>;
   }
 
   getUserByGoogleId(googleId: string): ReturnType<TrackerDB['getUserByUsername']> {
     return this.db.prepare(
-      `SELECT id, username, display_name, password_hash, email, google_id, created_at, locked_until, failed_login_attempts FROM users WHERE google_id = ?`
+      `SELECT id, username, display_name, password_hash, email, google_id, apple_id, created_at, locked_until, failed_login_attempts FROM users WHERE google_id = ?`
     ).get(googleId) as ReturnType<TrackerDB['getUserByGoogleId']>;
   }
 
@@ -1286,6 +1289,18 @@ export class TrackerDB {
     this.db.prepare(
       `UPDATE users SET google_id = ?, email = COALESCE(email, ?), updated_at = datetime('now') WHERE id = ?`
     ).run(googleId, email, userId);
+  }
+
+  getUserByAppleId(appleId: string): ReturnType<TrackerDB['getUserByUsername']> {
+    return this.db.prepare(
+      `SELECT id, username, display_name, password_hash, email, google_id, apple_id, created_at, locked_until, failed_login_attempts FROM users WHERE apple_id = ?`
+    ).get(appleId) as ReturnType<TrackerDB['getUserByAppleId']>;
+  }
+
+  linkAppleAccount(userId: number, appleId: string, email: string | null): void {
+    this.db.prepare(
+      `UPDATE users SET apple_id = ?, email = COALESCE(email, ?), updated_at = datetime('now') WHERE id = ?`
+    ).run(appleId, email, userId);
   }
 
   updateUserEmail(userId: number, email: string): void {

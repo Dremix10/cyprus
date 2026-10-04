@@ -1,7 +1,7 @@
 import express, { type Request, type Response, type NextFunction } from 'express';
 import type { TrackerDB } from './Database.js';
 import type { AuthService } from './AuthService.js';
-import { SESSION_COOKIE } from './AuthRoutes.js';
+import { tokenFromHeaders } from './AuthRoutes.js';
 import { isUserOnline } from './SocketHandler.js';
 
 interface AuthRequest extends Request {
@@ -10,14 +10,7 @@ interface AuthRequest extends Request {
 
 function requireAuth(authService: AuthService) {
   return (req: AuthRequest, res: Response, next: NextFunction) => {
-    let token: string | undefined;
-    const cookieHeader = req.headers.cookie;
-    if (cookieHeader) {
-      for (const pair of cookieHeader.split(';')) {
-        const [key, val] = pair.trim().split('=');
-        if (key === SESSION_COOKIE) { token = val; break; }
-      }
-    }
+    const token = tokenFromHeaders(req.headers);
     if (!token) { res.status(401).json({ error: 'Not authenticated' }); return; }
     const session = authService.validateSession(token);
     if (!session) { res.status(401).json({ error: 'Invalid session' }); return; }
