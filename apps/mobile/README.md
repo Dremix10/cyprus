@@ -12,7 +12,11 @@ Types and a few runtime enums come from `packages/shared/src` via `metro.config.
 
     npm install
     npx expo run:ios --configuration Release --device <simulator udid>
-    maestro --device <udid> test e2e/flows/02-play-and-reconnect.yaml   # needs network; plays on aegist.dev
+    maestro --device <udid> test e2e/flows/03-auth-panel.yaml
+    maestro --device <udid> test e2e/flows/04-table-reconnect.yaml   # needs network; plays on aegist.dev
+
+For isolated simulator QA, set `EXPO_PUBLIC_SERVER_URL` to a disposable local server when bundling.
+Session-persistence tests require Xcode's simulator keychain entitlements; disabling code signing removes them.
 
 ## TestFlight status
 
