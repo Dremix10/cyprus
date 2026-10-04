@@ -1,0 +1,80 @@
+# Guest solo vs the live server: illegal play -> game:error toast, Hint -> Play a trick,
+# then kill the app mid-game and reopen: the table ticket must put us back at the table.
+appId: dev.aegist.titsu
+---
+- launchApp:
+    clearState: true
+- extendedWaitUntil:
+    visible: "TITSU"
+    timeout: 20000
+- tapOn:
+    id: "nickname"
+- inputText: "Maestro"
+- tapOn: "Done"
+- tapOn:
+    id: "play-solo"
+- extendedWaitUntil:
+    visible: "Grand Tichu?"
+    timeout: 20000
+- tapOn: "Pass"
+- extendedWaitUntil:
+    visible: "Pass three cards"
+    timeout: 30000
+- tapOn:
+    id: "hand-0"
+- tapOn:
+    id: "hand-1"
+- tapOn:
+    id: "hand-2"
+- tapOn: "Pass cards"
+- extendedWaitUntil:
+    visible: "Your turn.*"
+    timeout: 120000
+# illegal selection: two unrelated cards
+- tapOn:
+    id: "hand-4"
+- tapOn:
+    id: "hand-9"
+- tapOn:
+    id: "play"
+- extendedWaitUntil:
+    visible: "Cards do not form.*|.*valid.*|.*[Ii]llegal.*|.*[Cc]annot.*"
+    timeout: 8000
+- takeScreenshot: 10-illegal-toast
+# let the app resync, then Hint -> Play
+- tapOn:
+    id: "hint"
+- extendedWaitUntil:
+    visible: "Play [0-9]+"
+    timeout: 6000
+    optional: true
+- takeScreenshot: 11-hint-result
+- runFlow:
+    when:
+      notVisible: "Play [0-9]+"
+    commands:
+      - tapOn:
+          id: "pass"
+- runFlow:
+    when:
+      visible: "Play [0-9]+"
+    commands:
+      - tapOn:
+          id: "play"
+- runFlow:
+    when:
+      visible: "You played the Mahjong"
+    commands:
+      - takeScreenshot: 11b-wish
+      - tapOn: "Wish 5"
+- extendedWaitUntil:
+    visible: ".*'s turn|Your turn.*"
+    timeout: 20000
+- takeScreenshot: 12-after-play
+# kill + reopen mid-game
+- stopApp
+- launchApp
+- extendedWaitUntil:
+    visible: "Your turn.*|.*'s turn"
+    timeout: 40000
+- takeScreenshot: 13-after-reconnect

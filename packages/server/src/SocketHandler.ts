@@ -152,12 +152,19 @@ export class SocketHandler {
     return this.db.getUserById(userId)?.avatar ?? undefined;
   }
 
-  private checkRate(socket: TypedSocket, action: string, limit: number = 20, windowMs: number = 5000): boolean {
-    if (!this.rateLimiter.isAllowed(`${socket.id}:${action}`, limit, windowMs)) {
-      socket.emit('game:error', 'Too many requests, slow down');
-      return false;
-    }
-    return true;
+  private checkRate(
+    socket: TypedSocket,
+    action: string,
+    limit: number = 20,
+    windowMs: number = 5000,
+    callback?: (response: { error: string }) => void,
+  ): boolean {
+    if (this.rateLimiter.isAllowed(`${socket.id}:${action}`, limit, windowMs)) return true;
+    const message = 'Too many requests, slow down';
+    // Answer the click. Leaving the callback hanging makes the button wait forever.
+    if (callback) callback({ error: message });
+    else socket.emit('game:error', message);
+    return false;
   }
 
   // ─── Socket Event Registration ──────────────────────────────────────
@@ -167,10 +174,14 @@ export class SocketHandler {
       const ip = this.getClientIP(socket);
       const ua = socket.handshake.headers['user-agent'] || null;
 
-      if (ip && !this.rateLimiter.isAllowed(`conn:${ip}`, 40, 60_000)) {
+      // A flapping phone, or a few phones on one wifi, must still get back in.
+      // Closing the pipe without the "server kicked you" packet lets the phone retry.
+      const connMax = Number(process.env.CONN_RATE_MAX ?? 180);
+      const connWindow = Number(process.env.CONN_RATE_WINDOW_MS ?? 60_000);
+      if (ip && !this.rateLimiter.isAllowed(`conn:${ip}`, connMax, connWindow)) {
         console.log(`[connection] RATE LIMITED ip=${ip}`);
         socket.emit('game:error', 'Too many connections, please wait a moment');
-        socket.disconnect(true);
+        socket.conn.close();
         return;
       }
 
@@ -211,7 +222,7 @@ export class SocketHandler {
 
   private registerRoomEvents(socket: TypedSocket, ip: string | null): void {
     socket.on('room:create', (nickname, targetScore, difficulty, callback) => {
-      if (!this.checkRate(socket, 'create', 5, 30_000)) return;
+      if (!this.checkRate(socket, 'create', 5, 30_000, callback)) return;
       if (this.draining) { callback({ error: 'Server is updating — please try again in a minute' }); return; }
       const userId = socket.data.userId as number | undefined;
       const validDiffs: BotDifficulty[] = ['easy', 'medium', 'hard', 'extreme', 'unfair'];
@@ -232,7 +243,7 @@ export class SocketHandler {
     });
 
     socket.on('room:create_solo', (nickname, targetScore, difficulty, callback) => {
-      if (!this.checkRate(socket, 'create', 5, 30_000)) return;
+      if (!this.checkRate(socket, 'create', 5, 30_000, callback)) return;
       if (this.draining) { callback({ error: 'Server is updating — please try again in a minute' }); return; }
       const validDifficulties: BotDifficulty[] = ['easy', 'medium', 'hard', 'extreme', 'unfair'];
       const diff: BotDifficulty = validDifficulties.includes(difficulty as BotDifficulty) ? (difficulty as BotDifficulty) : 'medium';
@@ -260,7 +271,7 @@ export class SocketHandler {
     });
 
     socket.on('room:join', (roomCode, nickname, callback) => {
-      if (!this.checkRate(socket, 'join', 10, 30_000)) return;
+      if (!this.checkRate(socket, 'join', 10, 30_000, callback)) return;
       if (this.draining) { callback({ error: 'Server is updating — please try again in a minute' }); return; }
       const userId = socket.data.userId as number | undefined;
       const nickWarning = this.rooms.checkNicknameWarning(nickname);
@@ -316,7 +327,7 @@ export class SocketHandler {
 
   private registerMatchmakingEvents(socket: TypedSocket, ip: string | null): void {
     socket.on('matchmaking:join', (nickname, targetScore, callback) => {
-      if (!this.checkRate(socket, 'matchmaking', 5, 30_000)) return;
+      if (!this.checkRate(socket, 'matchmaking', 5, 30_000, callback)) return;
       if (this.draining) { callback({ error: 'Server is updating — please try again in a minute' }); return; }
       const userId = socket.data.userId as number | undefined;
       const result = this.matchmaking.enqueue(socket.id, nickname, targetScore, userId);
@@ -396,15 +407,26 @@ export class SocketHandler {
       this.handleResync(socket);
     });
     socket.on('game:hint', (callback) => {
-      if (!this.checkRate(socket, 'hint', 30, 60_000)) return;
+      if (!this.checkRate(socket, 'hint', 30, 60_000, callback)) return;
       this.handleHintRequest(socket, callback);
     });
   }
 
   private registerSessionEvents(socket: TypedSocket, ip: string | null): void {
     socket.on('session:reconnect', (sessionId, callback) => {
-      const reconnectKey = ip ? `reconnect:${ip}` : `reconnect:${socket.id}`;
-      if (!this.rateLimiter.isAllowed(reconnectKey, 10, 30_000)) {
+      // Counted per seat, not per wifi. One shared address used to lock out the whole table after 10 tries.
+      const reconnectWindow = Number(process.env.RECONNECT_WINDOW_MS ?? 30_000);
+      const sessionOk = this.rateLimiter.isAllowed(
+        `reconnect:${sessionId}`,
+        Number(process.env.RECONNECT_RATE_MAX ?? 60),
+        reconnectWindow,
+      );
+      const ipOk = this.rateLimiter.isAllowed(
+        `reconnect-ip:${ip ?? socket.id}`,
+        Number(process.env.RECONNECT_IP_MAX ?? 200),
+        reconnectWindow,
+      );
+      if (!sessionOk || !ipOk) {
         console.log(`[reconnect] RATE LIMITED socket=${socket.id} ip=${ip}`);
         callback({ error: 'Too many reconnect attempts, try again shortly' });
         return;
@@ -443,7 +465,7 @@ export class SocketHandler {
 
   private registerSpectate(socket: TypedSocket): void {
     socket.on('room:spectate', (roomCode, callback) => {
-      if (!this.checkRate(socket, 'spectate', 5, 30_000)) return;
+      if (!this.checkRate(socket, 'spectate', 5, 30_000, callback)) return;
       const code = roomCode?.trim()?.toUpperCase();
       if (!code) { callback({ error: 'Enter a room code' }); return; }
 
@@ -483,7 +505,7 @@ export class SocketHandler {
 
   private registerFriendEvents(socket: TypedSocket): void {
     socket.on('friend:invite:send', (friendUserId, callback) => {
-      if (!this.checkRate(socket, 'friend-invite', 5, 60_000)) return;
+      if (!this.checkRate(socket, 'friend-invite', 5, 60_000, callback)) return;
       const userId = socket.data.userId as number | undefined;
       const displayName = socket.data.displayName as string | undefined;
       if (!userId || !displayName) return callback({ error: 'Sign in to invite friends' });
@@ -530,7 +552,7 @@ export class SocketHandler {
     });
 
     socket.on('friend:invite:accept', (callback) => {
-      if (!this.checkRate(socket, 'friend-invite-accept', 10, 60_000)) return;
+      if (!this.checkRate(socket, 'friend-invite-accept', 10, 60_000, callback)) return;
       const userId = socket.data.userId as number | undefined;
       const displayName = socket.data.displayName as string | undefined;
       if (!userId || !displayName) return callback({ error: 'Sign in required' });
@@ -577,7 +599,7 @@ export class SocketHandler {
   private registerBotReportEvents(socket: TypedSocket): void {
     socket.on('bot:report-play', (gameEventId, callback) => {
       // Per-socket spam guard (separate from the 24h DB-backed quota below)
-      if (!this.checkRate(socket, 'bot-report', 10, 60_000)) return;
+      if (!this.checkRate(socket, 'bot-report', 10, 60_000, callback)) return;
       const userId = socket.data.userId as number | undefined;
       if (!userId) return callback({ error: 'Sign in to report bot plays' });
       if (typeof gameEventId !== 'number' || !Number.isFinite(gameEventId)) {
@@ -1252,8 +1274,9 @@ export class SocketHandler {
     const data = this.persistence.loadPersistedRooms();
     for (const entry of data as Array<{ code: string }>) {
       const room = this.rooms.getRoom(entry.code);
-      if (room?.engine && room.botPositions.size > 0) {
-        this.bots.scheduleBotAction(entry.code);
+      if (room?.engine) {
+        // Starts the grace clocks for humans who were offline across a restart.
+        this.broadcastGameState(entry.code);
       }
     }
     return data.length;

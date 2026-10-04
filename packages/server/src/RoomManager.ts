@@ -39,7 +39,8 @@ function randomBotAvatar(base: string): string {
 
 const ROOM_CODE_CHARS = 'ABCDEFGHJKLMNPQRSTUVWXYZ'; // no I, O (ambiguous)
 const ROOM_CODE_LENGTH = 4;
-const RECONNECT_TIMEOUT_MS = 120_000; // 2 minutes
+/** How long a dropped player keeps their seat. Shared with TimerManager. */
+export const RECONNECT_GRACE_MS = 120_000;
 const ROOM_CLEANUP_INTERVAL_MS = 60_000; // check every minute
 const ROOM_INACTIVE_TIMEOUT_MS = 30 * 60_000; // 30 minutes
 
@@ -236,12 +237,13 @@ export class RoomManager {
     }
 
     const player = room.players.get(info.position);
-    if (!player || player.sessionId !== sessionId) {
+    if (!player) {
       this.sessionToRoom.delete(sessionId);
       return { error: 'Session invalid' };
     }
 
-    // If player was replaced by a bot, reclaim their seat
+    // A bot sitting in this seat does not carry the original session id.
+    // Check the saved player before rejecting, or reclaim can never run.
     if (room.botPositions.has(info.position)) {
       const botPlayer = room.players.get(info.position);
       const original = botPlayer?.replacedPlayer;
@@ -279,6 +281,11 @@ export class RoomManager {
 
       room.lastActivity = Date.now();
       return { success: true, roomCode: info.roomCode, position: info.position, nickname: original.nickname };
+    }
+
+    if (player.sessionId !== sessionId) {
+      this.sessionToRoom.delete(sessionId);
+      return { error: 'Session invalid' };
     }
 
     // Clean up old socket mapping if it still exists
@@ -370,19 +377,19 @@ export class RoomManager {
     if (!room) return null;
 
     const player = room.players.get(info.position);
-    if (!player) return null;
+    if (!player || player.socketId !== socketId) {
+      // Stale close from a link this seat already left behind.
+      this.socketToRoom.delete(socketId);
+      return null;
+    }
 
     player.connected = false;
     player.disconnectedAt = Date.now();
     this.socketToRoom.delete(socketId);
     room.lastActivity = Date.now();
 
-    // If no game is in progress, remove the player and clean up their session
-    if (!room.engine) {
-      if (player.sessionId) this.sessionToRoom.delete(player.sessionId);
-      room.players.delete(info.position);
-    }
-
+    // Keep the seat and the rejoin ticket, in the lobby and in a hand.
+    // A refresh closes the old link and opens a new one in either order.
     return { roomCode: info.roomCode, nickname: player.nickname };
   }
 
@@ -659,23 +666,37 @@ export class RoomManager {
     return restored;
   }
 
-  private cleanup(): void {
-    const now = Date.now();
+  /**
+   * Lobby seats only. A started hand is handed to a bot by TimerManager,
+   * so the people still at the table are not left waiting on an empty chair.
+   */
+  sweepDisconnected(now = Date.now()): string[] {
+    const removed: string[] = [];
     for (const [code, room] of this.rooms) {
-      // Clean up disconnected players past timeout
-      if (room.engine) {
-        for (const [pos, player] of room.players) {
-          if (
-            !player.connected &&
-            player.disconnectedAt &&
-            now - player.disconnectedAt > RECONNECT_TIMEOUT_MS
-          ) {
-            // Player timed out — for now, just mark as disconnected
-            // TODO: handle game abort or AI takeover
-          }
+      if (room.engine) continue;
+      for (const [pos, player] of room.players) {
+        if (
+          !player.connected &&
+          player.disconnectedAt &&
+          now - player.disconnectedAt > RECONNECT_GRACE_MS
+        ) {
+          if (player.sessionId) this.sessionToRoom.delete(player.sessionId);
+          room.players.delete(pos);
+          removed.push(code);
         }
       }
+      if (room.players.size === 0) {
+        this.onRoomDeleted?.(code);
+        this.rooms.delete(code);
+      }
+    }
+    return removed;
+  }
 
+  private cleanup(): void {
+    const now = Date.now();
+    this.sweepDisconnected(now);
+    for (const [code, room] of this.rooms) {
       // Clean up inactive rooms — also clean up sessions and timers
       if (now - room.lastActivity > ROOM_INACTIVE_TIMEOUT_MS) {
         for (const [, player] of room.players) {

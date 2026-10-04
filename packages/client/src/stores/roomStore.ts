@@ -7,6 +7,7 @@ const SESSION_KEY = 'cyprus-session';
 type RoomView = 'lobby' | 'waiting' | 'game' | 'queue';
 
 const SESSION_TTL_MS = 4 * 60 * 60 * 1000; // 4 hours
+let rejoinInFlight = false;
 
 function saveSession(sessionId: string, roomCode: string, nickname: string): void {
   localStorage.setItem(SESSION_KEY, JSON.stringify({ sessionId, roomCode, nickname, expiresAt: Date.now() + SESSION_TTL_MS }));
@@ -246,15 +247,19 @@ export const useRoomStore = create<RoomStore>((set, get) => ({
         return;
       }
 
-      // Prevent concurrent reconnect attempts
-      if (get().reconnecting) {
+      if (rejoinInFlight) {
         resolve(false);
         return;
       }
+      rejoinInFlight = true;
 
-      set({ reconnecting: true });
+      // A table that is already on screen stays on screen. The full-screen
+      // "Reconnecting" view is only for the first open, before there is a table.
+      const hideTable = get().view !== 'game' && get().view !== 'waiting';
+      if (hideTable) set({ reconnecting: true });
 
       try { await ensureConnected(); } catch {
+        rejoinInFlight = false;
         set({ reconnecting: false, error: 'Could not connect to server. Try again.' });
         resolve(false);
         return;
@@ -264,6 +269,7 @@ export const useRoomStore = create<RoomStore>((set, get) => ({
       const finish = (success: boolean, stateUpdate: Partial<RoomStore>) => {
         if (settled) return;
         settled = true;
+        rejoinInFlight = false;
         clearTimeout(timer);
         socket.off('connect', onConnect);
         set(stateUpdate as Parameters<typeof set>[0]);

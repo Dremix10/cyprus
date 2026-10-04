@@ -35,7 +35,8 @@ export function useSocketEvents() {
         return;
       }
       setGameError(message);
-      // Game error likely means client state is out of sync — request fresh state
+      // "Slow down" is not a stale board. Asking again just makes more of them.
+      if (message === 'Too many requests, slow down') return;
       if (socket.connected && useGameStore.getState().gameState) {
         socket.emit('game:resync');
       }

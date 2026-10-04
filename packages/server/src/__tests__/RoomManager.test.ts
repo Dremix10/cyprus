@@ -227,16 +227,42 @@ describe('RoomManager', () => {
       expect(bob!.disconnectedAt).toBeDefined();
     });
 
-    it('removes player and cleans session for waiting rooms (no game)', () => {
+    it('keeps the seat and the rejoin ticket in a waiting room', () => {
       const created = rm.createRoom('socket1', 'Alice') as { roomCode: string };
-      rm.joinRoom('socket2', created.roomCode, 'Bob');
+      const bob = rm.joinRoom('socket2', created.roomCode, 'Bob') as { success: true; sessionId: string };
 
       rm.handleDisconnect('socket2');
 
       const room = rm.getRoom(created.roomCode);
-      // Bob should be removed since no game is in progress
-      expect(room!.players.size).toBe(1);
-      expect(room!.players.has(1)).toBe(false);
+      expect(room!.players.size).toBe(2);
+      expect(room!.players.get(1)!.connected).toBe(false);
+
+      const back = rm.reconnectBySession('socket-bob', bob.sessionId);
+      expect(back).toHaveProperty('success', true);
+      expect(room!.players.get(1)!.connected).toBe(true);
+      expect(room!.players.get(1)!.socketId).toBe('socket-bob');
+    });
+
+    it('ignores a stale close after the player already reconnected', () => {
+      const created = rm.createRoom('socket1', 'Alice') as { roomCode: string; sessionId: string };
+      rm.handleDisconnect('socket1');
+      rm.reconnectBySession('socket-new', created.sessionId);
+
+      expect(rm.handleDisconnect('socket1')).toBeNull();
+      expect(rm.getRoom(created.roomCode)!.players.get(0)!.connected).toBe(true);
+      expect(rm.getRoom(created.roomCode)!.players.get(0)!.socketId).toBe('socket-new');
+    });
+
+    it('drops a lobby seat only after the grace period', () => {
+      const created = rm.createRoom('socket1', 'Alice') as { roomCode: string; sessionId: string };
+      rm.handleDisconnect('socket1');
+      const player = rm.getRoom(created.roomCode)!.players.get(0)!;
+      player.disconnectedAt = Date.now() - 120_001;
+
+      rm.sweepDisconnected();
+
+      expect(rm.getRoom(created.roomCode)).toBeUndefined();
+      expect(rm.reconnectBySession('socket-new', created.sessionId)).toEqual({ error: 'Session expired' });
     });
 
     it('returns null for unknown socket', () => {
@@ -407,7 +433,7 @@ describe('RoomManager', () => {
       expect(room!.engine!.state.players[1].nickname).toMatch(/^Bot /);
     });
 
-    it('session reconnect after bot replacement returns error (bot does not carry original sessionId)', () => {
+    it('lets the original player take the seat back from the bot', () => {
       const created = rm.createRoom('socket1', 'Alice') as { roomCode: string; sessionId: string };
       const bobJoined = rm.joinRoom('socket2', created.roomCode, 'Bob') as { success: true; sessionId: string };
       rm.joinRoom('socket3', created.roomCode, 'Carol');
@@ -417,13 +443,12 @@ describe('RoomManager', () => {
       rm.handleDisconnect('socket2');
       rm.replacePlayerWithBot(created.roomCode, 1);
 
-      // Bot replacement clears the sessionId on the player object at that position.
-      // reconnectBySession checks player.sessionId !== sessionId first, which fails
-      // because the bot player doesn't carry the original session. The replacedPlayer
-      // info preserves the session for potential future reclaim, but the current
-      // reconnect flow cannot reach it.
       const reclaimed = rm.reconnectBySession('socket-bob-new', bobJoined.sessionId);
-      expect(reclaimed).toHaveProperty('error', 'Session invalid');
+      expect(reclaimed).toMatchObject({ success: true, nickname: 'Bob', position: 1 });
+      const room = rm.getRoom(created.roomCode)!;
+      expect(room.botPositions.has(1)).toBe(false);
+      expect(room.players.get(1)!.nickname).toBe('Bob');
+      expect(room.engine!.state.players[1].nickname).toBe('Bob');
     });
   });
 
