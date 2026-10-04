@@ -2,10 +2,11 @@ import { create } from 'zustand';
 import * as Haptics from 'expo-haptics';
 import type { ClientGameState, GameEvent, NormalRank, PlayerPosition, RoomState } from '@cyprus/shared';
 import { socket } from './socket';
+import { useAuth } from './authStore';
 import { clearTicket, loadProfile, loadTicket, saveProfile, saveTicket } from './session';
 
 export type Conn = 'connecting' | 'connected' | 'reconnecting';
-export type View = 'lobby' | 'waiting' | 'game';
+export type View = 'lobby' | 'waiting' | 'game' | 'queue';
 
 type Notice = { id: number; text: string; tone: 'info' | 'warn' | 'error' };
 
@@ -24,6 +25,9 @@ interface AppStore {
   selected: string[]; // card ids picked in the hand
   notice: Notice | null;
   maintenance: string | null;
+  queue: { players: number; elapsed: number } | null;
+  invite: { inviterName: string; roomCode: string } | null;
+  soundOn: boolean;
 
   setNickname(v: string): void;
   setTargetScore(v: number): void;
@@ -34,6 +38,14 @@ interface AppStore {
   createSolo(): Promise<void>;
   createRoom(): Promise<void>;
   joinRoom(code: string): Promise<void>;
+  joinQueue(): Promise<void>;
+  leaveQueue(): void;
+  spectate(code: string): void;
+  inviteFriend(friendUserId: number): void;
+  acceptInvite(): void;
+  declineInvite(): void;
+  reportBot(eventId: number): void;
+  toggleSound(): void;
   sit(pos: PlayerPosition): void;
   start(): void;
   leave(): Promise<void>;
@@ -178,6 +190,7 @@ export const useApp = create<AppStore>((set, get) => {
   });
   socket.on('game:event', (e) => {
     set({ lastEvent: e });
+    if (!get().soundOn) return;
     const h = Haptics;
     switch (e.type) {
       case 'PLAY':
@@ -213,6 +226,14 @@ export const useApp = create<AppStore>((set, get) => {
   socket.on('room:player_reconnected', (n) => notify(`${n} reconnected`));
   socket.on('server:maintenance', (d) => set({ maintenance: d.message }));
   socket.io.on('reconnect', () => set({ maintenance: null }));
+  socket.on('matchmaking:update', (data) => set({ queue: { players: data.playersInQueue, elapsed: data.elapsed } }));
+  socket.on('matchmaking:cancelled', () => set({ view: 'lobby', queue: null }));
+  socket.on('matchmaking:found', (data) => {
+    void saveTicket(data.sessionId, data.roomCode, get().nickname.trim());
+    set({ queue: null, roomCode: data.roomCode, view: 'waiting' });
+  });
+  socket.on('friend:invite:received', (data) => set({ invite: { inviterName: data.inviterName, roomCode: data.roomCode } }));
+  socket.on('friend:invite:cleared', () => set({ invite: null }));
 
   // Periodic resync like the website: recover from any missed update.
   setInterval(() => {
@@ -222,6 +243,11 @@ export const useApp = create<AppStore>((set, get) => {
   // Never trap the user on the boot spinner if the server is slow or unreachable.
   // With a table ticket to resume, give the reconnect longer before showing the lobby.
   void loadTicket().then((t) => setTimeout(() => set({ ready: true }), t ? 12000 : 4000));
+
+  // Read the keychain session before the first handshake, then connect.
+  void useAuth.getState().hydrate().finally(() => {
+    if (!socket.connected) socket.connect();
+  });
 
   // Profile (nickname etc.) from storage.
   void loadProfile().then((p) =>
@@ -247,6 +273,9 @@ export const useApp = create<AppStore>((set, get) => {
     selected: [],
     notice: null,
     maintenance: null,
+    queue: null,
+    invite: null,
+    soundOn: true,
 
     setNickname: (nickname) => set({ nickname: nickname.slice(0, 20) }),
     setTargetScore: (targetScore) => set({ targetScore }),
@@ -266,6 +295,54 @@ export const useApp = create<AppStore>((set, get) => {
         null,
         'waiting',
       ),
+    joinQueue: async () => {
+      const { nickname, targetScore } = get();
+      if (!nickname.trim()) return notify('Enter a nickname', 'error');
+      set({ busy: true });
+      try { await ensureConnected(); } catch {
+        set({ busy: false });
+        return notify('Could not reach the server. Try again.', 'error');
+      }
+      socket.emit('matchmaking:join', nickname.trim(), targetScore, (res) => {
+        set({ busy: false });
+        if ('error' in res) return notify(res.error, 'error');
+        set({ view: 'queue', queue: { players: 1, elapsed: 0 } });
+      });
+    },
+    leaveQueue: () => {
+      socket.emit('matchmaking:leave', () => {});
+      set({ view: 'lobby', queue: null });
+    },
+    spectate: (code) => {
+      socket.emit('room:spectate', code.trim().toUpperCase(), (res) => {
+        if ('error' in res) return notify(res.error, 'error');
+        set({ view: 'game', roomCode: res.roomCode, game: null });
+      });
+    },
+    inviteFriend: (friendUserId) => {
+      socket.emit('friend:invite:send', friendUserId, (res) => {
+        if ('error' in res) notify(res.error, 'error');
+        else notify('Invite sent');
+      });
+    },
+    acceptInvite: () => {
+      socket.emit('friend:invite:accept', (res) => {
+        if ('error' in res) return notify(res.error, 'error');
+        void saveTicket(res.sessionId, res.roomCode, get().nickname.trim() || 'Guest');
+        set({ invite: null, roomCode: res.roomCode, view: 'waiting' });
+      });
+    },
+    declineInvite: () => {
+      socket.emit('friend:invite:decline', () => {});
+      set({ invite: null });
+    },
+    reportBot: (eventId) => {
+      socket.emit('bot:report-play', eventId, (res) => {
+        if ('error' in res) notify(res.error, 'error');
+        else notify('Reported');
+      });
+    },
+    toggleSound: () => set((s) => ({ soundOn: !s.soundOn })),
     joinRoom: (code) => {
       const c = code.trim().toUpperCase();
       if (!c) {

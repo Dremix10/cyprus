@@ -16,6 +16,7 @@ import { GlassSurface } from './GlassSurface';
 import { Hand } from './Hand';
 import { Felt } from './Felt';
 import { DragonSheet, GameOverView, GrandTichuView, PassingView, ScoringView, WishSheet, confirmTichu } from './PhaseViews';
+import { ScoreHistorySheet } from './MoreScreens';
 import { color, radius } from '@/lib/theme';
 import { useApp } from '@/lib/store';
 import { socket } from '@/lib/socket';
@@ -129,6 +130,10 @@ function Playing({ g }: { g: ClientGameState }) {
   const lastEvent = useApp((s) => s.lastEvent);
   const roomCode = useApp((s) => s.roomCode);
   const [hinting, setHinting] = useState(false);
+  const [historyOpen, setHistoryOpen] = useState(false);
+  const soundOn = useApp((s) => s.soundOn);
+  const toggleSound = useApp((s) => s.toggleSound);
+  const reportBot = useApp((s) => s.reportBot);
 
   const me = g.players[g.myPosition];
   const myTeam = (g.myPosition % 2) as 0 | 1;
@@ -196,7 +201,17 @@ function Playing({ g }: { g: ClientGameState }) {
             <Text style={styles.scoreTo}>to {g.targetScore}</Text>
             <Text style={[styles.scoreNum, { color: color.teamThem }]}>{g.scores[1 - myTeam]}</Text>
           </View>
-          <Text style={styles.room}>{roomCode ?? ''}</Text>
+          <Pressable onPress={toggleSound} accessibilityRole="button" accessibilityLabel={soundOn ? 'Mute' : 'Unmute'} hitSlop={8}>
+            <Text style={styles.room}>{soundOn ? '♪' : '∅'}</Text>
+          </Pressable>
+          <Pressable onPress={() => setHistoryOpen(true)} accessibilityRole="button" accessibilityLabel="Score history" hitSlop={8}>
+            <Text style={styles.room}>{roomCode ?? '≡'}</Text>
+          </Pressable>
+          {!g.isSpectator && lastEvent?.id ? (
+            <Pressable onPress={() => reportBot(lastEvent.id!)} accessibilityRole="button" accessibilityLabel="Report bot play" hitSlop={8}>
+              <Text style={styles.room}>⚑</Text>
+            </Pressable>
+          ) : null}
         </GlassSurface>
       </View>
 
@@ -294,6 +309,9 @@ function Playing({ g }: { g: ClientGameState }) {
 
       {dragonMine && <DragonSheet g={g} />}
       {wishMine && <WishSheet />}
+      {historyOpen && (
+        <ScoreHistorySheet history={g.roundHistory ?? []} myTeam={myTeam} onClose={() => setHistoryOpen(false)} />
+      )}
     </View>
   );
 }

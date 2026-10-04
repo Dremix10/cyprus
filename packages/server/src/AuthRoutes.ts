@@ -1,6 +1,8 @@
 import express, { type Request, type Response } from 'express';
 import { OAuth2Client } from 'google-auth-library';
+import type { AuthUser } from '@cyprus/shared';
 import type { AuthService } from './AuthService.js';
+import { verifyAppleIdentityToken } from './AppleAuth.js';
 import { sendPasswordResetEmail, isEmailConfigured } from './EmailService.js';
 import type { GameMonitor } from './GameMonitor.js';
 
@@ -63,14 +65,32 @@ function clearAuthCookie(res: Response): void {
   res.setHeader('Set-Cookie', `${SESSION_COOKIE}=; HttpOnly; Path=/; Max-Age=0`);
 }
 
-function getAuthToken(req: Request): string | null {
-  const header = req.headers.cookie;
+/** Cookie on the website, or Authorization: Bearer from the iPhone app. */
+export function tokenFromHeaders(headers: { cookie?: string; authorization?: string | string[] }): string | null {
+  const authz = Array.isArray(headers.authorization) ? headers.authorization[0] : headers.authorization;
+  if (authz?.startsWith('Bearer ')) {
+    const bearer = authz.slice('Bearer '.length).trim();
+    if (bearer) return bearer;
+  }
+  const header = headers.cookie;
   if (!header) return null;
   for (const pair of header.split(';')) {
     const [key, ...vals] = pair.trim().split('=');
     if (key === SESSION_COOKIE) return vals.join('=') || null;
   }
   return null;
+}
+
+function getAuthToken(req: Request): string | null {
+  return tokenFromHeaders(req.headers);
+}
+
+/** The iPhone app cannot read the HttpOnly cookie, so it asks for the same session token in the body. */
+function sendSession(res: Response, req: Request, token: string, user: AuthUser, isProduction: boolean, status = 200): void {
+  setAuthCookie(res, token, isProduction);
+  const body: { user: AuthUser; token?: string } = { user };
+  if (req.get('x-cyprus-client') === 'ios') body.token = token;
+  res.status(status).json(body);
 }
 
 // ─── Google OAuth Client ────────────────────────────────────────────
@@ -124,8 +144,7 @@ export function createAuthRouter(auth: AuthService, isProduction: boolean, monit
     }
 
     monitor?.loginSuccess(loginResult.user.id, loginResult.user.username, ip);
-    setAuthCookie(res, loginResult.token, isProduction);
-    res.status(201).json({ user: loginResult.user });
+    sendSession(res, req, loginResult.token, loginResult.user, isProduction, 201);
   });
 
   // ── POST /auth/login ─────────────────────────────────────────────
@@ -149,8 +168,7 @@ export function createAuthRouter(auth: AuthService, isProduction: boolean, monit
     }
 
     monitor?.loginSuccess(result.user.id, result.user.username, ip);
-    setAuthCookie(res, result.token, isProduction);
-    res.json({ user: result.user });
+    sendSession(res, req, result.token, result.user, isProduction);
   });
 
   // ── POST /auth/google ────────────────────────────────────────────
@@ -192,12 +210,45 @@ export function createAuthRouter(auth: AuthService, isProduction: boolean, monit
       );
 
       monitor?.loginSuccess(result.user.id, result.user.username, ip);
-      setAuthCookie(res, result.token, isProduction);
-      res.json({ user: result.user });
+      sendSession(res, req, result.token, result.user, isProduction);
     } catch (err) {
       console.error('Google auth error:', err);
       monitor?.loginFailed('google-oauth', ip, (err as Error).message);
       res.status(401).json({ error: 'Google authentication failed' });
+    }
+  });
+
+  // ── POST /auth/apple ─────────────────────────────────────────────
+  router.post('/apple', async (req: Request, res: Response) => {
+    const ip = req.ip || req.socket.remoteAddress || 'unknown';
+    if (isAuthRateLimited(ip)) {
+      res.status(429).json({ error: 'Too many requests. Try again later' });
+      return;
+    }
+
+    const { identityToken, fullName } = req.body || {};
+    if (!identityToken || typeof identityToken !== 'string') {
+      res.status(400).json({ error: 'Missing Apple identity token' });
+      return;
+    }
+
+    const audience = process.env.APPLE_BUNDLE_ID || 'dev.aegist.titsu';
+    try {
+      const apple = await verifyAppleIdentityToken(identityToken, audience);
+      const name = typeof fullName === 'string' && fullName.trim() ? fullName.trim() : null;
+      const result = await auth.loginWithApple(
+        apple.sub,
+        apple.email ?? null,
+        name,
+        ip,
+        req.headers['user-agent'] || null,
+      );
+      monitor?.loginSuccess(result.user.id, result.user.username, ip);
+      sendSession(res, req, result.token, result.user, isProduction);
+    } catch (err) {
+      console.error('Apple auth error:', err);
+      monitor?.loginFailed('apple', ip, (err as Error).message);
+      res.status(401).json({ error: 'Apple authentication failed' });
     }
   });
 

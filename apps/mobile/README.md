@@ -5,8 +5,8 @@ A phone window onto the live game at https://aegist.dev. The server is the judge
 Types and a few runtime enums come from `packages/shared/src` via `metro.config.js`.
 
 - Bundle id `dev.aegist.titsu`, EAS owner `growzone-cy`, Expo SDK 54, New Architecture.
-- Liquid Glass only on floating bars (`components/GlassSurface.tsx`); cards and table are solid.
-- Guest play only so far. Accounts (cookie `cyprus_auth`) and friends are not started.
+- Greek hall (night blue, gold meander, columns), same lobby as the website. Liquid Glass on the floating plates (`components/GlassSurface.tsx`); cards stay solid. Real Liquid Glass needs iOS 26; older iPhones get a frosted blur with a gold rim.
+- Sign in with Apple, email/password, and Google when the server has a client id. The phone stores the session token in the keychain and sends it as `Authorization: Bearer`. The website still uses the HttpOnly cookie. Apple sign-in on the live server needs this server build deployed.
 
 ## Run
 

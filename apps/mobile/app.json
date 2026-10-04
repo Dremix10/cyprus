@@ -5,12 +5,13 @@
     "version": "0.1.0",
     "orientation": "portrait",
     "scheme": "titsu",
-    "primaryColor": "#0F5132",
+    "primaryColor": "#1A1A2E",
     "userInterfaceStyle": "dark",
     "newArchEnabled": true,
     "ios": {
       "supportsTablet": false,
       "bundleIdentifier": "dev.aegist.titsu",
+      "usesAppleSignIn": true,
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false
       },
@@ -21,12 +22,15 @@
       [
         "expo-splash-screen",
         {
-          "backgroundColor": "#0B3B26",
+          "backgroundColor": "#1A1A2E",
           "image": "./assets/images/splash-icon.png",
           "imageWidth": 160,
           "resizeMode": "contain"
         }
-      ]
+      ],
+      "expo-secure-store",
+      "expo-web-browser",
+      "expo-apple-authentication"
     ],
     "experiments": {
       "typedRoutes": true

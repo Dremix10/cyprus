@@ -4,13 +4,14 @@ appId: dev.aegist.titsu
 - launchApp:
     clearState: true
 - extendedWaitUntil:
-    visible: "TITSU"
+    visible: "TICHU"
     timeout: 20000
 - tapOn:
     id: "nickname"
 - inputText: "Maestro"
 - tapOn: "Done"
 - takeScreenshot: 01-lobby
+- tapOn: "Solo Game"
 - tapOn:
     id: "play-solo"
 - extendedWaitUntil:

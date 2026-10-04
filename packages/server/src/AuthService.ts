@@ -105,7 +105,7 @@ function validateEmail(email: string): string | null {
 type UserRow = NonNullable<ReturnType<TrackerDB['getUserByUsername']>>;
 
 function buildAuthUser(
-  user: { id: number; username: string; display_name: string; created_at: string; email?: string | null; password_hash?: string | null; google_id?: string | null; avatar?: string | null; display_name_changed_at?: string | null; language?: string | null },
+  user: { id: number; username: string; display_name: string; created_at: string; email?: string | null; password_hash?: string | null; google_id?: string | null; apple_id?: string | null; avatar?: string | null; display_name_changed_at?: string | null; language?: string | null },
   stats: { games_played: number; games_won: number },
   friendCount: number = 0
 ): AuthUser {
@@ -116,6 +116,7 @@ function buildAuthUser(
     email: user.email ?? null,
     hasPassword: !!user.password_hash,
     hasGoogle: !!user.google_id,
+    hasApple: !!user.apple_id,
     createdAt: user.created_at,
     gamesPlayed: stats.games_played,
     gamesWon: stats.games_won,
@@ -277,6 +278,45 @@ export class AuthService {
     return { token, user: buildAuthUser(user, stats) };
   }
 
+  // ─── Sign in with Apple ─────────────────────────────────────────
+
+  async loginWithApple(
+    appleId: string,
+    email: string | null,
+    name: string | null,
+    ip: string | null,
+    userAgent: string | null
+  ): Promise<{ user: AuthUser; token: string }> {
+    let user = this.db.getUserByAppleId(appleId);
+
+    const normalizedEmail = email?.trim().toLowerCase() || null;
+    if (!user && normalizedEmail) {
+      user = this.db.getUserByEmail(normalizedEmail);
+      if (user) this.db.linkAppleAccount(user.id, appleId, normalizedEmail);
+    }
+
+    if (!user) {
+      const seed = (normalizedEmail?.split('@')[0] || name || 'apple').replace(/[^a-zA-Z0-9_]/g, '_');
+      let baseUsername = seed.length < USERNAME_MIN_LENGTH ? `${seed}_user` : seed;
+      if (baseUsername.length > USERNAME_MAX_LENGTH) baseUsername = baseUsername.slice(0, USERNAME_MAX_LENGTH);
+      let username = baseUsername;
+      let suffix = 1;
+      while (this.db.getUserByUsername(username)) {
+        const suffixStr = String(suffix);
+        username = baseUsername.slice(0, USERNAME_MAX_LENGTH - suffixStr.length) + suffixStr;
+        suffix++;
+      }
+      const displayName = (name || username).slice(0, DISPLAY_NAME_MAX_LENGTH);
+      this.db.createUser(username, displayName, null, normalizedEmail, null, appleId);
+      user = this.db.getUserByUsername(username)!;
+    }
+
+    this.db.recordLoginSuccess(user.id);
+    const token = this.createSessionForUser(user.id, ip, userAgent);
+    const stats = this.db.getUserGameStats(user.id);
+    return { token, user: buildAuthUser(user, stats) };
+  }
+
   // ─── Forgot / Reset Password ────────────────────────────────────
 
   forgotPassword(email: string): { token: string; userId: number } | { error: string } {
@@ -340,7 +380,7 @@ export class AuthService {
     const fullUser = this.db.getUserByUsername(user.username);
     const stats = this.db.getUserGameStats(user.id);
     const friendCount = this.db.getFriendCount(user.id);
-    return buildAuthUser({ ...user, password_hash: fullUser?.password_hash, google_id: fullUser?.google_id }, stats, friendCount);
+    return buildAuthUser({ ...user, password_hash: fullUser?.password_hash, google_id: fullUser?.google_id, apple_id: fullUser?.apple_id }, stats, friendCount);
   }
 
   // ─── Account Management ─────────────────────────────────────────

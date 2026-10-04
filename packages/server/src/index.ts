@@ -12,7 +12,7 @@ import { SocketHandler } from './SocketHandler.js';
 import { TrackerDB } from './Database.js';
 import { createAdminRouter } from './AdminDashboard.js';
 import { AuthService } from './AuthService.js';
-import { createAuthRouter, SESSION_COOKIE } from './AuthRoutes.js';
+import { createAuthRouter, tokenFromHeaders } from './AuthRoutes.js';
 import { createFriendRouter } from './FriendRoutes.js';
 import { GameMonitor } from './GameMonitor.js';
 import { ServerAuditor } from './ServerAuditor.js';
@@ -97,21 +97,18 @@ const io = new Server<ClientToServerEvents, ServerToClientEvents>(httpServer, {
 // ─── Socket.IO Auth Middleware ──────────────────────────────────────
 // Extract user identity from auth cookie on handshake (optional — guests allowed)
 io.use((socket, next) => {
-  const cookieHeader = socket.handshake.headers.cookie;
-  if (cookieHeader) {
-    for (const pair of cookieHeader.split(';')) {
-      const [key, ...vals] = pair.trim().split('=');
-      if (key === SESSION_COOKIE) {
-        const token = vals.join('=');
-        const session = authService.validateSession(token);
-        if (session) {
-          const user = db.getUserById(session.userId);
-          if (user) {
-            socket.data.userId = user.id;
-            socket.data.displayName = user.display_name;
-          }
-        }
-        break;
+  const handshakeToken = typeof socket.handshake.auth?.token === 'string' ? socket.handshake.auth.token : undefined;
+  const token = tokenFromHeaders({
+    cookie: socket.handshake.headers.cookie,
+    authorization: handshakeToken ? `Bearer ${handshakeToken}` : undefined,
+  });
+  if (token) {
+    const session = authService.validateSession(token);
+    if (session) {
+      const user = db.getUserById(session.userId);
+      if (user) {
+        socket.data.userId = user.id;
+        socket.data.displayName = user.display_name;
       }
     }
   }
@@ -180,15 +177,7 @@ app.get('/api/leaderboard', (_req, res) => {
 });
 
 app.get('/api/leaderboard/me', (req, res) => {
-  // Parse auth session cookie manually (no cookie-parser middleware)
-  let token: string | undefined;
-  const cookieHeader = req.headers.cookie;
-  if (cookieHeader) {
-    for (const pair of cookieHeader.split(';')) {
-      const [key, val] = pair.trim().split('=');
-      if (key === SESSION_COOKIE) { token = val; break; }
-    }
-  }
+  const token = tokenFromHeaders(req.headers);
   if (!token) {
     res.status(401).json({ error: 'Not authenticated' });
     return;
@@ -208,14 +197,7 @@ app.get('/api/leaderboard/me', (req, res) => {
 });
 
 app.get('/api/leaderboard/history', (req, res) => {
-  let token: string | undefined;
-  const cookieHeader = req.headers.cookie;
-  if (cookieHeader) {
-    for (const pair of cookieHeader.split(';')) {
-      const [key, val] = pair.trim().split('=');
-      if (key === SESSION_COOKIE) { token = val; break; }
-    }
-  }
+  const token = tokenFromHeaders(req.headers);
   if (!token) { res.status(401).json({ error: 'Not authenticated' }); return; }
   const session = authService.validateSession(token);
   if (!session) { res.status(401).json({ error: 'Invalid session' }); return; }

@@ -6,10 +6,10 @@ import { color } from '@/lib/theme';
 
 export default function RootLayout() {
   return (
-    <GestureHandlerRootView style={{ flex: 1, backgroundColor: color.feltDeep }}>
+    <GestureHandlerRootView style={{ flex: 1, backgroundColor: color.navy }}>
       <SafeAreaProvider>
         <StatusBar style="light" />
-        <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: color.feltDeep } }} />
+        <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: color.navy } }} />
       </SafeAreaProvider>
     </GestureHandlerRootView>
   );
