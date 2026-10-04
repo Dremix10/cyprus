@@ -14,6 +14,7 @@ import { Btn } from './Btn';
 import { CardView, CardBack } from './CardView';
 import { GlassSurface } from './GlassSurface';
 import { Hand } from './Hand';
+import { Felt } from './Felt';
 import { DragonSheet, GameOverView, GrandTichuView, PassingView, ScoringView, WishSheet, confirmTichu } from './PhaseViews';
 import { color, radius } from '@/lib/theme';
 import { useApp } from '@/lib/store';
@@ -183,6 +184,7 @@ function Playing({ g }: { g: ClientGameState }) {
 
   return (
     <View style={styles.table}>
+      <Felt />
       {/* Floating top bar */}
       <View style={[styles.topWrap, { top: insets.top + 6 }]} pointerEvents="box-none">
         <GlassSurface style={styles.topBar}>
@@ -314,9 +316,8 @@ const styles = StyleSheet.create({
   felt: {
     flex: 1,
     borderRadius: radius.lg,
-    backgroundColor: color.felt,
-    borderWidth: 1,
-    borderColor: color.feltEdge,
+    borderWidth: 1.5,
+    borderColor: 'rgba(255,255,255,0.10)',
     alignItems: 'center',
     justifyContent: 'center',
     padding: 8,

@@ -36,7 +36,7 @@ export function GlassSurface({
   const reduce = useReduceTransparency();
   if (LIQUID_GLASS && !reduce) {
     return (
-      <GlassView glassEffectStyle="regular" colorScheme="dark" tintColor={tint} style={style}>
+      <GlassView glassEffectStyle="regular" tintColor={tint} style={style}>
         {children}
       </GlassView>
     );
