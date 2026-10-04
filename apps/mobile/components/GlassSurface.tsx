@@ -35,7 +35,7 @@ export function GlassSurface({
 }) {
   const reduce = useReduceTransparency();
   const inner = LIQUID_GLASS && !reduce ? (
-    <GlassView glassEffectStyle="regular" tintColor={tint ?? 'rgba(201,168,76,0.16)'} style={style}>
+    <GlassView glassEffectStyle="regular" tintColor={tint ?? 'rgba(201,168,76,0.16)'} style={[styles.clip, style]}>
       {children}
     </GlassView>
   ) : Platform.OS === 'ios' && !reduce ? (
@@ -43,7 +43,7 @@ export function GlassSurface({
       {children}
     </BlurView>
   ) : (
-    <View style={[style, styles.solid]}>{children}</View>
+    <View style={[styles.clip, style, styles.solid]}>{children}</View>
   );
   return <View style={styles.rim}>{inner}</View>;
 }
@@ -54,6 +54,6 @@ const styles = StyleSheet.create({
     borderColor: color.line,
     borderRadius: 22,
   },
-  clip: { overflow: 'hidden' },
+  clip: { overflow: 'hidden', borderRadius: 22 },
   solid: { backgroundColor: color.surface },
 });

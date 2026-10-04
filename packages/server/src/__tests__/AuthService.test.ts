@@ -469,6 +469,16 @@ describe('AuthService', () => {
       expect(secondLogin.user.hasGoogle).toBe(true);
     });
 
+    it('links Apple to an existing email account and reports the link immediately', async () => {
+      const registered = await auth.register('linkedapple', 'password123', 'Linked', 'linked@example.com');
+      if ('error' in registered) throw new Error(registered.error);
+      const result = await auth.loginWithApple('linked-apple-sub', 'LINKED@example.com', null, null, null);
+      expect(result.user.id).toBe(registered.user.id);
+      expect(result.user.hasApple).toBe(true);
+      expect(auth.getUser(result.token)?.hasApple).toBe(true);
+      await expect(auth.loginWithApple('different-apple-sub', 'linked@example.com', null, null, null)).rejects.toThrow('already linked');
+    });
+
     it('creates an account from Sign in with Apple', async () => {
       const result = await auth.loginWithApple('apple-sub-1', 'ada@privaterelay.appleid.com', 'Ada', null, null);
       expect(result.user.hasApple).toBe(true);

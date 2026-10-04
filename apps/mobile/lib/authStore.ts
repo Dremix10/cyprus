@@ -29,6 +29,7 @@ interface AuthStore {
 }
 
 async function remember(token: string | undefined, user: AuthUser) {
+  if (!token) throw new Error('Server did not provide a mobile session');
   if (token) {
     setSocketToken(token);
     await SecureStore.setItemAsync(KEY, token);
@@ -53,13 +54,13 @@ export const useAuth = create<AuthStore>((set) => ({
       if (meRes.ok) {
         const data = await meRes.json();
         if (data.user?.language === 'en' || data.user?.language === 'el') useLangStore.getState().setLang(data.user.language);
-        set({ user: data.user, ready: true, googleClientId: google.clientId || null });
+        set({ user: data.user, ready: true, googleClientId: google.iosClientId || null });
       } else {
         if (saved) {
           setSocketToken(null);
           await SecureStore.deleteItemAsync(KEY);
         }
-        set({ user: null, ready: true, googleClientId: google.clientId || null });
+        set({ user: null, ready: true, googleClientId: google.iosClientId || null });
       }
     } catch {
       set({ user: null, ready: true });
@@ -174,6 +175,8 @@ export const useAuth = create<AuthStore>((set) => ({
       if (!res.ok) return { success: false, error: data.error || 'Failed' };
       setSocketToken(null);
       await SecureStore.deleteItemAsync(KEY);
+      socket.disconnect();
+      socket.connect();
       set({ user: null });
       return { success: true };
     } catch {
@@ -188,6 +191,8 @@ export const useAuth = create<AuthStore>((set) => ({
       if (!res.ok) return { success: false, error: data.error || 'Failed' };
       setSocketToken(null);
       await SecureStore.deleteItemAsync(KEY);
+      socket.disconnect();
+      socket.connect();
       set({ user: null });
       return { success: true };
     } catch {

@@ -154,7 +154,7 @@ export function Lobby({
             <Link label={t('lobby.leaderboard')} onPress={onLeaderboard} />
             <Link label="Live Games" onPress={onLive} />
             <Link label={t('friends.title')} onPress={user ? onFriends : onAuth} />
-            <Link label={user ? user.displayName : t('auth.signIn')} onPress={user ? onProfile : onAuth} />
+            <Link testID="account-link" label={user ? user.displayName : t('auth.signIn')} onPress={user ? onProfile : onAuth} />
           </View>
           {conn !== 'connected' && <Text style={styles.hint}>{t('app.reconnecting')}</Text>}
         </ScrollView>
@@ -163,9 +163,9 @@ export function Lobby({
   );
 }
 
-function Link({ label, onPress }: { label: string; onPress: () => void }) {
+function Link({ label, onPress, testID }: { label: string; onPress: () => void; testID?: string }) {
   return (
-    <Pressable onPress={onPress} style={styles.linkHit} accessibilityRole="button">
+    <Pressable testID={testID} onPress={onPress} style={styles.linkHit} accessibilityRole="button">
       <Text style={styles.link}>{label}</Text>
     </Pressable>
   );

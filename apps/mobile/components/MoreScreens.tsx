@@ -131,7 +131,7 @@ export function FriendsScreen({ onClose }: { onClose: () => void }) {
   const invite = useApp((s) => s.inviteFriend);
 
   const reload = async () => {
-    const [f, r] = await Promise.all([api('/friends'), api('/friends/requests')]);
+    const [f, r] = await Promise.all([api('/api/friends'), api('/api/friends/requests')]);
     if (f.ok) setFriends(await f.json());
     if (r.ok) setRequests(await r.json());
   };
@@ -139,7 +139,7 @@ export function FriendsScreen({ onClose }: { onClose: () => void }) {
   useEffect(() => { void reload(); }, []);
 
   const search = async () => {
-    const res = await api(`/friends/search?q=${encodeURIComponent(q.trim())}`);
+    const res = await api(`/api/friends/search?q=${encodeURIComponent(q.trim())}`);
     if (res.ok) setFound(await res.json());
   };
 
@@ -154,7 +154,7 @@ export function FriendsScreen({ onClose }: { onClose: () => void }) {
             <View key={u.id} style={styles.line}>
               <Text style={[styles.name, { flex: 1 }]}>{u.displayName}</Text>
               {u.friendStatus === 'none' && (
-                <Btn label={t('friends.add')} kind="ghost" small onPress={() => { void api('/friends/request', { method: 'POST', body: JSON.stringify({ friendId: u.id }) }).then(reload); }} />
+                <Btn label={t('friends.add')} kind="ghost" small onPress={() => { void api('/api/friends/request', { method: 'POST', body: JSON.stringify({ friendId: u.id }) }).then(reload); }} />
               )}
             </View>
           ))}
@@ -165,7 +165,7 @@ export function FriendsScreen({ onClose }: { onClose: () => void }) {
             {requests.map((r) => (
               <View key={r.id} style={styles.line}>
                 <Text style={[styles.name, { flex: 1 }]}>{r.displayName}</Text>
-                <Btn label={t('friends.accept')} kind="gold" small onPress={() => { void api('/friends/accept', { method: 'POST', body: JSON.stringify({ userId: r.id }) }).then(reload); }} />
+                <Btn label={t('friends.accept')} kind="gold" small onPress={() => { void api('/api/friends/accept', { method: 'POST', body: JSON.stringify({ userId: r.id }) }).then(reload); }} />
               </View>
             ))}
           </GlassCard>

@@ -292,7 +292,11 @@ export class AuthService {
     const normalizedEmail = email?.trim().toLowerCase() || null;
     if (!user && normalizedEmail) {
       user = this.db.getUserByEmail(normalizedEmail);
-      if (user) this.db.linkAppleAccount(user.id, appleId, normalizedEmail);
+      if (user) {
+        if (user.apple_id && user.apple_id !== appleId) throw new Error('Account already linked to another Apple identity');
+        this.db.linkAppleAccount(user.id, appleId, normalizedEmail);
+        user = this.db.getUserByAppleId(appleId);
+      }
     }
 
     if (!user) {

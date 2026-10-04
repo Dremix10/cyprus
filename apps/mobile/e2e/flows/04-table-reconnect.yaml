@@ -1,0 +1,10 @@
+# Enter the playing phase, then restart the app with its saved table ticket.
+appId: dev.aegist.titsu
+---
+- runFlow: 01-solo-round.yaml
+- stopApp
+- launchApp
+- extendedWaitUntil:
+    visible: "Your turn.*|.*'s turn"
+    timeout: 40000
+- takeScreenshot: 30-table-reconnected

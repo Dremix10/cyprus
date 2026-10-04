@@ -1,0 +1,23 @@
+# Opening sign-in must work when native Google OAuth is not configured.
+appId: dev.aegist.titsu
+---
+- launchApp:
+    clearState: true
+- extendedWaitUntil:
+    visible: "TICHU"
+    timeout: 20000
+- tapOn:
+    id: "account-link"
+- assertVisible:
+    id: "auth-username"
+- assertVisible:
+    id: "auth-password"
+- takeScreenshot: 20-sign-in
+- tapOn: "Don't have an account.*"
+- assertVisible:
+    id: "auth-email"
+- assertVisible:
+    id: "auth-display-name"
+- takeScreenshot: 21-register
+- tapOn: "Play as Guest"
+- assertVisible: "TICHU"

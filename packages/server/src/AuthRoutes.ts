@@ -97,9 +97,10 @@ function sendSession(res: Response, req: Request, token: string, user: AuthUser,
 
 let googleClient: OAuth2Client | null = null;
 const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID;
+const GOOGLE_IOS_CLIENT_ID = process.env.GOOGLE_IOS_CLIENT_ID;
 const GOOGLE_CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET;
 
-if (GOOGLE_CLIENT_ID) {
+if (GOOGLE_CLIENT_ID || GOOGLE_IOS_CLIENT_ID) {
   googleClient = new OAuth2Client(GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET);
   console.log('Google Sign-In configured');
 } else {
@@ -173,7 +174,7 @@ export function createAuthRouter(auth: AuthService, isProduction: boolean, monit
 
   // ── POST /auth/google ────────────────────────────────────────────
   router.post('/google', async (req: Request, res: Response) => {
-    if (!googleClient || !GOOGLE_CLIENT_ID) {
+    if (!googleClient) {
       res.status(501).json({ error: 'Google Sign-In is not configured' });
       return;
     }
@@ -193,7 +194,7 @@ export function createAuthRouter(auth: AuthService, isProduction: boolean, monit
     try {
       const ticket = await googleClient.verifyIdToken({
         idToken: credential,
-        audience: GOOGLE_CLIENT_ID,
+        audience: [GOOGLE_CLIENT_ID, GOOGLE_IOS_CLIENT_ID].filter((id): id is string => !!id),
       });
       const payload = ticket.getPayload();
       if (!payload?.sub || !payload.email) {
@@ -380,7 +381,7 @@ export function createAuthRouter(auth: AuthService, isProduction: boolean, monit
   // ── GET /auth/google-client-id ───────────────────────────────────
   // Public endpoint — client needs the ID to render the Google button
   router.get('/google-client-id', (_req: Request, res: Response) => {
-    res.json({ clientId: GOOGLE_CLIENT_ID || null });
+    res.json({ clientId: GOOGLE_CLIENT_ID || null, iosClientId: GOOGLE_IOS_CLIENT_ID || null });
   });
 
   // ── POST /auth/change-password ───────────────────────────────────
