@@ -14,7 +14,7 @@ export function StatusOverlay() {
   const offline = conn !== 'connected' && ready;
   const label = maintenance ?? (offline ? 'Connection lost. Reconnecting…' : null);
   return (
-    <View pointerEvents="none" style={[styles.wrap, { top: insets.top + 6 }]}>
+    <View pointerEvents="none" style={[styles.wrap, { top: insets.top + 66 }]}>
       {label && (
         <GlassSurface style={styles.pill} tint={offline ? 'rgba(229,72,77,0.35)' : undefined}>
           <View style={styles.row}>

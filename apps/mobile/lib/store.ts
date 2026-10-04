@@ -220,7 +220,8 @@ export const useApp = create<AppStore>((set, get) => {
   }, 15000);
 
   // Never trap the user on the boot spinner if the server is slow or unreachable.
-  setTimeout(() => set({ ready: true }), 4000);
+  // With a table ticket to resume, give the reconnect longer before showing the lobby.
+  void loadTicket().then((t) => setTimeout(() => set({ ready: true }), t ? 12000 : 4000));
 
   // Profile (nickname etc.) from storage.
   void loadProfile().then((p) =>

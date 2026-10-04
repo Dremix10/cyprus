@@ -19,7 +19,7 @@ const SUIT_COLOR: Record<Suit, string> = {
 
 const SPECIAL: Record<SpecialCardType, { corner: string; name: string; glyph: string; bg: string; ink: string }> = {
   [SpecialCardType.MAHJONG]: { corner: '1', name: 'Mahjong', glyph: '🀄', bg: '#F6E9C9', ink: '#8A1C1C' },
-  [SpecialCardType.DOG]: { corner: 'Dog', name: 'Dog', glyph: '🐕', bg: '#D9C3A0', ink: '#3E2A10' },
+  [SpecialCardType.DOG]: { corner: 'Dg', name: 'Dog', glyph: '🐕', bg: '#D9C3A0', ink: '#3E2A10' },
   [SpecialCardType.PHOENIX]: { corner: 'Ph', name: 'Phoenix', glyph: '🦅', bg: '#FFD9A0', ink: '#B2350F' },
   [SpecialCardType.DRAGON]: { corner: 'Dr', name: 'Dragon', glyph: '🐉', bg: '#1D2B3A', ink: '#FFFFFF' },
 };
