@@ -21,7 +21,10 @@ Session-persistence tests require Xcode's simulator keychain entitlements; disab
 ## TestFlight status
 
 EAS project `growzone-cy/titsu` is linked and App Store Connect app `6819067929` is configured in `eas.json`.
-Build 6 (`0.1.0`, commit `3334f62`) completed on 2026-10-05, compiled with Xcode 26 / iOS 26.0.
+Build 9 (`0.1.0`, commit `f063fe5`) is VALID / IN_BETA_TESTING for internal testers as of 2026-10-05.
+EAS build `4c58d35d-1528-4b3c-ae47-8a84cf834b7c`, submission `f5a7dab0-802c-49a8-ada8-fde19a2b0aca`.
+The signed IPA was verified to use Xcode 26 / iOS 26.0 and the production server URL, with no localhost QA URL.
+Use build 9; build 8 was already submitted before the final control fix.
 To ship the current client:
 `eas build -p ios --profile testflight`, then `eas submit -p ios --profile testflight --id <build-id>`.
 Apple authentication must also be enabled for the App ID's signing profile; a simulator cannot verify real Apple account sign-in.
@@ -31,6 +34,6 @@ Apple authentication must also be enabled for the App ID's signing profile; a si
 - Production logs showed Apple token verification succeeded, but new accounts failed with `NOT NULL constraint failed: users.password_hash`. The original users table differs from fresh test databases. `createUser` now stores an empty passwordless sentinel, preserving the existing schema and account IDs. Apple and Google regression tests cover the legacy table, password-login rejection, session validation, and existing password accounts.
 - The compatibility fix (`e77c53d`) was deployed over SSH with zero active games/connections. Both providers were verified on an isolated copy of the actual production database; no QA accounts were added to production. A real Apple sheet retry is still needed on an iPhone.
 - The server is currently deployed from an archive, without `.git`; `/health` reports `commit: unknown`. The latest GitHub deployment timed out on SSH; the workflow also expects a git checkout. The hotfix deployed only `Database.ts` and `dist/Database.js`, with backups beside those files.
-- Zeus uses the website's existing bundled artwork. Clear native glass replaces the opaque gold tint and clipping wrapper; UIKit draws its own rounded lens. The native glass is a stable backdrop behind ordinary React Native controls, avoiding controls disappearing after Fabric updates. Greek table styling adds a bronze oval, laurel leaves, columns, and an actual meander.
+- Zeus uses the website's existing bundled artwork. Clear native glass replaces the opaque gold tint and clipping wrapper; UIKit draws its own rounded lens. The native glass is a stable backdrop behind ordinary React Native controls. The close icon uses vector strokes and stays visible after game updates. Greek table styling adds a bronze oval, laurel leaves, columns, and an actual meander.
 - Leaderboard includes current/peak ELO, rank, games, wins/losses, win rate, first outs, Tichu/Grand success ratios, double victories, rounds, and five recent scores. Tap any ranked player to expand the same detailed stats. Data comes from the existing leaderboard/me/history APIs; no server stats changes are needed.
-- Root build and all 383 shared/server tests passed, plus mobile typecheck. Release simulator QA uses `localhost:3301` and an isolated disposable database. Never submit that simulator artifact; EAS defaults to `https://aegist.dev`.
+- Root build and all 383 shared/server tests passed, plus mobile typecheck. Release simulator checks passed for sign-in, personal stats/recent results, expanded rankings, solo Grand Tichu/passing/play, table controls, leaving a game, and reconnect. Release simulator QA uses `localhost:3301` and an isolated disposable database. Never submit that simulator artifact; EAS defaults to `https://aegist.dev`.
