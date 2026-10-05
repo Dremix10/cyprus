@@ -1,9 +1,6 @@
-/**
- * A floating bar (nav bar, turn banner, action bar, toast): Liquid Glass on iOS 26,
- * a blur on older iOS, a solid surface otherwise. Same rules as Anna Nails'
- * glass-surface.tsx: glass is for things that FLOAT above the table, never for cards
- * or the table itself; no backgroundColor and no opacity below 1 on the GlassView
- * or any parent (it turns grey).
+/** Native glass floats over the artwork. Keep its own background transparent
+ * and ancestors fully opaque; UIKit draws the lens and rounded edges. Older iOS
+ * uses system blur, with a solid surface when Reduce Transparency is enabled.
  */
 import { BlurView } from 'expo-blur';
 import { GlassView, isGlassEffectAPIAvailable, isLiquidGlassAvailable } from 'expo-glass-effect';
@@ -17,7 +14,9 @@ function useReduceTransparency(): boolean {
   const [on, setOn] = useState(false);
   useEffect(() => {
     if (Platform.OS !== 'ios') return;
-    AccessibilityInfo.isReduceTransparencyEnabled().then(setOn).catch(() => {});
+    AccessibilityInfo.isReduceTransparencyEnabled()
+      .then(setOn)
+      .catch(() => {});
     const sub = AccessibilityInfo.addEventListener('reduceTransparencyChanged', setOn);
     return () => sub.remove();
   }, []);
@@ -28,32 +27,37 @@ export function GlassSurface({
   style,
   children,
   tint,
+  interactive = false,
 }: {
   style?: StyleProp<ViewStyle>;
   children: ReactNode;
   tint?: string;
+  interactive?: boolean;
 }) {
   const reduce = useReduceTransparency();
-  const inner = LIQUID_GLASS && !reduce ? (
-    <GlassView glassEffectStyle="regular" tintColor={tint ?? 'rgba(201,168,76,0.16)'} style={[styles.clip, style]}>
-      {children}
-    </GlassView>
-  ) : Platform.OS === 'ios' && !reduce ? (
-    <BlurView intensity={80} tint="systemChromeMaterialDark" style={[style, styles.clip]}>
-      {children}
-    </BlurView>
-  ) : (
-    <View style={[styles.clip, style, styles.solid]}>{children}</View>
-  );
-  return <View style={styles.rim}>{inner}</View>;
+  const inner =
+    LIQUID_GLASS && !reduce ? (
+      <GlassView
+        glassEffectStyle="clear"
+        colorScheme="dark"
+        isInteractive={interactive}
+        tintColor={tint}
+        style={[styles.glass, style]}
+      >
+        {children}
+      </GlassView>
+    ) : Platform.OS === 'ios' && !reduce ? (
+      <BlurView intensity={80} tint="systemChromeMaterialDark" style={[style, styles.clip]}>
+        {children}
+      </BlurView>
+    ) : (
+      <View style={[styles.clip, style, styles.solid]}>{children}</View>
+    );
+  return inner;
 }
 
 const styles = StyleSheet.create({
-  rim: {
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: color.line,
-    borderRadius: 22,
-  },
+  glass: { borderRadius: 22 },
   clip: { overflow: 'hidden', borderRadius: 22 },
   solid: { backgroundColor: color.surface },
 });

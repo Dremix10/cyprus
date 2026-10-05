@@ -179,6 +179,11 @@ const translations: Record<Lang, Record<string, string>> = {
     'score.notes': 'Notes',
 
     // ─── Leaderboard ─────────────────────────────────────────
+    'leaderboard.games': 'Games',
+    'leaderboard.rounds': 'Rounds',
+    'leaderboard.details': 'Tap a player for all stats',
+    'leaderboard.loadFailed': 'Could not load stats. Please try again.',
+    'leaderboard.retry': 'Try again',
     'leaderboard.title': 'Leaderboard',
     'leaderboard.subtitle': 'Hall of Champions',
     'leaderboard.yourStats': 'Your Stats',
@@ -562,6 +567,11 @@ const translations: Record<Lang, Record<string, string>> = {
     'score.notes': '\u03a3\u03b7\u03bc\u03b5\u03b9\u03ce\u03c3\u03b5\u03b9\u03c2',
 
     // ─── Leaderboard ─────────────────────────────────────────
+    'leaderboard.games': 'Παιχνίδια',
+    'leaderboard.rounds': 'Γύροι',
+    'leaderboard.details': 'Πάτησε έναν παίκτη για όλα τα στατιστικά',
+    'leaderboard.loadFailed': 'Δεν φορτώθηκαν τα στατιστικά. Δοκίμασε ξανά.',
+    'leaderboard.retry': 'Δοκίμασε ξανά',
     'leaderboard.title': '\u039a\u03b1\u03c4\u03ac\u03c4\u03b1\u03be\u03b7',
     'leaderboard.subtitle': '\u0391\u03af\u03b8\u03bf\u03c5\u03c3\u03b1 \u03c4\u03c9\u03bd \u03a0\u03c1\u03c9\u03c4\u03b1\u03b8\u03bb\u03b7\u03c4\u03ce\u03bd',
     'leaderboard.yourStats': '\u03a4\u03b1 \u03a3\u03c4\u03b1\u03c4\u03b9\u03c3\u03c4\u03b9\u03ba\u03ac \u03a3\u03bf\u03c5',

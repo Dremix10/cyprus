@@ -49,14 +49,19 @@ export function AuthPanel({ onClose }: { onClose: () => void }) {
       setNote(result.success ? (result.message ?? 'Check your email') : (result.error ?? 'Failed'));
       return;
     }
-    const ok = mode === 'login'
-      ? await login(username.trim(), password)
-      : await register(username.trim(), password, displayName.trim(), email.trim());
+    const ok =
+      mode === 'login'
+        ? await login(username.trim(), password)
+        : await register(username.trim(), password, displayName.trim(), email.trim());
     setBusy(false);
     if (ok) onClose();
   };
 
   const apple = async () => {
+    if (busy) return;
+    clearError();
+    setNote(null);
+    setBusy(true);
     try {
       const cred = await AppleAuthentication.signInAsync({
         requestedScopes: [
@@ -64,47 +69,97 @@ export function AuthPanel({ onClose }: { onClose: () => void }) {
           AppleAuthentication.AppleAuthenticationScope.EMAIL,
         ],
       });
-      if (!cred.identityToken) return;
+      if (!cred.identityToken) throw new Error('Apple did not return an identity token. Please try again.');
       const name = [cred.fullName?.givenName, cred.fullName?.familyName].filter(Boolean).join(' ');
       const ok = await loginWithApple(cred.identityToken, name || null);
       if (ok) onClose();
-    } catch {
-      /* user cancelled the Apple sheet */
+    } catch (err) {
+      if ((err as { code?: string }).code !== 'ERR_REQUEST_CANCELED') {
+        setNote(err instanceof Error ? err.message : 'Apple sign-in failed. Please try again.');
+      }
+    } finally {
+      setBusy(false);
     }
   };
 
   return (
     <Hall>
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-        <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={[styles.body, { paddingTop: insets.top + 24, paddingBottom: insets.bottom + 24 }]}>
+        <ScrollView
+          keyboardShouldPersistTaps="handled"
+          contentContainerStyle={[styles.body, { paddingTop: insets.top + 24, paddingBottom: insets.bottom + 24 }]}
+        >
           <GoldTitle title={t('auth.signIn')} subtitle={t('lobby.subtitle')} />
           <GlassCard>
             {mode !== 'login' && (
-              <Field testID="auth-email" label={t('auth.email')} value={email} onChangeText={setEmail} keyboard="email-address" />
+              <Field
+                testID="auth-email"
+                label={t('auth.email')}
+                value={email}
+                onChangeText={setEmail}
+                keyboard="email-address"
+              />
             )}
             {mode !== 'forgot' && (
-              <Field testID="auth-username" label={mode === 'login' ? t('auth.usernameOrEmail') : t('auth.username')} value={username} onChangeText={setUsername} />
+              <Field
+                testID="auth-username"
+                label={mode === 'login' ? t('auth.usernameOrEmail') : t('auth.username')}
+                value={username}
+                onChangeText={setUsername}
+              />
             )}
             {mode === 'register' && (
-              <Field testID="auth-display-name" label={t('auth.displayName')} value={displayName} onChangeText={setDisplayName} />
+              <Field
+                testID="auth-display-name"
+                label={t('auth.displayName')}
+                value={displayName}
+                onChangeText={setDisplayName}
+              />
             )}
             {mode !== 'forgot' && (
-              <Field testID="auth-password" label={t('auth.password')} value={password} onChangeText={setPassword} secure />
+              <Field
+                testID="auth-password"
+                label={t('auth.password')}
+                value={password}
+                onChangeText={setPassword}
+                secure
+              />
             )}
             {error ? <Text style={styles.err}>{error}</Text> : null}
             {note ? <Text style={styles.note}>{note}</Text> : null}
             <Btn
               testID="auth-submit"
-              label={busy ? t('lobby.loading') : mode === 'login' ? t('auth.signIn') : mode === 'register' ? t('auth.createAccount') : t('auth.sendResetLink')}
+              label={
+                busy
+                  ? t('lobby.loading')
+                  : mode === 'login'
+                    ? t('auth.signIn')
+                    : mode === 'register'
+                      ? t('auth.createAccount')
+                      : t('auth.sendResetLink')
+              }
               kind="gold"
               disabled={busy}
-              onPress={() => { clearError(); void submit(); }}
+              onPress={() => {
+                clearError();
+                void submit();
+              }}
             />
-            <Pressable onPress={() => { clearError(); setMode(mode === 'login' ? 'register' : 'login'); }}>
+            <Pressable
+              onPress={() => {
+                clearError();
+                setMode(mode === 'login' ? 'register' : 'login');
+              }}
+            >
               <Text style={styles.link}>{mode === 'login' ? t('auth.noAccount') : t('auth.hasAccount')}</Text>
             </Pressable>
             {mode === 'login' && (
-              <Pressable onPress={() => { clearError(); setMode('forgot'); }}>
+              <Pressable
+                onPress={() => {
+                  clearError();
+                  setMode('forgot');
+                }}
+              >
                 <Text style={styles.link}>{t('auth.forgotPassword')}</Text>
               </Pressable>
             )}
@@ -116,12 +171,12 @@ export function AuthPanel({ onClose }: { onClose: () => void }) {
               buttonStyle={AppleAuthentication.AppleAuthenticationButtonStyle.WHITE}
               cornerRadius={14}
               style={styles.apple}
-              onPress={() => { void apple(); }}
+              onPress={() => {
+                void apple();
+              }}
             />
           )}
-          {googleClientId ? (
-            <GoogleSignIn clientId={googleClientId} onClose={onClose} />
-          ) : null}
+          {googleClientId ? <GoogleSignIn clientId={googleClientId} onClose={onClose} /> : null}
           <Btn label={t('auth.playAsGuest')} kind="ghost" onPress={onClose} />
         </ScrollView>
       </KeyboardAvoidingView>
@@ -133,20 +188,38 @@ export function AuthPanel({ onClose }: { onClose: () => void }) {
 function GoogleSignIn({ clientId, onClose }: { clientId: string; onClose: () => void }) {
   const t = useT();
   const loginWithGoogle = useAuth((s) => s.loginWithGoogle);
-  const [request, response, promptAsync] = Google.useIdTokenAuthRequest({ iosClientId: clientId });
+  const [request, response, promptAsync] = Google.useIdTokenAuthRequest({
+    iosClientId: clientId,
+  });
 
   useEffect(() => {
     if (response?.type !== 'success') return;
     const idToken = response.params?.id_token ?? response.authentication?.idToken;
     if (!idToken) return;
-    void loginWithGoogle(idToken).then((ok) => { if (ok) onClose(); });
+    void loginWithGoogle(idToken).then((ok) => {
+      if (ok) onClose();
+    });
   }, [response, loginWithGoogle, onClose]);
 
-  return <Btn label={t('auth.signInWithGoogle')} kind="ghost" disabled={!request} onPress={() => { void promptAsync(); }} />;
+  return (
+    <Btn
+      label={t('auth.signInWithGoogle')}
+      kind="ghost"
+      disabled={!request}
+      onPress={() => {
+        void promptAsync();
+      }}
+    />
+  );
 }
 
 function Field({
-  label, value, onChangeText, secure, keyboard, testID,
+  label,
+  value,
+  onChangeText,
+  secure,
+  keyboard,
+  testID,
 }: {
   label: string;
   value: string;
@@ -174,7 +247,12 @@ function Field({
 }
 
 const styles = StyleSheet.create({
-  body: { flexGrow: 1, justifyContent: 'center', paddingHorizontal: 28, gap: 14 },
+  body: {
+    flexGrow: 1,
+    justifyContent: 'center',
+    paddingHorizontal: 28,
+    gap: 14,
+  },
   field: { gap: 4 },
   label: { color: color.gold, fontSize: 12, letterSpacing: 0.6 },
   input: {

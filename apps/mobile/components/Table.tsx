@@ -15,9 +15,17 @@ import { CardView, CardBack } from './CardView';
 import { GlassSurface } from './GlassSurface';
 import { Hand } from './Hand';
 import { Felt } from './Felt';
-import { DragonSheet, GameOverView, GrandTichuView, PassingView, ScoringView, WishSheet, confirmTichu } from './PhaseViews';
+import {
+  DragonSheet,
+  GameOverView,
+  GrandTichuView,
+  PassingView,
+  ScoringView,
+  WishSheet,
+  confirmTichu,
+} from './PhaseViews';
 import { ScoreHistorySheet } from './MoreScreens';
-import { color, radius } from '@/lib/theme';
+import { color, greekFont, radius } from '@/lib/theme';
 import { useApp } from '@/lib/store';
 import { socket } from '@/lib/socket';
 
@@ -64,23 +72,21 @@ export function Table() {
   }
 }
 
-function OpponentTile({
-  p,
-  g,
-  compact,
-}: {
-  p: PublicPlayerState;
-  g: ClientGameState;
-  compact?: boolean;
-}) {
+function OpponentTile({ p, g, compact }: { p: PublicPlayerState; g: ClientGameState; compact?: boolean }) {
   const mate = p.position % 2 === g.myPosition % 2;
   const turn = g.currentPlayer === p.position && g.phase === GamePhase.PLAYING;
   const passed = g.currentTrick.passedPlayers?.includes(p.position);
   const dc = useCountdown(g.disconnectDeadlines?.[p.position]);
   return (
     <View style={[styles.tile, compact && styles.tileCompact, turn && styles.tileTurn, p.isOut && { opacity: 0.6 }]}>
-      <Text style={[styles.tileName, { color: mate ? color.teamUs : color.teamThem }]} numberOfLines={1}>
-        {p.nickname}
+      <Text
+        style={[styles.tileName, compact && styles.tileNameCompact, { color: mate ? color.teamUs : color.teamThem }]}
+        numberOfLines={2}
+        adjustsFontSizeToFit
+        minimumFontScale={0.8}
+        accessibilityLabel={p.nickname}
+      >
+        {p.isBot ? p.nickname.replace(/^Bot /, '') : p.nickname}
       </Text>
       <View style={styles.tileRow}>
         {p.isOut ? (
@@ -192,26 +198,49 @@ function Playing({ g }: { g: ClientGameState }) {
       <Felt />
       {/* Floating top bar */}
       <View style={[styles.topWrap, { top: insets.top + 6 }]} pointerEvents="box-none">
-        <GlassSurface style={styles.topBar}>
-          <Pressable onPress={confirmLeave} accessibilityRole="button" accessibilityLabel="Leave game" hitSlop={10} style={styles.exit}>
-            <Text style={styles.exitText}>✕</Text>
-          </Pressable>
-          <View style={styles.scores}>
-            <Text style={[styles.scoreNum, { color: color.teamUs }]}>{g.scores[myTeam]}</Text>
-            <Text style={styles.scoreTo}>to {g.targetScore}</Text>
-            <Text style={[styles.scoreNum, { color: color.teamThem }]}>{g.scores[1 - myTeam]}</Text>
-          </View>
-          <Pressable onPress={toggleSound} accessibilityRole="button" accessibilityLabel={soundOn ? 'Mute' : 'Unmute'} hitSlop={8}>
-            <Text style={styles.room}>{soundOn ? '♪' : '∅'}</Text>
-          </Pressable>
-          <Pressable onPress={() => setHistoryOpen(true)} accessibilityRole="button" accessibilityLabel="Score history" hitSlop={8}>
-            <Text style={styles.room}>{roomCode ?? '≡'}</Text>
-          </Pressable>
-          {!g.isSpectator && lastEvent?.id ? (
-            <Pressable onPress={() => reportBot(lastEvent.id!)} accessibilityRole="button" accessibilityLabel="Report bot play" hitSlop={8}>
-              <Text style={styles.room}>⚑</Text>
+        <GlassSurface style={{ borderRadius: radius.pill }}>
+          <View collapsable={false} style={styles.topBar}>
+            <Pressable
+              onPress={confirmLeave}
+              accessibilityRole="button"
+              accessibilityLabel="Leave game"
+              hitSlop={10}
+              style={styles.exit}
+            >
+              <Text style={styles.exitText}>✕</Text>
             </Pressable>
-          ) : null}
+            <View style={styles.scores}>
+              <Text style={[styles.scoreNum, { color: color.teamUs }]}>{g.scores[myTeam]}</Text>
+              <Text style={styles.scoreTo}>to {g.targetScore}</Text>
+              <Text style={[styles.scoreNum, { color: color.teamThem }]}>{g.scores[1 - myTeam]}</Text>
+            </View>
+            <Pressable
+              onPress={toggleSound}
+              accessibilityRole="button"
+              accessibilityLabel={soundOn ? 'Mute' : 'Unmute'}
+              hitSlop={8}
+            >
+              <Text style={styles.room}>{soundOn ? '♪' : '∅'}</Text>
+            </Pressable>
+            <Pressable
+              onPress={() => setHistoryOpen(true)}
+              accessibilityRole="button"
+              accessibilityLabel="Score history"
+              hitSlop={8}
+            >
+              <Text style={styles.room}>{roomCode ?? '≡'}</Text>
+            </Pressable>
+            {!g.isSpectator && lastEvent?.id ? (
+              <Pressable
+                onPress={() => reportBot(lastEvent.id!)}
+                accessibilityRole="button"
+                accessibilityLabel="Report bot play"
+                hitSlop={8}
+              >
+                <Text style={styles.room}>⚑</Text>
+              </Pressable>
+            ) : null}
+          </View>
         </GlassSurface>
       </View>
 
@@ -234,11 +263,21 @@ function Playing({ g }: { g: ClientGameState }) {
                     <CardRow cards={previous.combination.cards} width={28} />
                   </View>
                 )}
-                <Text style={[styles.playerLabel, latest.playerPosition === g.currentTrick.currentWinner && { color: color.gold }]}>
+                <Text
+                  style={[
+                    styles.playerLabel,
+                    latest.playerPosition === g.currentTrick.currentWinner && {
+                      color: color.gold,
+                    },
+                  ]}
+                >
                   {g.players[latest.playerPosition]?.nickname}
                   {latest.playerPosition === g.currentTrick.currentWinner ? ' ★' : ''}
                 </Text>
-                <CardRow cards={latest.combination.cards} width={trick.length && latest.combination.cards.length > 7 ? 30 : 42} />
+                <CardRow
+                  cards={latest.combination.cards}
+                  width={trick.length && latest.combination.cards.length > 7 ? 30 : 42}
+                />
               </View>
             ) : (
               <Text style={styles.dim}>{myTurn ? 'Your lead' : `${turnName} leads`}</Text>
@@ -249,7 +288,7 @@ function Playing({ g }: { g: ClientGameState }) {
 
         {/* Turn banner (floats over the table) */}
         <View style={styles.bannerWrap}>
-          <GlassSurface style={styles.banner} tint={myTurn ? 'rgba(242,193,78,0.35)' : undefined}>
+          <GlassSurface style={styles.banner} tint={myTurn ? 'rgba(201,168,76,0.08)' : undefined}>
             <Text style={styles.bannerText}>
               {isDragon
                 ? dragonMine
@@ -273,7 +312,14 @@ function Playing({ g }: { g: ClientGameState }) {
             {me.nickname}
           </Text>
           {me.tichuCall !== 'none' && (
-            <Text style={[styles.tichuBadge, me.tichuCall === 'grand_tichu' && { backgroundColor: color.danger }]}>
+            <Text
+              style={[
+                styles.tichuBadge,
+                me.tichuCall === 'grand_tichu' && {
+                  backgroundColor: color.danger,
+                },
+              ]}
+            >
               {me.tichuCall === 'grand_tichu' ? 'GRAND TICHU' : 'TICHU'}
             </Text>
           )}
@@ -281,27 +327,62 @@ function Playing({ g }: { g: ClientGameState }) {
         </View>
 
         {/* Floating action bar */}
-        <GlassSurface style={styles.actions}>
-          {g.canCallTichu ? (
-            <Btn label="Tichu" kind="ghost" small onPress={() => confirmTichu(false, callTichu)} style={styles.actSmall} />
-          ) : null}
-          {g.isSolo && myTurn && canAct && !me.isOut ? (
-            <Btn testID="hint" label={hinting ? '…' : 'Hint'} kind="ghost" small onPress={hint} style={styles.actSmall} />
-          ) : null}
-          <View style={{ flex: 1 }} />
-          {myTurn && canAct && !me.isOut ? (
-            <>
-              {canPass && !mustPlayWish && (
-                <Btn testID="pass" label="Pass" kind={g.mustPass ? 'gold' : 'ghost'} onPress={passTurn} style={styles.actBtn} />
-              )}
-              <Btn testID="play" label={selected.length ? `Play ${selected.length}` : 'Play'} kind="primary" disabled={selected.length === 0} onPress={play} haptic="medium" style={styles.actBtn} />
-            </>
-          ) : (
-            <Text style={styles.waiting}>{me.isOut ? 'You are out' : myTurn ? '…' : 'Waiting'}</Text>
-          )}
-          {g.isSolo && me.isOut && (
-            <Btn label="Skip round" kind="ghost" small onPress={useApp.getState().skipRound} style={styles.actSmall} />
-          )}
+        <GlassSurface style={{ borderRadius: radius.pill }} interactive>
+          <View collapsable={false} style={styles.actions}>
+            {g.canCallTichu ? (
+              <Btn
+                label="Tichu"
+                kind="ghost"
+                small
+                onPress={() => confirmTichu(false, callTichu)}
+                style={styles.actSmall}
+              />
+            ) : null}
+            {g.isSolo && myTurn && canAct && !me.isOut ? (
+              <Btn
+                testID="hint"
+                label={hinting ? '…' : 'Hint'}
+                kind="ghost"
+                small
+                onPress={hint}
+                style={styles.actSmall}
+              />
+            ) : null}
+            <View style={{ flex: 1 }} />
+            {myTurn && canAct && !me.isOut ? (
+              <>
+                {canPass && !mustPlayWish && (
+                  <Btn
+                    testID="pass"
+                    label="Pass"
+                    kind={g.mustPass ? 'gold' : 'ghost'}
+                    onPress={passTurn}
+                    style={styles.actBtn}
+                  />
+                )}
+                <Btn
+                  testID="play"
+                  label={selected.length ? `Play ${selected.length}` : 'Play'}
+                  kind="primary"
+                  disabled={selected.length === 0}
+                  onPress={play}
+                  haptic="medium"
+                  style={styles.actBtn}
+                />
+              </>
+            ) : (
+              <Text style={styles.waiting}>{me.isOut ? 'You are out' : myTurn ? '…' : 'Waiting'}</Text>
+            )}
+            {g.isSolo && me.isOut && (
+              <Btn
+                label="Skip round"
+                kind="ghost"
+                small
+                onPress={useApp.getState().skipRound}
+                style={styles.actSmall}
+              />
+            )}
+          </View>
         </GlassSurface>
 
         <Hand cards={hand} selected={selected} onToggle={toggle} disabled={me.isOut} />
@@ -321,42 +402,86 @@ const styles = StyleSheet.create({
   dim: { color: color.textDim, fontSize: 15 },
   table: { flex: 1 },
   topWrap: { position: 'absolute', left: 12, right: 12, zIndex: 10 },
-  topBar: { flexDirection: 'row', alignItems: 'center', borderRadius: radius.pill, minHeight: 52, paddingHorizontal: 8 },
-  exit: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
+  topBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderRadius: radius.pill,
+    minHeight: 52,
+    paddingHorizontal: 8,
+  },
+  exit: {
+    width: 44,
+    height: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   exitText: { color: color.text, fontSize: 20, fontWeight: '600' },
-  scores: { flex: 1, flexDirection: 'row', alignItems: 'baseline', justifyContent: 'center', gap: 10 },
+  scores: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    justifyContent: 'center',
+    gap: 10,
+  },
   scoreNum: { fontSize: 22, fontWeight: '800' },
   scoreTo: { color: color.textFaint, fontSize: 12 },
-  room: { width: 64, textAlign: 'right', paddingRight: 8, color: color.textFaint, fontSize: 12, fontWeight: '700', letterSpacing: 1 },
+  room: {
+    width: 40,
+    textAlign: 'right',
+    paddingRight: 4,
+    color: color.textFaint,
+    fontSize: 12,
+    fontWeight: '700',
+    letterSpacing: 1,
+  },
   content: { flex: 1, paddingHorizontal: 12, gap: 8 },
   topRow: { alignItems: 'center' },
   middle: { flex: 1, flexDirection: 'row', gap: 8, alignItems: 'stretch' },
   felt: {
     flex: 1,
-    borderRadius: radius.lg,
-    borderWidth: 1.5,
-    borderColor: 'rgba(255,255,255,0.10)',
+    borderRadius: 100,
+    borderWidth: 1,
+    borderColor: 'rgba(201,168,76,0.22)',
+    backgroundColor: 'rgba(9,23,32,0.2)',
     alignItems: 'center',
     justifyContent: 'center',
     padding: 8,
     overflow: 'hidden',
   },
-  wish: { position: 'absolute', top: 8, color: color.gold, fontWeight: '800', fontSize: 14 },
+  wish: {
+    position: 'absolute',
+    top: 8,
+    color: color.gold,
+    fontWeight: '800',
+    fontSize: 14,
+  },
   playerLabel: { color: color.textDim, fontSize: 13, fontWeight: '700' },
   tile: {
     minWidth: 92,
     borderRadius: radius.md,
-    backgroundColor: color.surface,
+    backgroundColor: '#102333',
     paddingVertical: 8,
     paddingHorizontal: 10,
     alignItems: 'center',
     gap: 4,
     borderWidth: 2,
-    borderColor: 'transparent',
+    borderColor: 'rgba(201,168,76,0.22)',
   },
-  tileCompact: { width: 72, minWidth: 72, alignSelf: 'center', paddingHorizontal: 4 },
+  tileCompact: {
+    width: 72,
+    minWidth: 72,
+    alignSelf: 'center',
+    paddingHorizontal: 4,
+  },
   tileTurn: { borderColor: color.gold },
-  tileName: { fontSize: 14, fontWeight: '800', maxWidth: 90 },
+  tileName: {
+    fontFamily: greekFont,
+    fontSize: 15,
+    fontWeight: '700',
+    maxWidth: 90,
+    textAlign: 'center',
+  },
+  tileNameCompact: { fontSize: 13, maxWidth: 62 },
   tileRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   tileCount: { color: color.text, fontSize: 17, fontWeight: '800' },
   tileBadge: { color: color.gold, fontSize: 12, fontWeight: '800' },
@@ -373,12 +498,38 @@ const styles = StyleSheet.create({
   passChip: { color: color.textFaint, fontSize: 11, fontStyle: 'italic' },
   dcChip: { color: color.danger, fontSize: 11, fontWeight: '700' },
   bannerWrap: { alignItems: 'center' },
-  banner: { borderRadius: radius.pill, paddingHorizontal: 18, paddingVertical: 10 },
-  bannerText: { color: color.text, fontSize: 15, fontWeight: '700', textAlign: 'center' },
-  meRow: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 4 },
+  banner: {
+    borderRadius: radius.pill,
+    paddingHorizontal: 18,
+    paddingVertical: 10,
+  },
+  bannerText: {
+    color: color.text,
+    fontSize: 15,
+    fontWeight: '700',
+    textAlign: 'center',
+  },
+  meRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingHorizontal: 4,
+  },
   meName: { color: color.text, fontWeight: '800', fontSize: 15, flexShrink: 1 },
-  actions: { flexDirection: 'row', alignItems: 'center', gap: 8, borderRadius: radius.pill, padding: 6, minHeight: 64 },
-  actBtn: { minWidth: 104 },
-  actSmall: { minWidth: 70 },
-  waiting: { color: color.textDim, fontSize: 16, fontWeight: '600', paddingRight: 14 },
+  actions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    borderRadius: radius.pill,
+    padding: 6,
+    minHeight: 64,
+  },
+  actBtn: { minWidth: 72, flex: 1, paddingHorizontal: 12 },
+  actSmall: { minWidth: 0, flexShrink: 1, paddingHorizontal: 8 },
+  waiting: {
+    color: color.textDim,
+    fontSize: 16,
+    fontWeight: '600',
+    paddingRight: 14,
+  },
 });

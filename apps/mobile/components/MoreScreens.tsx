@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import type { Friend, FriendRequest, LeaderboardEntry, MyLeaderboardStats, RoundHistoryEntry } from '@cyprus/shared';
+import type { Friend, FriendRequest, RoundHistoryEntry } from '@cyprus/shared';
 import { Btn } from './Btn';
 import { GlassCard, GoldTitle, Hall } from './Olympus';
 import { color } from '@/lib/theme';
@@ -48,46 +48,7 @@ export function TutorialScreen({ onClose }: { onClose: () => void }) {
   );
 }
 
-export function LeaderboardScreen({ onClose }: { onClose: () => void }) {
-  const t = useT();
-  const insets = useSafeAreaInsets();
-  const user = useAuth((s) => s.user);
-  const [rows, setRows] = useState<LeaderboardEntry[] | null>(null);
-  const [mine, setMine] = useState<MyLeaderboardStats | null>(null);
-
-  useEffect(() => {
-    void api('/api/leaderboard').then(async (r) => { if (r.ok) setRows(await r.json()); else setRows([]); });
-    if (user) {
-      void api('/api/leaderboard/me').then(async (r) => { if (r.ok) setMine(await r.json()); });
-    }
-  }, [user]);
-
-  return (
-    <Hall>
-      <ScrollView contentContainerStyle={[styles.scroll, { paddingTop: insets.top + 24, paddingBottom: insets.bottom + 24 }]}>
-        <GoldTitle title={t('leaderboard.title')} subtitle={t('leaderboard.subtitle')} />
-        {mine && (
-          <GlassCard>
-            <Text style={styles.h}>{t('leaderboard.yourStats')}</Text>
-            <Text style={styles.p}>{t('leaderboard.rank')} {mine.rank} · {t('leaderboard.elo')} {mine.elo} · {t('leaderboard.wl')} {mine.games_won}/{mine.games_lost}</Text>
-          </GlassCard>
-        )}
-        <GlassCard>
-          {rows === null && <Text style={styles.p}>{t('leaderboard.loading')}</Text>}
-          {rows?.length === 0 && <Text style={styles.p}>{t('leaderboard.noPlayers')}</Text>}
-          {rows?.map((row, i) => (
-            <View key={row.user_id} style={styles.line}>
-              <Text style={styles.rank}>{i + 1}</Text>
-              <Text style={styles.name} numberOfLines={1}>{row.display_name}</Text>
-              <Text style={styles.meta}>{row.elo}</Text>
-            </View>
-          ))}
-        </GlassCard>
-        <Back label={t('leaderboard.backToLobby')} onPress={onClose} />
-      </ScrollView>
-    </Hall>
-  );
-}
+export { LeaderboardScreen } from './Leaderboard';
 
 export function LiveGamesScreen({ onClose }: { onClose: () => void }) {
   const insets = useSafeAreaInsets();
