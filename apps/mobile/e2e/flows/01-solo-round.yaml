@@ -8,6 +8,7 @@ appId: dev.aegist.titsu
     timeout: 20000
 - tapOn:
     id: "nickname"
+- eraseText
 - inputText: "Maestro"
 - tapOn: "Done"
 - takeScreenshot: 01-lobby

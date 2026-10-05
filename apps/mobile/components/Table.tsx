@@ -207,7 +207,8 @@ function Playing({ g }: { g: ClientGameState }) {
               hitSlop={10}
               style={styles.exit}
             >
-              <Text style={styles.exitText}>✕</Text>
+              <View pointerEvents="none" style={[styles.exitStroke, { transform: [{ rotate: '45deg' }] }]} />
+              <View pointerEvents="none" style={[styles.exitStroke, { transform: [{ rotate: '-45deg' }] }]} />
             </Pressable>
             <View style={styles.scores}>
               <Text style={[styles.scoreNum, { color: color.teamUs }]}>{g.scores[myTeam]}</Text>
@@ -228,7 +229,9 @@ function Playing({ g }: { g: ClientGameState }) {
               accessibilityLabel="Score history"
               hitSlop={8}
             >
-              <Text style={styles.room}>{roomCode ?? '≡'}</Text>
+              <Text style={styles.room} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.75}>
+                {roomCode ?? '≡'}
+              </Text>
             </Pressable>
             {!g.isSpectator && lastEvent?.id ? (
               <Pressable
@@ -415,7 +418,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  exitText: { color: color.text, fontSize: 20, fontWeight: '600' },
+  exitStroke: { position: 'absolute', width: 18, height: 2, borderRadius: 1, backgroundColor: color.text },
   scores: {
     flex: 1,
     flexDirection: 'row',

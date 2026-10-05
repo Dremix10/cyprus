@@ -35,17 +35,22 @@ export function GlassSurface({
   interactive?: boolean;
 }) {
   const reduce = useReduceTransparency();
+  const corner = StyleSheet.flatten(style)?.borderRadius ?? 22;
   const inner =
     LIQUID_GLASS && !reduce ? (
-      <GlassView
-        glassEffectStyle="clear"
-        colorScheme="dark"
-        isInteractive={interactive}
-        tintColor={tint}
-        style={[styles.glass, style]}
-      >
+      <View collapsable={false} style={[styles.glass, style]}>
+        {/* Keep the native effect stable while ordinary React Native controls
+            above it change as turns and available actions update. */}
+        <GlassView
+          pointerEvents="none"
+          glassEffectStyle="clear"
+          colorScheme="dark"
+          isInteractive={interactive}
+          tintColor={tint}
+          style={[StyleSheet.absoluteFill, { borderRadius: corner }]}
+        />
         {children}
-      </GlassView>
+      </View>
     ) : Platform.OS === 'ios' && !reduce ? (
       <BlurView intensity={80} tint="systemChromeMaterialDark" style={[style, styles.clip]}>
         {children}
