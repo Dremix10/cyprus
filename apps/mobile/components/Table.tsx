@@ -86,7 +86,7 @@ function OpponentTile({ p, g, compact }: { p: PublicPlayerState; g: ClientGameSt
         minimumFontScale={0.8}
         accessibilityLabel={p.nickname}
       >
-        {p.isBot ? p.nickname.replace(/^Bot /, '') : p.nickname}
+        {p.nickname}
       </Text>
       <View style={styles.tileRow}>
         {p.isOut ? (
