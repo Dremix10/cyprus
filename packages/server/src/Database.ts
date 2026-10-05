@@ -1259,7 +1259,10 @@ export class TrackerDB {
   createUser(username: string, displayName: string, passwordHash: string | null, email: string | null = null, googleId: string | null = null, appleId: string | null = null): number {
     const result = this.db.prepare(
       `INSERT INTO users (username, display_name, password_hash, email, google_id, apple_id) VALUES (?, ?, ?, ?, ?, ?)`
-    ).run(username, displayName, passwordHash, email, googleId, appleId);
+    // Older production databases require NOT NULL here. An empty value is a
+    // passwordless account (AuthService checks truthiness before verification).
+    // Keep existing users and foreign keys intact rather than rebuilding users.
+    ).run(username, displayName, passwordHash ?? '', email, googleId, appleId);
     return Number(result.lastInsertRowid);
   }
 
