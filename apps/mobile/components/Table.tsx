@@ -5,6 +5,7 @@ import {
   GamePhase,
   getRankLabel,
   sortCards,
+  sortCombinationForDisplay,
   type Card,
   type ClientGameState,
   type PlayerPosition,
@@ -267,7 +268,7 @@ function Playing({ g }: { g: ClientGameState }) {
                 {previous && (
                   <View style={{ alignItems: 'center', opacity: 0.55 }}>
                     <Text style={styles.playerLabel}>{g.players[previous.playerPosition]?.nickname}</Text>
-                    <CardRow cards={previous.combination.cards} width={28} />
+                    <CardRow cards={sortCombinationForDisplay(previous.combination)} width={28} />
                   </View>
                 )}
                 <Text
@@ -282,7 +283,7 @@ function Playing({ g }: { g: ClientGameState }) {
                   {latest.playerPosition === g.currentTrick.currentWinner ? ' ★' : ''}
                 </Text>
                 <CardRow
-                  cards={latest.combination.cards}
+                  cards={sortCombinationForDisplay(latest.combination)}
                   width={trick.length && latest.combination.cards.length > 7 ? 30 : 42}
                 />
               </View>

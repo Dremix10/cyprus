@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useGameStore } from '../stores/gameStore.js';
 import { useRoomStore } from '../stores/roomStore.js';
 import type { PlayerPosition, RoundScoreBreakdown } from '@cyprus/shared';
-import { getCardPoints, getRankLabel } from '@cyprus/shared';
+import { getCardPoints, getRankLabel, sortCards } from '@cyprus/shared';
 import { CardComponent } from './CardComponent.js';
 import { PlayerHand } from './PlayerHand.js';
 import { PlayerAvatar } from './PlayerAvatar.js';
@@ -118,7 +118,7 @@ export function GrandTichuView() {
       <h3>{t('phase.grandTichuQuestion')}</h3>
       <p className="info">{t('phase.seen8Cards')}</p>
       <PlayerHand
-        cards={gameState.myHand}
+        cards={sortCards(gameState.myHand)}
         selectedCards={selectedCards}
         onToggle={toggleCard}
         interactive={false}
@@ -257,7 +257,7 @@ export function PassingView() {
       </div>
 
       <div className="pass-hand">
-        {gameState.myHand.map((card) => {
+        {sortCards(gameState.myHand).map((card) => {
           const isAssigned = assignedCardIds.has(card.id);
           const isActive = activeCard === card.id;
           return (

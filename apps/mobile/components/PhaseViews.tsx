@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Alert, ScrollView, StyleSheet, Text, View, Pressable } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { NormalRank, getCardPoints, getRankLabel, type PlayerPosition, type ClientGameState } from '@cyprus/shared';
+import { NormalRank, getCardPoints, getRankLabel, sortCards, type PlayerPosition, type ClientGameState } from '@cyprus/shared';
 import { Btn } from './Btn';
 import { Hand } from './Hand';
 import { CardView } from './CardView';
@@ -37,7 +37,7 @@ export function GrandTichuView({ g }: { g: ClientGameState }) {
       <Text style={styles.h1}>Grand Tichu?</Text>
       <Text style={styles.p}>These are your first 8 cards. Call only if you expect to go out first.</Text>
       <View style={{ flex: 1, justifyContent: 'center' }}>
-        <Hand cards={g.myHand} selected={[]} onToggle={() => {}} disabled cardWidth={62} />
+        <Hand cards={sortCards(g.myHand)} selected={[]} onToggle={() => {}} disabled cardWidth={62} />
       </View>
       {g.grandTichuPending ? (
         <View style={{ gap: 10 }}>
@@ -144,7 +144,7 @@ export function PassingView({ g }: { g: ClientGameState }) {
         })}
       </View>
       <View style={{ flex: 1, justifyContent: 'flex-end' }}>
-        <Hand cards={g.myHand} selected={[...placed]} onToggle={tapCard} cardWidth={58} />
+        <Hand cards={sortCards(g.myHand)} selected={[...placed]} onToggle={tapCard} cardWidth={58} />
       </View>
       <View style={{ gap: 10, marginTop: 14 }}>
         <Btn

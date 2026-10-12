@@ -112,11 +112,11 @@ function DogArt({ small }: { small?: boolean }) {
   );
 }
 
-const SPECIAL_CARDS: Record<SpecialCardType, { label: string; color: string; bg: string; Art: React.FC<{ small?: boolean }> }> = {
-  [SpecialCardType.MAHJONG]: { label: '1', color: '#333', bg: '#f5f5dc', Art: MahjongArt },
-  [SpecialCardType.DOG]: { label: 'Dog', color: '#333', bg: '#d4c4a8', Art: DogArt },
-  [SpecialCardType.PHOENIX]: { label: 'Ph', color: '#c0392b', bg: '#ffeaa7', Art: PhoenixArt },
-  [SpecialCardType.DRAGON]: { label: 'Dr', color: '#fff', bg: '#2c3e50', Art: DragonArt },
+const SPECIAL_CARDS: Record<SpecialCardType, { name: string; mark: string | null; color: string; bg: string; Art: React.FC<{ small?: boolean }> }> = {
+  [SpecialCardType.MAHJONG]: { name: 'Ματζόνγκ', mark: '1', color: '#333', bg: '#f5f5dc', Art: MahjongArt },
+  [SpecialCardType.DOG]: { name: 'Σκύλος', mark: null, color: '#333', bg: '#d4c4a8', Art: DogArt },
+  [SpecialCardType.PHOENIX]: { name: 'Φοίνικας', mark: null, color: '#c0392b', bg: '#ffeaa7', Art: PhoenixArt },
+  [SpecialCardType.DRAGON]: { name: 'Δράκος', mark: null, color: '#fff', bg: '#2c3e50', Art: DragonArt },
 };
 
 interface CardComponentProps {
@@ -167,12 +167,22 @@ export function CardComponent({ card, selected, onClick, size = 'normal' }: Card
       <div
         className={`card special-card special-${card.specialType.toLowerCase()} ${selected ? 'card-selected' : ''} ${isSmall ? 'card-sm' : ''}`}
         style={{ background: display.bg, color: display.color }}
+        aria-label={display.name}
         {...interactiveProps}
       >
-        <div className="card-corner special-corner">{display.label}</div>
+        <div className="special-index" aria-hidden="true">
+          {display.mark ? (
+            <span className="special-mark">{display.mark}</span>
+          ) : (
+            <span className="special-mini">
+              <display.Art small />
+            </span>
+          )}
+        </div>
         <div className="card-center">
           <display.Art small={isSmall} />
         </div>
+        <div className="special-name">{display.name}</div>
       </div>
     );
   }

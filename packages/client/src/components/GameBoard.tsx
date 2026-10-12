@@ -1,156 +1,10 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useGameStore } from '../stores/gameStore.js';
 import { useRoomStore } from '../stores/roomStore.js';
-import { GamePhase, SpecialCardType, CombinationType, getRankLabel, sortCards } from '@cyprus/shared';
-import type { Card, Combination, PlayerPosition } from '@cyprus/shared';
+import { GamePhase, SpecialCardType, getRankLabel, sortCards, sortCombinationForDisplay, getPhoenixDisplayLabel } from '@cyprus/shared';
+import type { PlayerPosition } from '@cyprus/shared';
 import { useT } from '../i18n.js';
 
-/** Get the effective rank label for Phoenix in a combo. For singles, pass the previous play's rank. */
-function getPhoenixLabel(combo: Combination, prevRank?: number): string | null {
-  const phoenix = combo.cards.find((c) => c.type === 'special' && c.specialType === SpecialCardType.PHOENIX);
-  if (!phoenix) return null;
-
-  // Phoenix as single — show the rank it beats (prevRank + 0.5, displayed as the rank it sits above)
-  if (combo.cards.length === 1 && prevRank !== undefined) {
-    return getRankLabel(prevRank) + '½';
-  }
-  if (combo.cards.length <= 1) return null;
-
-  const getCardRank = (c: Card) => c.type === 'normal' ? c.rank : (c.type === 'special' && c.specialType === SpecialCardType.MAHJONG ? 1 : 0);
-  const others = combo.cards.filter((c) => c !== phoenix);
-  const ranks = others.map(getCardRank);
-
-  if (combo.type === CombinationType.STRAIGHT) {
-    const minRank = Math.min(...ranks);
-    const maxRank = Math.max(...ranks);
-    // Default: extend up, unless top is ACE (14) — then extend down
-    let phoenixRank = maxRank >= 14 ? minRank - 1 : maxRank + 1;
-    for (let r = minRank; r <= maxRank; r++) {
-      if (!ranks.includes(r)) { phoenixRank = r; break; }
-    }
-    return getRankLabel(phoenixRank);
-  }
-  if (combo.type === CombinationType.CONSECUTIVE_PAIRS) {
-    const rankCounts = new Map<number, number>();
-    for (const r of ranks) rankCounts.set(r, (rankCounts.get(r) ?? 0) + 1);
-    const minRank = Math.min(...ranks);
-    const maxRank = Math.max(...ranks);
-    let phoenixRank = maxRank + 1;
-    // Prefer a rank missing from the run entirely
-    for (let r = minRank; r <= maxRank; r++) {
-      if (!rankCounts.has(r)) { phoenixRank = r; break; }
-    }
-    // Otherwise fill the rank that's only present once
-    if (phoenixRank === maxRank + 1) {
-      for (const [r, count] of rankCounts) {
-        if (count === 1) { phoenixRank = r; break; }
-      }
-    }
-    return getRankLabel(phoenixRank);
-  }
-  if (combo.type === CombinationType.PAIR || combo.type === CombinationType.TRIPLE || combo.type === CombinationType.FULL_HOUSE) {
-    // Phoenix matches the rank of the other cards in its group
-    const rankCounts = new Map<number, number>();
-    for (const r of ranks) rankCounts.set(r, (rankCounts.get(r) ?? 0) + 1);
-    // FULL_HOUSE 2+2+Phoenix tiebreaker: Phoenix joins the HIGHER pair (matches engine rule)
-    if (combo.type === CombinationType.FULL_HOUSE && rankCounts.size === 2) {
-      const [r1, r2] = [...rankCounts.keys()];
-      if (rankCounts.get(r1) === 2 && rankCounts.get(r2) === 2) {
-        return getRankLabel(Math.max(r1, r2));
-      }
-    }
-    // Find the rank with fewer cards (Phoenix completes it)
-    let minCount = Infinity;
-    let phoenixRank = ranks[0];
-    for (const [r, count] of rankCounts) {
-      if (count < minCount) { minCount = count; phoenixRank = r; }
-    }
-    return getRankLabel(phoenixRank);
-  }
-  return null;
-}
-
-/** Sort cards for display: Phoenix placed at its effective position in the combo. */
-function sortForDisplay(combo: Combination): Card[] {
-  if (combo.type === CombinationType.FULL_HOUSE) {
-    const phoenix = combo.cards.find((c) => c.type === 'special' && c.specialType === SpecialCardType.PHOENIX);
-    const normalCards = combo.cards.filter((c) => c !== phoenix || !phoenix);
-    const rankCounts = new Map<number, Card[]>();
-    for (const c of normalCards) {
-      const rank = c.type === 'normal' ? c.rank : 0;
-      const group = rankCounts.get(rank) ?? [];
-      group.push(c);
-      rankCounts.set(rank, group);
-    }
-    // Phoenix completes whichever group is smaller (the pair needs one more).
-    // For 2+2+Phoenix, join the HIGHER-ranked pair to match engine rule.
-    if (phoenix) {
-      const entries = [...rankCounts.entries()];
-      const minLen = Math.min(...entries.map(([, g]) => g.length));
-      const candidates = entries.filter(([, g]) => g.length === minLen);
-      const targetRank = Math.max(...candidates.map(([r]) => r));
-      const targetGroup = rankCounts.get(targetRank);
-      if (targetGroup) targetGroup.push(phoenix);
-    }
-    const groups = [...rankCounts.values()].sort((a, b) => b.length - a.length);
-    return groups.flat();
-  }
-
-  // For combos with Phoenix, figure out the rank it fills and sort it there
-  const phoenix = combo.cards.find((c) => c.type === 'special' && c.specialType === SpecialCardType.PHOENIX);
-  if (phoenix && combo.cards.length > 1) {
-    const others = combo.cards.filter((c) => c !== phoenix);
-    const sorted = sortCards(others);
-
-    const getCardRank = (c: Card) => c.type === 'normal' ? c.rank : (c.type === 'special' && c.specialType === SpecialCardType.MAHJONG ? 1 : 0);
-
-    if (combo.type === CombinationType.STRAIGHT || combo.type === CombinationType.CONSECUTIVE_PAIRS) {
-      const ranks = sorted.map(getCardRank);
-      const minRank = Math.min(...ranks);
-      const maxRank = Math.max(...ranks);
-
-      // Find the gap rank that Phoenix fills.
-      // Default: extend up, unless top is ACE (straights only) — then extend down.
-      let phoenixRank = combo.type === CombinationType.STRAIGHT && maxRank >= 14
-        ? minRank - 1
-        : maxRank + 1;
-      if (combo.type === CombinationType.STRAIGHT) {
-        for (let r = minRank; r <= maxRank; r++) {
-          if (!ranks.includes(r)) { phoenixRank = r; break; }
-        }
-      } else {
-        // Consecutive pairs: each rank should appear twice; find the one with only 1
-        const rankCounts = new Map<number, number>();
-        for (const r of ranks) rankCounts.set(r, (rankCounts.get(r) ?? 0) + 1);
-        // Check for a rank gap (missing rank entirely)
-        for (let r = minRank; r <= maxRank; r++) {
-          if (!rankCounts.has(r)) { phoenixRank = r; break; }
-        }
-        // Check for a rank with only 1 card (Phoenix completes the pair)
-        if (phoenixRank === maxRank + 1) {
-          for (const [r, count] of rankCounts) {
-            if (count === 1) { phoenixRank = r; break; }
-          }
-        }
-      }
-
-      // Insert Phoenix at the right position
-      const insertIdx = sorted.findIndex((c) => getCardRank(c) > phoenixRank);
-      if (insertIdx === -1) {
-        sorted.push(phoenix);
-      } else {
-        sorted.splice(insertIdx, 0, phoenix);
-      }
-      return sorted;
-    }
-
-    // For pairs/triples: Phoenix matches the rank of the others
-    sorted.push(phoenix);
-    return sorted;
-  }
-
-  return sortCards(combo.cards);
-}
 import { CardComponent } from './CardComponent.js';
 import { PlayerHand } from './PlayerHand.js';
 import { OpponentHand } from './OpponentHand.js';
@@ -453,8 +307,8 @@ function PlayingLayout({
                       {(() => {
                         const playIdx = gameState.currentTrick.plays.indexOf(play);
                         const prevRank = playIdx > 0 ? gameState.currentTrick.plays[playIdx - 1].combination.rank : undefined;
-                        const phoenixLabel = getPhoenixLabel(play.combination, prevRank);
-                        return sortForDisplay(play.combination).map((c) => (
+                        const phoenixLabel = getPhoenixDisplayLabel(play.combination, prevRank);
+                        return sortCombinationForDisplay(play.combination).map((c) => (
                           <div key={c.id} className="trick-card-wrap">
                             <CardComponent card={c} size="small" />
                             {phoenixLabel && c.type === 'special' && c.specialType === SpecialCardType.PHOENIX && (
@@ -515,7 +369,7 @@ function PlayingLayout({
           <span className="my-finish-badge">#{myInfo.finishOrder}</span>
         )}
         <PlayerHand
-          cards={gameState.myHand}
+          cards={sortCards(gameState.myHand)}
           selectedCards={selectedCards}
           onToggle={toggleCard}
           lockedCards={undefined}

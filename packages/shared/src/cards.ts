@@ -1,7 +1,12 @@
 import type { Card, NormalCard } from './types/card.js';
 import { NormalRank, SpecialCardType } from './types/card.js';
 
-/** Get the effective rank of a card for sorting. Specials: Mahjong=1, Dog=0, Phoenix=0.5, Dragon=15 */
+/**
+ * Hand order, low to high: Dog, Mahjong, 2–Ace, Phoenix, Dragon.
+ * Phoenix sits just before the Dragon. A led Phoenix is not that strong —
+ * see getLedSingleRank (1.5). When it is played on a single, GameEngine
+ * sets its rank to half a step above that card, still under the Dragon.
+ */
 export function getCardSortRank(card: Card): number {
   if (card.type === 'normal') return card.rank;
   switch (card.specialType) {
@@ -10,10 +15,16 @@ export function getCardSortRank(card: Card): number {
     case SpecialCardType.DOG:
       return 0;
     case SpecialCardType.PHOENIX:
-      return 0.5;
+      return 14.5;
     case SpecialCardType.DRAGON:
       return 15;
   }
+}
+
+/** Strength of a single on the lead. Phoenix leads as 1.5, between Mahjong and 2. */
+export function getLedSingleRank(card: Card): number {
+  if (card.type === 'special' && card.specialType === SpecialCardType.PHOENIX) return 1.5;
+  return getCardSortRank(card);
 }
 
 /** Sort cards by rank ascending, specials placed by their effective rank. */
