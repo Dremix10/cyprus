@@ -15,6 +15,7 @@ import { ResetPasswordForm } from './components/AuthForms.js';
 import { LiveGames } from './components/LiveGames.js';
 import { FriendInvitePopup } from './components/FriendInvitePopup.js';
 import { LegalPages, type LegalPageType } from './components/LegalPages.js';
+import { useGameWakeLock } from './wakeLock.js';
 import './App.css';
 
 function getResetToken(): string | null {
@@ -68,6 +69,7 @@ export default function App() {
   }, []);
 
   const t = useT();
+  useGameWakeLock(view === 'game');
 
   if (reconnecting) {
     return (
