@@ -89,10 +89,14 @@ export function LeaderboardScreen({ onClose }: { onClose: () => void }) {
   }, [user?.id, retry]);
   return (
     <Hall>
-      <ScrollView
-        contentContainerStyle={[styles.scroll, { paddingTop: insets.top + 24, paddingBottom: insets.bottom + 24 }]}
-      >
+      <View style={[styles.header, { paddingTop: insets.top + 12 }]}>
+        <Btn label={t('leaderboard.backToLobby')} kind="ghost" onPress={onClose} />
         <GoldTitle title={t('leaderboard.title')} subtitle={t('leaderboard.subtitle')} />
+      </View>
+      <ScrollView
+        style={styles.list}
+        contentContainerStyle={[styles.scroll, { paddingBottom: insets.bottom + 24 }]}
+      >
         {mine && (
           <GlassCard>
             <Text style={styles.heading}>{t('leaderboard.yourStats')}</Text>
@@ -164,12 +168,13 @@ export function LeaderboardScreen({ onClose }: { onClose: () => void }) {
             <Text style={styles.footnote}>{t('leaderboard.details')}</Text>
           </View>
         )}
-        <Btn label={t('leaderboard.backToLobby')} kind="ghost" onPress={onClose} />
       </ScrollView>
     </Hall>
   );
 }
 const styles = StyleSheet.create({
+  header: { paddingHorizontal: 24, gap: 16, paddingBottom: 8 },
+  list: { flex: 1 },
   scroll: { paddingHorizontal: 24, gap: 20 },
   heading: { color: color.gold, fontFamily: greekFont, fontSize: 23 },
   section: {

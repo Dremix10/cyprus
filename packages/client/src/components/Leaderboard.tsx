@@ -50,10 +50,16 @@ export function Leaderboard({ onBack }: { onBack: () => void }) {
 
       <div className="leaderboard-content">
         <div className="leaderboard-header">
-          <h1 className="title-greek">{t('leaderboard.title')}</h1>
-          <p className="subtitle-greek">{t('leaderboard.subtitle')}</p>
+          <button className="btn btn-olympus btn-back-lobby" onClick={onBack}>
+            {t('leaderboard.backToLobby')}
+          </button>
+          <div className="leaderboard-heading">
+            <h1 className="title-greek">{t('leaderboard.title')}</h1>
+            <p className="subtitle-greek">{t('leaderboard.subtitle')}</p>
+          </div>
         </div>
 
+        <div className="leaderboard-scroll">
         {myStats && myStats.games_played > 0 && (
           <div className="leaderboard-my-stats">
             <h3>{t('leaderboard.yourStats')}</h3>
@@ -167,10 +173,7 @@ export function Leaderboard({ onBack }: { onBack: () => void }) {
             </table>
           </div>
         )}
-
-        <button className="btn btn-olympus btn-back-lobby" onClick={onBack}>
-          {t('leaderboard.backToLobby')}
-        </button>
+        </div>
       </div>
     </div>
   );

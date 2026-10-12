@@ -1255,10 +1255,9 @@ body {
   position: fixed;
   inset: 0;
   display: flex;
-  align-items: center;
   justify-content: center;
   background: #0a0a1a;
-  overflow-y: auto;
+  overflow: hidden;
 }
 
 .leaderboard-content {
@@ -1266,15 +1265,39 @@ body {
   z-index: 2;
   width: 100%;
   max-width: 800px;
-  padding: 2rem 1.5rem;
+  min-height: 0;
+  padding: max(1.25rem, env(safe-area-inset-top)) 1.5rem 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.leaderboard-header {
+  width: 100%;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.85rem;
+  padding-bottom: 1rem;
+  text-align: center;
+}
+
+.leaderboard-heading {
+  text-align: center;
+}
+
+.leaderboard-scroll {
+  width: 100%;
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 1.5rem;
-}
-
-.leaderboard-header {
-  text-align: center;
+  padding-bottom: max(1.5rem, env(safe-area-inset-bottom));
 }
 
 .leaderboard-header .title-greek {
@@ -2282,11 +2305,12 @@ body {
 }
 
 .btn-back-lobby {
+  align-self: flex-start;
   background: transparent;
   border: 1px solid rgba(201, 168, 76, 0.4);
   color: #c9a84c;
   font-size: 0.85rem;
-  margin-top: 1rem;
+  margin-top: 0;
 }
 
 .btn-back-lobby:hover {
@@ -2531,8 +2555,8 @@ body {
 /* ─── Game Board ────────────────────────── */
 
 .game-board {
-  width: 100%;
-  max-width: 900px;
+  width: min(100%, 900px);
+  margin-inline: auto;
   padding: 1rem;
   min-height: 100vh;
   display: flex;
@@ -2540,15 +2564,21 @@ body {
 }
 
 .game-info {
-  display: flex;
-  justify-content: space-between;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
   align-items: center;
+  column-gap: 0.75rem;
+  width: 100%;
   padding: 0.5rem 1rem;
   background: var(--surface);
   border-radius: 10px;
   margin-bottom: 1rem;
   font-size: 0.9rem;
   border: 1px solid rgba(255, 255, 255, 0.04);
+}
+
+.game-info > .name-opponent {
+  text-align: right;
 }
 
 .bot-difficulty-label {
@@ -2582,6 +2612,9 @@ body {
   letter-spacing: 0.05em;
   display: flex;
   align-items: center;
+  justify-content: center;
+  justify-self: center;
+  text-align: center;
   gap: 0.4rem;
 }
 

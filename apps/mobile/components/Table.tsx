@@ -198,51 +198,55 @@ function Playing({ g }: { g: ClientGameState }) {
       <Felt />
       {/* Floating top bar */}
       <View style={[styles.topWrap, { top: insets.top + 6 }]} pointerEvents="box-none">
-        <GlassSurface style={{ borderRadius: radius.pill }}>
+        <GlassSurface style={styles.topGlass}>
           <View collapsable={false} style={styles.topBar}>
-            <Pressable
-              onPress={confirmLeave}
-              accessibilityRole="button"
-              accessibilityLabel="Leave game"
-              hitSlop={10}
-              style={styles.exit}
-            >
-              <View pointerEvents="none" style={[styles.exitStroke, { transform: [{ rotate: '45deg' }] }]} />
-              <View pointerEvents="none" style={[styles.exitStroke, { transform: [{ rotate: '-45deg' }] }]} />
-            </Pressable>
+            <View style={styles.topSide}>
+              <Pressable
+                onPress={confirmLeave}
+                accessibilityRole="button"
+                accessibilityLabel="Leave game"
+                hitSlop={10}
+                style={styles.exit}
+              >
+                <View pointerEvents="none" style={[styles.exitStroke, { transform: [{ rotate: '45deg' }] }]} />
+                <View pointerEvents="none" style={[styles.exitStroke, { transform: [{ rotate: '-45deg' }] }]} />
+              </Pressable>
+            </View>
             <View style={styles.scores}>
               <Text style={[styles.scoreNum, { color: color.teamUs }]}>{g.scores[myTeam]}</Text>
               <Text style={styles.scoreTo}>to {g.targetScore}</Text>
               <Text style={[styles.scoreNum, { color: color.teamThem }]}>{g.scores[1 - myTeam]}</Text>
             </View>
-            <Pressable
-              onPress={toggleSound}
-              accessibilityRole="button"
-              accessibilityLabel={soundOn ? 'Mute' : 'Unmute'}
-              hitSlop={8}
-            >
-              <Text style={styles.room}>{soundOn ? '♪' : '∅'}</Text>
-            </Pressable>
-            <Pressable
-              onPress={() => setHistoryOpen(true)}
-              accessibilityRole="button"
-              accessibilityLabel="Score history"
-              hitSlop={8}
-            >
-              <Text style={styles.room} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.75}>
-                {roomCode ?? '≡'}
-              </Text>
-            </Pressable>
-            {!g.isSpectator && lastEvent?.id ? (
+            <View style={[styles.topSide, styles.topSideEnd]}>
               <Pressable
-                onPress={() => reportBot(lastEvent.id!)}
+                onPress={toggleSound}
                 accessibilityRole="button"
-                accessibilityLabel="Report bot play"
+                accessibilityLabel={soundOn ? 'Mute' : 'Unmute'}
                 hitSlop={8}
               >
-                <Text style={styles.room}>⚑</Text>
+                <Text style={styles.room}>{soundOn ? '♪' : '∅'}</Text>
               </Pressable>
-            ) : null}
+              <Pressable
+                onPress={() => setHistoryOpen(true)}
+                accessibilityRole="button"
+                accessibilityLabel="Score history"
+                hitSlop={8}
+              >
+                <Text style={styles.room} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.75}>
+                  {roomCode ?? '≡'}
+                </Text>
+              </Pressable>
+              {!g.isSpectator && lastEvent?.id ? (
+                <Pressable
+                  onPress={() => reportBot(lastEvent.id!)}
+                  accessibilityRole="button"
+                  accessibilityLabel="Report bot play"
+                  hitSlop={8}
+                >
+                  <Text style={styles.room}>⚑</Text>
+                </Pressable>
+              ) : null}
+            </View>
           </View>
         </GlassSurface>
       </View>
@@ -404,7 +408,8 @@ const styles = StyleSheet.create({
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 12 },
   dim: { color: color.textDim, fontSize: 15 },
   table: { flex: 1 },
-  topWrap: { position: 'absolute', left: 12, right: 12, zIndex: 10 },
+  topWrap: { position: 'absolute', left: 12, right: 12, zIndex: 10, alignItems: 'center' },
+  topGlass: { borderRadius: radius.pill, width: '100%', alignSelf: 'center' },
   topBar: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -412,6 +417,8 @@ const styles = StyleSheet.create({
     minHeight: 52,
     paddingHorizontal: 8,
   },
+  topSide: { flex: 1, flexDirection: 'row', alignItems: 'center', minWidth: 0 },
+  topSideEnd: { justifyContent: 'flex-end' },
   exit: {
     width: 44,
     height: 44,
@@ -420,11 +427,11 @@ const styles = StyleSheet.create({
   },
   exitStroke: { position: 'absolute', width: 18, height: 2, borderRadius: 1, backgroundColor: color.text },
   scores: {
-    flex: 1,
     flexDirection: 'row',
     alignItems: 'baseline',
     justifyContent: 'center',
     gap: 10,
+    flexShrink: 0,
   },
   scoreNum: { fontSize: 22, fontWeight: '800' },
   scoreTo: { color: color.textFaint, fontSize: 12 },
