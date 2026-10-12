@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import * as Haptics from 'expo-haptics';
 import type { ClientGameState, GameEvent, NormalRank, PlayerPosition, RoomState } from '@cyprus/shared';
+import { planFriendLobbyInvite, runFriendLobbyInvite } from '@cyprus/shared';
 import { socket } from './socket';
 import { useAuth } from './authStore';
 import { clearTicket, loadProfile, loadTicket, saveProfile, saveTicket } from './session';
@@ -41,7 +42,7 @@ interface AppStore {
   joinQueue(): Promise<void>;
   leaveQueue(): void;
   spectate(code: string): void;
-  inviteFriend(friendUserId: number): void;
+  inviteFriend(friendUserId: number): Promise<{ success: boolean; createdRoom: boolean }>;
   acceptInvite(): void;
   declineInvite(): void;
   reportBot(eventId: number): void;
@@ -319,11 +320,66 @@ export const useApp = create<AppStore>((set, get) => {
         set({ view: 'game', roomCode: res.roomCode, game: null });
       });
     },
-    inviteFriend: (friendUserId) => {
-      socket.emit('friend:invite:send', friendUserId, (res) => {
-        if ('error' in res) notify(res.error, 'error');
-        else notify('Invite sent');
+    inviteFriend: async (friendUserId) => {
+      const state = get();
+      const inWaiting = state.view === 'waiting' && !!state.roomCode;
+      const inGame = state.view === 'game';
+      const plan = planFriendLobbyInvite({
+        inRoom: inWaiting || inGame,
+        gameStarted: inGame,
+        playerCount: state.roomState?.players.length ?? 0,
       });
+      const result = await runFriendLobbyInvite(plan, {
+        createRoom: () =>
+          new Promise((resolve) => {
+            const { nickname, targetScore, difficulty } = get();
+            if (!nickname.trim()) {
+              notify('Enter a nickname', 'error');
+              resolve({ ok: false, error: 'Enter a nickname' });
+              return;
+            }
+            void ensureConnected()
+              .then(() => {
+                socket.emit('room:create', nickname.trim(), targetScore, difficulty, (res) => {
+                  if ('error' in res || !res.sessionId || !res.roomCode) {
+                    const error = 'error' in res ? res.error : 'Could not create room';
+                    notify(error, 'error');
+                    resolve({ ok: false, error });
+                    return;
+                  }
+                  void saveTicket(res.sessionId, res.roomCode, nickname.trim());
+                  set({
+                    roomCode: res.roomCode,
+                    view: 'waiting',
+                    roomState: null,
+                    game: null,
+                    selected: [],
+                  });
+                  resolve({ ok: true });
+                });
+              })
+              .catch(() => {
+                notify('Could not reach the server. Try again.', 'error');
+                resolve({ ok: false, error: 'Could not reach the server. Try again.' });
+              });
+          }),
+        sendInvite: () =>
+          new Promise((resolve) => {
+            socket.emit('friend:invite:send', friendUserId, (res) => {
+              if ('error' in res) {
+                notify(res.error, 'error');
+                resolve({ ok: false, error: res.error });
+              } else {
+                notify('Invite sent');
+                resolve({ ok: true });
+              }
+            });
+          }),
+      });
+      if (!result.success && result.error && !result.createdRoom && plan.kind === 'blocked') {
+        notify(result.error, 'error');
+      }
+      return { success: result.success, createdRoom: result.createdRoom };
     },
     acceptInvite: () => {
       socket.emit('friend:invite:accept', (res) => {

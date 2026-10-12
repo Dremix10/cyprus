@@ -1987,10 +1987,16 @@ body {
 
 .friend-actions {
   display: flex;
+  align-items: center;
   gap: 0.35rem;
   margin-left: auto;
   flex-shrink: 0;
 }
+
+.friend-actions .btn-friend-remove {
+  margin-left: 0;
+}
+
 
 .btn-friend {
   border: none;
@@ -2056,6 +2062,14 @@ body {
   color: rgba(255, 255, 255, 0.45);
   white-space: nowrap;
   margin-left: auto;
+}
+
+.friend-status-label.friend-invite-error {
+  max-width: 9rem;
+  margin-left: 0;
+  color: #f44336;
+  white-space: normal;
+  text-align: right;
 }
 
 .friend-action-feedback {
