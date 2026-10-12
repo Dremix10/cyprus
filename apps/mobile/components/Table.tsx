@@ -27,6 +27,7 @@ import {
 } from './PhaseViews';
 import { ScoreHistorySheet } from './MoreScreens';
 import { color, greekFont, radius } from '@/lib/theme';
+import { useT } from '@/lib/i18n';
 import { useApp } from '@/lib/store';
 import { socket } from '@/lib/socket';
 
@@ -75,7 +76,8 @@ export function Table() {
 
 function OpponentTile({ p, g, compact }: { p: PublicPlayerState; g: ClientGameState; compact?: boolean }) {
   const mate = p.position % 2 === g.myPosition % 2;
-  const turn = g.currentPlayer === p.position && g.phase === GamePhase.PLAYING;
+  const activeSeat = g.dogLead?.to ?? g.currentPlayer;
+  const turn = activeSeat === p.position && g.phase === GamePhase.PLAYING;
   const passed = g.currentTrick.passedPlayers?.includes(p.position);
   const dc = useCountdown(g.disconnectDeadlines?.[p.position]);
   return (
@@ -149,13 +151,16 @@ function Playing({ g }: { g: ClientGameState }) {
     top: ((g.myPosition + 2) % 4) as PlayerPosition,
     left: ((g.myPosition + 3) % 4) as PlayerPosition,
   };
+  const t = useT();
   const isDragon = g.phase === GamePhase.DRAGON_GIVE;
-  const myTurn = g.currentPlayer === g.myPosition && !isDragon;
+  const dogLead = g.dogLead ?? null;
+  const activeSeat = dogLead?.to ?? g.currentPlayer;
+  const myTurn = activeSeat === g.myPosition && !isDragon;
   const canAct = g.canAct ?? true;
   const canPass = g.canPass ?? false;
   const mustPlayWish = g.mustPlayWish ?? false;
   const secs = useCountdown(g.turnDeadline);
-  const turnName = g.players[g.currentPlayer]?.nickname ?? '';
+  const turnName = g.players[activeSeat]?.nickname ?? '';
   const dragonMine = isDragon && g.currentTrick.currentWinner === g.myPosition;
   const wishMine = g.wishPending === g.myPosition;
   const hand = sortCards(g.myHand);
@@ -286,6 +291,19 @@ function Playing({ g }: { g: ClientGameState }) {
                   cards={sortCombinationForDisplay(latest.combination)}
                   width={trick.length && latest.combination.cards.length > 7 ? 30 : 42}
                 />
+                {dogLead && (
+                  <Text style={styles.dogLead}>
+                    {t('game.dogLead', { name: g.players[dogLead.to]?.nickname ?? '' })}
+                  </Text>
+                )}
+              </View>
+            ) : dogLead ? (
+              <View style={{ alignItems: 'center', gap: 6 }}>
+                <Text style={styles.playerLabel}>{g.players[dogLead.from]?.nickname}</Text>
+                <CardView card={dogLead.card} width={42} />
+                <Text style={styles.dogLead}>
+                  {t('game.dogLead', { name: g.players[dogLead.to]?.nickname ?? '' })}
+                </Text>
               </View>
             ) : (
               <Text style={styles.dim}>{myTurn ? 'Your lead' : `${turnName} leads`}</Text>
@@ -309,13 +327,13 @@ function Playing({ g }: { g: ClientGameState }) {
                       ? 'Your turn · nothing beats it, pass'
                       : 'Your turn'
                   : `${turnName}'s turn`}
-              {secs !== null && !isDragon ? `  ·  ${secs}s` : ''}
+              {secs !== null && !isDragon && !g.dogPending ? `  ·  ${secs}s` : ''}
             </Text>
           </GlassSurface>
         </View>
 
         {/* Me */}
-        <View style={styles.meRow}>
+        <View style={[styles.meRow, dogLead?.to === g.myPosition && styles.meTurn]}>
           <Text style={styles.meName} numberOfLines={1}>
             {me.nickname}
           </Text>
@@ -467,6 +485,12 @@ const styles = StyleSheet.create({
     fontSize: 14,
   },
   playerLabel: { color: color.textDim, fontSize: 13, fontWeight: '700' },
+  dogLead: {
+    color: color.gold,
+    fontSize: 12,
+    fontWeight: '700',
+    textAlign: 'center',
+  },
   tile: {
     minWidth: 92,
     borderRadius: radius.md,
@@ -525,6 +549,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 8,
     paddingHorizontal: 4,
+  },
+  meTurn: {
+    alignSelf: 'flex-start',
+    borderWidth: 2,
+    borderColor: color.gold,
+    borderRadius: radius.md,
+    paddingVertical: 4,
+    paddingHorizontal: 8,
   },
   meName: { color: color.text, fontWeight: '800', fontSize: 15, flexShrink: 1 },
   actions: {

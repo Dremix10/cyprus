@@ -246,7 +246,10 @@ function PlayingLayout({
     }
   }, [lastEvent]);
 
-  const isMyTurn = gameState.currentPlayer === gameState.myPosition;
+  const dogLead = gameState.dogLead ?? null;
+  const activeSeat = dogLead?.to ?? gameState.currentPlayer;
+  const isMyTurn = activeSeat === gameState.myPosition;
+  const dogLeadName = dogLead ? gameState.players[dogLead.to]?.nickname || '' : '';
   const myInfo = gameState.players[gameState.myPosition];
   const isDragonGive = gameState.phase === GamePhase.DRAGON_GIVE;
   const isTeammate = (pos: PlayerPosition) => pos % 2 === gameState.myPosition % 2;
@@ -267,7 +270,7 @@ function PlayingLayout({
         <OpponentHand
           player={gameState.players[rel.top]}
           position="top"
-          isCurrentTurn={gameState.currentPlayer === rel.top}
+          isCurrentTurn={activeSeat === rel.top}
           isTeammate={isTeammate(rel.top)}
           hasPassed={passedSet.has(rel.top)}
           disconnectDeadline={gameState.disconnectDeadlines?.[rel.top]}
@@ -279,7 +282,7 @@ function PlayingLayout({
         <OpponentHand
           player={gameState.players[rel.left]}
           position="left"
-          isCurrentTurn={gameState.currentPlayer === rel.left}
+          isCurrentTurn={activeSeat === rel.left}
           isTeammate={isTeammate(rel.left)}
           hasPassed={passedSet.has(rel.left)}
           disconnectDeadline={gameState.disconnectDeadlines?.[rel.left]}
@@ -322,17 +325,31 @@ function PlayingLayout({
                 );
               })}
             </div>
+          ) : dogLead ? (
+            <div className="trick-cards dog-lead-notice">
+              <div className="trick-play trick-play-latest">
+                <span className={`trick-player ${isTeammate(dogLead.from) ? 'name-teammate' : 'name-opponent'}`}>
+                  {gameState.players[dogLead.from]?.nickname}
+                </span>
+                <div className="trick-combo">
+                  <CardComponent card={dogLead.card} size="small" />
+                </div>
+              </div>
+            </div>
           ) : (
             <span className="no-trick">
               {isMyTurn ? t('game.yourLead') : t('game.playerLead', { name: gameState.players[gameState.currentPlayer]?.nickname || '' })}
             </span>
+          )}
+          {dogLead && (
+            <span className="dog-lead-label">{t('game.dogLead', { name: dogLeadName })}</span>
           )}
         </div>
 
         <OpponentHand
           player={gameState.players[rel.right]}
           position="right"
-          isCurrentTurn={gameState.currentPlayer === rel.right}
+          isCurrentTurn={activeSeat === rel.right}
           isTeammate={isTeammate(rel.right)}
           hasPassed={passedSet.has(rel.right)}
           disconnectDeadline={gameState.disconnectDeadlines?.[rel.right]}
@@ -350,16 +367,16 @@ function PlayingLayout({
           <span className="your-turn">{t('game.yourTurn')}</span>
         ) : (
           <span className="info">
-            {t('game.playerTurn', { name: gameState.players[gameState.currentPlayer]?.nickname || '' })}
+            {t('game.playerTurn', { name: gameState.players[activeSeat]?.nickname || '' })}
           </span>
         )}
-        {gameState.turnDeadline && (
+        {gameState.turnDeadline && !gameState.dogPending && (
           <TurnTimer deadline={gameState.turnDeadline} />
         )}
       </div>
 
       {/* My hand */}
-      <div className="my-hand-row">
+      <div className={`my-hand-row ${dogLead?.to === gameState.myPosition ? 'dog-lead-target' : ''}`}>
         {myInfo?.tichuCall !== 'none' && (
           <span className={`tichu-badge ${myInfo.tichuCall === 'grand_tichu' ? 'tichu-badge-grand' : ''}`}>
             {myInfo.tichuCall === 'grand_tichu' ? 'GRAND TICHU' : 'TICHU'}
