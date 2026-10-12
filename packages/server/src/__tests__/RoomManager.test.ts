@@ -72,6 +72,12 @@ describe('RoomManager', () => {
       expect(room!.targetScore).toBe(500);
     });
 
+    it('keeps a quick game as a single round', () => {
+      const result = rm.createRoom('socket1', 'Alice', 0) as { roomCode: string };
+      const room = rm.getRoom(result.roomCode);
+      expect(room!.targetScore).toBe(0);
+    });
+
     it('stores userId when provided', () => {
       const result = rm.createRoom('socket1', 'Alice', 1000, 42) as { roomCode: string };
       const room = rm.getRoom(result.roomCode);
@@ -130,6 +136,12 @@ describe('RoomManager', () => {
       const result = rm.createSoloRoom('socket1', 'Alice', 50) as { roomCode: string };
       const room = rm.getRoom(result.roomCode);
       expect(room!.targetScore).toBe(250);
+    });
+
+    it('accepts a quick solo game', () => {
+      const result = rm.createSoloRoom('socket1', 'Alice', 0) as { roomCode: string };
+      const room = rm.getRoom(result.roomCode);
+      expect(room!.targetScore).toBe(0);
     });
 
     it('stores bot difficulty', () => {

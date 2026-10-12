@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useGameStore } from '../stores/gameStore.js';
 import { useRoomStore } from '../stores/roomStore.js';
 import type { PlayerPosition, RoundScoreBreakdown } from '@cyprus/shared';
-import { getCardPoints, getRankLabel, sortCards } from '@cyprus/shared';
+import { getCardPoints, getRankLabel, sortCards, isQuickGame, winningTeam } from '@cyprus/shared';
 import { CardComponent } from './CardComponent.js';
 import { PlayerHand } from './PlayerHand.js';
 import { PlayerAvatar } from './PlayerAvatar.js';
@@ -322,7 +322,9 @@ export function ScoringView() {
           <ScoreHistory history={gameState.roundHistory} myTeam={myTeam} />
         )}
         {!gameState.isSpectator && (
-          <button className="btn btn-primary" onClick={nextRound}>{t('phase.nextRound')}</button>
+          <button className="btn btn-primary" onClick={nextRound}>
+            {isQuickGame(gameState.targetScore) ? t('phase.seeResult') : t('phase.nextRound')}
+          </button>
         )}
       </div>
 
@@ -338,7 +340,8 @@ export function GameOverView() {
   const gameState = useGameStore((s) => s.gameState)!;
   const reset = useRoomStore((s) => s.reset);
   const myTeam = gameState.myPosition % 2 === 0 ? 0 : 1;
-  const winnerTeam = gameState.scores[0] >= gameState.targetScore ? 0 : 1;
+  const winnerTeam = winningTeam(gameState.scores);
+  const tied = winnerTeam === null;
   const iWon = winnerTeam === myTeam;
 
   const finishPlayers = gameState.finishOrder.map((pos, i) => ({
@@ -353,8 +356,8 @@ export function GameOverView() {
   return (
     <div className={`phase-view game-over-view ${iWon ? 'game-over-win' : 'game-over-loss'}`}>
       <div className="game-over-banner">
-        <h2 className={iWon ? 'winner' : 'loser'}>{iWon ? t('phase.victory') : t('phase.defeat')}</h2>
-        <p className="game-over-subtitle">{iWon ? t('phase.yourTeamWins') : t('phase.opponentsWin')}</p>
+        <h2 className={tied ? 'winner' : iWon ? 'winner' : 'loser'}>{tied ? t('phase.tie') : iWon ? t('phase.victory') : t('phase.defeat')}</h2>
+        <p className="game-over-subtitle">{tied ? t('phase.tied') : iWon ? t('phase.yourTeamWins') : t('phase.opponentsWin')}</p>
       </div>
 
       <div className="scores">

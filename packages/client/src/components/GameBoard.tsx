@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useGameStore } from '../stores/gameStore.js';
 import { useRoomStore } from '../stores/roomStore.js';
-import { GamePhase, SpecialCardType, getRankLabel, sortCards, sortCombinationForDisplay, getPhoenixDisplayLabel } from '@cyprus/shared';
+import { GamePhase, SpecialCardType, getRankLabel, sortCards, sortCombinationForDisplay, getPhoenixDisplayLabel, isQuickGame } from '@cyprus/shared';
 import type { PlayerPosition } from '@cyprus/shared';
 import { useT } from '../i18n.js';
 
@@ -89,11 +89,14 @@ export function GameBoard() {
       )}
       <div className="game-info">
         <span className="name-teammate">
-          {t('game.yourTeam')}: {gameState.scores[myTeam]} / {gameState.targetScore}
+          {t('game.yourTeam')}: {gameState.scores[myTeam]}{isQuickGame(gameState.targetScore) ? '' : ` / ${gameState.targetScore}`}
         </span>
         <span className="phase-label">
           {roomCode && <span className="room-code-badge">{roomCode}</span>}
-          <span className="game-phase-title">{formatPhase(gameState.phase)}</span>
+          <span className="game-phase-title">
+            {formatPhase(gameState.phase)}
+            {isQuickGame(gameState.targetScore) ? ` · ${t('game.oneRound')}` : ''}
+          </span>
           <span className="game-controls">
             <SoundToggle />
             <QuickGuideButton />
@@ -110,7 +113,7 @@ export function GameBoard() {
           </span>
         </span>
         <span className="name-opponent">
-          {t('game.opponents')}: {gameState.scores[1 - myTeam]} / {gameState.targetScore}
+          {t('game.opponents')}: {gameState.scores[1 - myTeam]}{isQuickGame(gameState.targetScore) ? '' : ` / ${gameState.targetScore}`}
         </span>
       </div>
       {gameState.botDifficulty && (

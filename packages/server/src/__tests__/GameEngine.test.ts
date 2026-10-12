@@ -135,6 +135,31 @@ describe('GameEngine', () => {
       customEngine.nextRound();
       expect(customEngine.state.phase).toBe(GamePhase.GAME_OVER);
     });
+
+    it('ends a quick game after one round, even when nobody reached 250', () => {
+      const quick = new GameEngine(['A', 'B', 'C', 'D'], 0);
+      quick.state.phase = GamePhase.ROUND_SCORING;
+      quick.state.scores = [80, -20];
+      const events = quick.nextRound();
+      expect(quick.state.phase).toBe(GamePhase.GAME_OVER);
+      expect(events.some((e) => e.type === 'GAME_OVER')).toBe(true);
+    });
+
+    it('ends a quick game in a tie when both teams score the same', () => {
+      const quick = new GameEngine(['A', 'B', 'C', 'D'], 0);
+      quick.state.phase = GamePhase.ROUND_SCORING;
+      quick.state.scores = [50, 50];
+      quick.nextRound();
+      expect(quick.state.phase).toBe(GamePhase.GAME_OVER);
+    });
+
+    it('keeps playing a target game while both scores are under the target', () => {
+      const target = new GameEngine(['A', 'B', 'C', 'D'], 250);
+      target.state.phase = GamePhase.ROUND_SCORING;
+      target.state.scores = [100, 80];
+      target.nextRound();
+      expect(target.state.phase).toBe(GamePhase.GRAND_TICHU);
+    });
   });
 
   // ─── 2. startRound ──────────────────────────────────────────────────

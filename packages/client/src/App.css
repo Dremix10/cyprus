@@ -539,6 +539,55 @@ body {
   gap: 0.85rem;
 }
 
+.length-picker {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.length-label {
+  text-align: center;
+  color: rgba(201, 168, 76, 0.7);
+  font-size: 0.8rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.length-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  justify-content: center;
+}
+
+.length-option {
+  flex: 1 1 5.5rem;
+  min-height: 2.4rem;
+  padding: 0.4rem 0.55rem;
+  border-radius: 10px;
+  border: 1px solid rgba(201, 168, 76, 0.35);
+  background: rgba(22, 33, 62, 0.8);
+  color: rgba(232, 213, 163, 0.85);
+  font: inherit;
+  font-size: 0.82rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.length-option-active {
+  background: #c9a84c;
+  border-color: #c9a84c;
+  color: #1a1203;
+}
+
+@media (max-width: 520px) {
+  .length-option {
+    flex: 1 1 calc(50% - 0.4rem);
+    min-height: 2.6rem;
+    font-size: 0.9rem;
+  }
+}
+
 .target-score-row {
   display: flex;
   align-items: center;

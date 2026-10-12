@@ -28,6 +28,7 @@ import {
   sameTeam,
   sumCardPoints,
   WINNING_SCORE,
+  isQuickGame,
 } from '@cyprus/shared';
 import { dealCards } from './Deck.js';
 
@@ -608,8 +609,10 @@ export class GameEngine {
     this.events = [];
     this.assertPhase(GamePhase.ROUND_SCORING);
 
-    // Check if game is over
-    if (this.state.scores[0] >= this.targetScore || this.state.scores[1] >= this.targetScore) {
+    // A quick game is one round: more points wins, even if both scores are low or negative.
+    const reachedTarget =
+      this.state.scores[0] >= this.targetScore || this.state.scores[1] >= this.targetScore;
+    if (isQuickGame(this.targetScore) || reachedTarget) {
       this.state.phase = GamePhase.GAME_OVER;
       this.emit({ type: 'GAME_OVER' });
       return this.events;

@@ -5,7 +5,7 @@ import { Btn } from './Btn';
 import { GlassCard, GoldTitle, Hall } from './Olympus';
 import { GlassSurface } from './GlassSurface';
 import { color, radius } from '@/lib/theme';
-import { DIFFICULTIES, SCORE_OPTIONS } from '@/lib/config';
+import { DIFFICULTIES, QUICK_GAME, SCORE_OPTIONS } from '@/lib/config';
 import { useApp } from '@/lib/store';
 import { useAuth } from '@/lib/authStore';
 import { useLangStore, useT, type Lang } from '@/lib/i18n';
@@ -112,6 +112,13 @@ export function Lobby({
             />
             {panel === 'home' && (
               <View style={{ gap: 10 }}>
+                <Text style={styles.label}>{t('lobby.gameLength')}</Text>
+                <Segmented
+                  options={SCORE_OPTIONS}
+                  value={targetScore as (typeof SCORE_OPTIONS)[number]}
+                  onChange={setTargetScore}
+                  label={(n) => (n === QUICK_GAME ? t('lobby.quickGame') : `${n}`)}
+                />
                 <Btn
                   label={t('lobby.playOnline')}
                   kind="gold"
@@ -144,12 +151,12 @@ export function Lobby({
             )}
             {panel === 'create' && (
               <View style={{ gap: 10 }}>
-                <Text style={styles.label}>{t('lobby.playTo')}</Text>
+                <Text style={styles.label}>{t('lobby.gameLength')}</Text>
                 <Segmented
                   options={SCORE_OPTIONS}
                   value={targetScore as (typeof SCORE_OPTIONS)[number]}
                   onChange={setTargetScore}
-                  label={(n) => `${n}`}
+                  label={(n) => (n === QUICK_GAME ? t('lobby.quickGame') : `${n}`)}
                 />
                 <Text style={styles.label}>{t('lobby.botLevel')}</Text>
                 <Segmented
@@ -194,12 +201,12 @@ export function Lobby({
             )}
             {panel === 'solo' && (
               <View style={{ gap: 10 }}>
-                <Text style={styles.label}>{t('lobby.playTo')}</Text>
+                <Text style={styles.label}>{t('lobby.gameLength')}</Text>
                 <Segmented
                   options={SCORE_OPTIONS}
                   value={targetScore as (typeof SCORE_OPTIONS)[number]}
                   onChange={setTargetScore}
-                  label={(n) => `${n}`}
+                  label={(n) => (n === QUICK_GAME ? t('lobby.quickGame') : `${n}`)}
                 />
                 <Text style={styles.label}>{t('lobby.botLevel')}</Text>
                 <Segmented

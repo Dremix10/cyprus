@@ -4,6 +4,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   GamePhase,
   getRankLabel,
+  isQuickGame,
   sortCards,
   sortCombinationForDisplay,
   type Card,
@@ -220,7 +221,9 @@ function Playing({ g }: { g: ClientGameState }) {
             </View>
             <View style={styles.scores}>
               <Text style={[styles.scoreNum, { color: color.teamUs }]}>{g.scores[myTeam]}</Text>
-              <Text style={styles.scoreTo}>to {g.targetScore}</Text>
+              <Text style={styles.scoreTo}>
+                {isQuickGame(g.targetScore) ? t('game.oneRound') : `to ${g.targetScore}`}
+              </Text>
               <Text style={[styles.scoreNum, { color: color.teamThem }]}>{g.scores[1 - myTeam]}</Text>
             </View>
             <View style={[styles.topSide, styles.topSideEnd]}>
