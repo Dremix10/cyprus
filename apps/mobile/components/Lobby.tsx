@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { toGreekUpper } from '@cyprus/shared';
 import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Btn } from './Btn';
@@ -98,7 +99,7 @@ export function Lobby({
           {maintenance ? <Text style={styles.banner}>{maintenance}</Text> : null}
 
           <GlassCard>
-            <Text style={styles.label}>{t('lobby.enterName')}</Text>
+            <Text style={styles.label}>{toGreekUpper(t('lobby.enterName'))}</Text>
             <TextInput
               value={nickname}
               onChangeText={setNickname}
@@ -112,7 +113,7 @@ export function Lobby({
             />
             {panel === 'home' && (
               <View style={{ gap: 10 }}>
-                <Text style={styles.label}>{t('lobby.gameLength')}</Text>
+                <Text style={styles.label}>{toGreekUpper(t('lobby.gameLength'))}</Text>
                 <Segmented
                   options={SCORE_OPTIONS}
                   value={targetScore as (typeof SCORE_OPTIONS)[number]}
@@ -151,14 +152,14 @@ export function Lobby({
             )}
             {panel === 'create' && (
               <View style={{ gap: 10 }}>
-                <Text style={styles.label}>{t('lobby.gameLength')}</Text>
+                <Text style={styles.label}>{toGreekUpper(t('lobby.gameLength'))}</Text>
                 <Segmented
                   options={SCORE_OPTIONS}
                   value={targetScore as (typeof SCORE_OPTIONS)[number]}
                   onChange={setTargetScore}
                   label={(n) => (n === QUICK_GAME ? t('lobby.quickGame') : `${n}`)}
                 />
-                <Text style={styles.label}>{t('lobby.botLevel')}</Text>
+                <Text style={styles.label}>{toGreekUpper(t('lobby.botLevel'))}</Text>
                 <Segmented
                   options={DIFFICULTIES}
                   value={difficulty as (typeof DIFFICULTIES)[number]}
@@ -201,14 +202,14 @@ export function Lobby({
             )}
             {panel === 'solo' && (
               <View style={{ gap: 10 }}>
-                <Text style={styles.label}>{t('lobby.gameLength')}</Text>
+                <Text style={styles.label}>{toGreekUpper(t('lobby.gameLength'))}</Text>
                 <Segmented
                   options={SCORE_OPTIONS}
                   value={targetScore as (typeof SCORE_OPTIONS)[number]}
                   onChange={setTargetScore}
                   label={(n) => (n === QUICK_GAME ? t('lobby.quickGame') : `${n}`)}
                 />
-                <Text style={styles.label}>{t('lobby.botLevel')}</Text>
+                <Text style={styles.label}>{toGreekUpper(t('lobby.botLevel'))}</Text>
                 <Segmented
                   options={DIFFICULTIES}
                   value={difficulty as (typeof DIFFICULTIES)[number]}

@@ -16,6 +16,7 @@ import { LiveGames } from './components/LiveGames.js';
 import { FriendInvitePopup } from './components/FriendInvitePopup.js';
 import { LegalPages, type LegalPageType } from './components/LegalPages.js';
 import { useGameWakeLock } from './wakeLock.js';
+import { useGreekCaps } from './greekCaps.js';
 import './App.css';
 
 function getResetToken(): string | null {
@@ -29,6 +30,7 @@ function getLegalPageFromPath(): LegalPageType | null {
 }
 
 export default function App() {
+  useGreekCaps();
   useSocketEvents();
   const view = useRoomStore((s) => s.view);
   const reconnecting = useRoomStore((s) => s.reconnecting);

@@ -1,26 +1,24 @@
 import { useEffect, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import type { LeaderboardEntry, MyLeaderboardStats } from '@cyprus/shared';
 import { Btn } from './Btn';
 import { GlassCard, GoldTitle, Hall } from './Olympus';
-import { api } from '@/lib/api';
 import { useAuth } from '@/lib/authStore';
+import { BASE_URL } from '@/lib/config';
 import { useT } from '@/lib/i18n';
+import {
+  loadLeaderboard,
+  type LeaderboardHistoryEntry,
+  type LeaderboardRow,
+  type MyLeaderboardRow,
+} from '@/lib/leaderboard';
 import { color, greekFont } from '@/lib/theme';
+import { getSocketToken } from '@/lib/token';
 
-type Result = {
-  game_id: number;
-  ended_at: string;
-  won: boolean;
-  myScore: number;
-  opponentScore: number;
-  botDifficulty: string | null;
-};
-const rate = (row: LeaderboardEntry) => (row.games_played ? Math.round((100 * row.games_won) / row.games_played) : 0);
+const rate = (row: LeaderboardRow) => (row.games_played ? Math.round((100 * row.games_won) / row.games_played) : 0);
 const calls = (success: number, total: number) => (total ? `${success}/${total}` : '—');
 
-function Stats({ row, rank }: { row: LeaderboardEntry; rank?: number }) {
+function Stats({ row, rank }: { row: LeaderboardRow; rank?: number }) {
   const t = useT();
   const items = [
     ...(rank !== undefined ? [[t('leaderboard.rank'), rank > 0 ? `#${rank}` : t('leaderboard.unranked')]] : []),
@@ -51,9 +49,9 @@ export function LeaderboardScreen({ onClose }: { onClose: () => void }) {
   const t = useT();
   const insets = useSafeAreaInsets();
   const user = useAuth((s) => s.user);
-  const [rows, setRows] = useState<LeaderboardEntry[] | null>(null);
-  const [mine, setMine] = useState<MyLeaderboardStats | null>(null);
-  const [history, setHistory] = useState<Result[]>([]);
+  const [rows, setRows] = useState<LeaderboardRow[] | null>(null);
+  const [mine, setMine] = useState<MyLeaderboardRow | null>(null);
+  const [history, setHistory] = useState<LeaderboardHistoryEntry[]>([]);
   const [open, setOpen] = useState<number | null>(null);
   const [error, setError] = useState(false);
   const [retry, setRetry] = useState(0);
@@ -65,19 +63,15 @@ export function LeaderboardScreen({ onClose }: { onClose: () => void }) {
     setError(false);
     const load = async () => {
       try {
-        const response = await api('/api/leaderboard?limit=50');
-        if (!response.ok) throw new Error('Leaderboard unavailable');
-        const entries: LeaderboardEntry[] = await response.json();
-        if (live) setRows(entries);
-        if (user) {
-          const [stats, games] = await Promise.all([api('/api/leaderboard/me'), api('/api/leaderboard/history')]);
-          const own = stats.ok ? await stats.json() : null;
-          const results = games.ok ? await games.json() : [];
-          if (live) {
-            setMine(own);
-            setHistory(results);
-          }
-        }
+        const data = await loadLeaderboard({
+          baseUrl: BASE_URL,
+          token: getSocketToken(),
+          signedIn: Boolean(user),
+        });
+        if (!live) return;
+        setRows(data.rows);
+        setMine(data.mine);
+        setHistory(data.history);
       } catch {
         if (live) setError(true);
       }
@@ -87,8 +81,11 @@ export function LeaderboardScreen({ onClose }: { onClose: () => void }) {
       live = false;
     };
   }, [user?.id, retry]);
+  const list = Array.isArray(rows) ? rows : null;
+  const games = Array.isArray(history) ? history : [];
   return (
     <Hall>
+      <View style={styles.screen}>
       <View style={[styles.header, { paddingTop: insets.top + 12 }]}>
         <Btn label={t('leaderboard.backToLobby')} kind="ghost" onPress={onClose} />
         <GoldTitle title={t('leaderboard.title')} subtitle={t('leaderboard.subtitle')} />
@@ -101,10 +98,10 @@ export function LeaderboardScreen({ onClose }: { onClose: () => void }) {
           <GlassCard>
             <Text style={styles.heading}>{t('leaderboard.yourStats')}</Text>
             <Stats row={mine} rank={mine.rank} />
-            {history.length > 0 && (
+            {games.length > 0 && (
               <>
                 <Text style={styles.section}>{t('leaderboard.recent')}</Text>
-                {history.map((game) => (
+                {games.map((game) => (
                   <View key={game.game_id} style={styles.result}>
                     <Text style={[styles.resultBadge, { color: game.won ? color.ok : color.danger }]}>
                       {t(game.won ? 'leaderboard.win' : 'leaderboard.loss')}
@@ -126,9 +123,9 @@ export function LeaderboardScreen({ onClose }: { onClose: () => void }) {
             <Text style={styles.label}>{t('leaderboard.loadFailed')}</Text>
             <Btn label={t('leaderboard.retry')} kind="ghost" onPress={() => setRetry((n) => n + 1)} />
           </GlassCard>
-        ) : rows === null ? (
+        ) : list === null ? (
           <Text style={styles.empty}>{t('leaderboard.loading')}</Text>
-        ) : rows.length === 0 ? (
+        ) : list.length === 0 ? (
           <GlassCard>
             <Text style={styles.empty}>{t('leaderboard.noPlayers')}</Text>
           </GlassCard>
@@ -138,8 +135,8 @@ export function LeaderboardScreen({ onClose }: { onClose: () => void }) {
               <Text style={styles.section}>{t('leaderboard.player')}</Text>
               <Text style={styles.label}>{t('leaderboard.elo')}</Text>
             </View>
-            {rows.map((row, i) => (
-              <View key={row.user_id} style={[styles.player, row.user_id === mine?.user_id && styles.mine]}>
+            {list.map((row, i) => (
+              <View key={String(row.user_id)} style={[styles.player, row.user_id === mine?.user_id && styles.mine]}>
                 <Pressable
                   accessibilityRole="button"
                   accessibilityState={{ expanded: open === row.user_id }}
@@ -169,10 +166,12 @@ export function LeaderboardScreen({ onClose }: { onClose: () => void }) {
           </View>
         )}
       </ScrollView>
+      </View>
     </Hall>
   );
 }
 const styles = StyleSheet.create({
+  screen: { flex: 1 },
   header: { paddingHorizontal: 24, gap: 16, paddingBottom: 8 },
   list: { flex: 1 },
   scroll: { paddingHorizontal: 24, gap: 20 },

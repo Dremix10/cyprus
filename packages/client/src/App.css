@@ -2902,6 +2902,8 @@ body {
   letter-spacing: -0.04em;
   pointer-events: none;
   white-space: nowrap;
+  /* Title case keeps the tonos (Δράκος). Do not inherit uppercase. */
+  text-transform: none;
 }
 
 .card-sm .special-name {

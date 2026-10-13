@@ -1,6 +1,6 @@
 import { memo } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
-import { Suit, SpecialCardType, getRankLabel, type Card } from '@cyprus/shared';
+import { Suit, SpecialCardType, SPECIAL_CARD_NAMES, getRankLabel, type Card } from '@cyprus/shared';
 import { color } from '@/lib/theme';
 
 // Suits differ by SHAPE as well as colour (same glyphs as the website).
@@ -18,10 +18,10 @@ const SUIT_COLOR: Record<Suit, string> = {
 };
 
 const SPECIAL: Record<SpecialCardType, { corner: string; name: string; glyph: string; bg: string; ink: string }> = {
-  [SpecialCardType.MAHJONG]: { corner: '1', name: 'Ματζόνγκ', glyph: '1', bg: '#F6E9C9', ink: '#8A1C1C' },
-  [SpecialCardType.DOG]: { corner: '🐕', name: 'Σκύλος', glyph: '🐕', bg: '#D9C3A0', ink: '#3E2A10' },
-  [SpecialCardType.PHOENIX]: { corner: '🦅', name: 'Φοίνικας', glyph: '🦅', bg: '#FFD9A0', ink: '#B2350F' },
-  [SpecialCardType.DRAGON]: { corner: '🐉', name: 'Δράκος', glyph: '🐉', bg: '#1D2B3A', ink: '#FFFFFF' },
+  [SpecialCardType.MAHJONG]: { corner: '1', name: SPECIAL_CARD_NAMES[SpecialCardType.MAHJONG], glyph: '1', bg: '#F6E9C9', ink: '#8A1C1C' },
+  [SpecialCardType.DOG]: { corner: '🐕', name: SPECIAL_CARD_NAMES[SpecialCardType.DOG], glyph: '🐕', bg: '#D9C3A0', ink: '#3E2A10' },
+  [SpecialCardType.PHOENIX]: { corner: '🦅', name: SPECIAL_CARD_NAMES[SpecialCardType.PHOENIX], glyph: '🦅', bg: '#FFD9A0', ink: '#B2350F' },
+  [SpecialCardType.DRAGON]: { corner: '🐉', name: SPECIAL_CARD_NAMES[SpecialCardType.DRAGON], glyph: '🐉', bg: '#1D2B3A', ink: '#FFFFFF' },
 };
 
 export const CARD_ASPECT = 1.42;
@@ -119,6 +119,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     fontWeight: '800',
     letterSpacing: -0.4,
+    textTransform: 'none',
   },
   selected: { borderColor: color.gold, borderWidth: 2.5 },
   dim: { opacity: 0.45 },

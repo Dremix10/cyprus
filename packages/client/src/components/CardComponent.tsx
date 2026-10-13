@@ -1,6 +1,6 @@
 import { useRef, type KeyboardEvent, type PointerEvent } from 'react';
 import type { Card } from '@cyprus/shared';
-import { Suit, SpecialCardType, getRankLabel } from '@cyprus/shared';
+import { Suit, SpecialCardType, SPECIAL_CARD_NAMES, getRankLabel } from '@cyprus/shared';
 
 const SUIT_SYMBOLS: Record<Suit, string> = {
   [Suit.JADE]: '\u2663',    // club (green)
@@ -113,10 +113,10 @@ function DogArt({ small }: { small?: boolean }) {
 }
 
 const SPECIAL_CARDS: Record<SpecialCardType, { name: string; mark: string | null; color: string; bg: string; Art: React.FC<{ small?: boolean }> }> = {
-  [SpecialCardType.MAHJONG]: { name: 'Ματζόνγκ', mark: '1', color: '#333', bg: '#f5f5dc', Art: MahjongArt },
-  [SpecialCardType.DOG]: { name: 'Σκύλος', mark: null, color: '#333', bg: '#d4c4a8', Art: DogArt },
-  [SpecialCardType.PHOENIX]: { name: 'Φοίνικας', mark: null, color: '#c0392b', bg: '#ffeaa7', Art: PhoenixArt },
-  [SpecialCardType.DRAGON]: { name: 'Δράκος', mark: null, color: '#fff', bg: '#2c3e50', Art: DragonArt },
+  [SpecialCardType.MAHJONG]: { name: SPECIAL_CARD_NAMES[SpecialCardType.MAHJONG], mark: '1', color: '#333', bg: '#f5f5dc', Art: MahjongArt },
+  [SpecialCardType.DOG]: { name: SPECIAL_CARD_NAMES[SpecialCardType.DOG], mark: null, color: '#333', bg: '#d4c4a8', Art: DogArt },
+  [SpecialCardType.PHOENIX]: { name: SPECIAL_CARD_NAMES[SpecialCardType.PHOENIX], mark: null, color: '#c0392b', bg: '#ffeaa7', Art: PhoenixArt },
+  [SpecialCardType.DRAGON]: { name: SPECIAL_CARD_NAMES[SpecialCardType.DRAGON], mark: null, color: '#fff', bg: '#2c3e50', Art: DragonArt },
 };
 
 interface CardComponentProps {
