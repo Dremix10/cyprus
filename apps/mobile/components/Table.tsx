@@ -27,6 +27,7 @@ import {
   confirmTichu,
 } from './PhaseViews';
 import { ScoreHistorySheet } from './MoreScreens';
+import { Sheet } from './Sheet';
 import { color, greekFont, radius } from '@/lib/theme';
 import { useT } from '@/lib/i18n';
 import { useApp } from '@/lib/store';
@@ -73,6 +74,19 @@ export function Table() {
         </View>
       );
   }
+}
+
+function GearIcon() {
+  return (
+    <View style={styles.gear}>
+      {[0, 45, 90, 135, 180, 225, 270, 315].map((deg) => (
+        <View key={deg} style={[styles.gearSpoke, { transform: [{ rotate: `${deg}deg` }] }]}>
+          <View style={styles.gearTooth} />
+        </View>
+      ))}
+      <View style={styles.gearRing} />
+    </View>
+  );
 }
 
 function OpponentTile({ p, g, compact }: { p: PublicPlayerState; g: ClientGameState; compact?: boolean }) {
@@ -141,6 +155,7 @@ function Playing({ g }: { g: ClientGameState }) {
   const roomCode = useApp((s) => s.roomCode);
   const [hinting, setHinting] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
   const soundOn = useApp((s) => s.soundOn);
   const toggleSound = useApp((s) => s.toggleSound);
   const reportBot = useApp((s) => s.reportBot);
@@ -228,33 +243,13 @@ function Playing({ g }: { g: ClientGameState }) {
             </View>
             <View style={[styles.topSide, styles.topSideEnd]}>
               <Pressable
-                onPress={toggleSound}
+                onPress={() => setSettingsOpen(true)}
                 accessibilityRole="button"
-                accessibilityLabel={soundOn ? 'Mute' : 'Unmute'}
-                hitSlop={8}
+                accessibilityLabel={t('game.settings')}
+                style={styles.gearBtn}
               >
-                <Text style={styles.room}>{soundOn ? '♪' : '∅'}</Text>
+                <GearIcon />
               </Pressable>
-              <Pressable
-                onPress={() => setHistoryOpen(true)}
-                accessibilityRole="button"
-                accessibilityLabel="Score history"
-                hitSlop={8}
-              >
-                <Text style={styles.room} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.75}>
-                  {roomCode ?? '≡'}
-                </Text>
-              </Pressable>
-              {!g.isSpectator && lastEvent?.id ? (
-                <Pressable
-                  onPress={() => reportBot(lastEvent.id!)}
-                  accessibilityRole="button"
-                  accessibilityLabel="Report bot play"
-                  hitSlop={8}
-                >
-                  <Text style={styles.room}>⚑</Text>
-                </Pressable>
-              ) : null}
             </View>
           </View>
         </GlassSurface>
@@ -422,6 +417,38 @@ function Playing({ g }: { g: ClientGameState }) {
       {historyOpen && (
         <ScoreHistorySheet history={g.roundHistory ?? []} myTeam={myTeam} onClose={() => setHistoryOpen(false)} />
       )}
+      {settingsOpen && (
+        <Sheet onClose={() => setSettingsOpen(false)}>
+          <Text style={styles.settingsTitle}>{t('game.settings')}</Text>
+          {roomCode ? <Text style={styles.settingsCode}>{roomCode}</Text> : null}
+          <Btn
+            label={soundOn ? t('game.soundOn') : t('game.soundOff')}
+            kind="ghost"
+            onPress={toggleSound}
+          />
+          <Btn
+            label={t('game.scoreHistory')}
+            kind="ghost"
+            onPress={() => {
+              setSettingsOpen(false);
+              setHistoryOpen(true);
+            }}
+          />
+          {!g.isSpectator && (
+            <Btn
+              label={t('game.reportBug')}
+              kind="ghost"
+              disabled={!lastEvent?.id}
+              onPress={() => {
+                if (!lastEvent?.id) return;
+                reportBot(lastEvent.id);
+                setSettingsOpen(false);
+              }}
+            />
+          )}
+          <Btn label={t('score.close')} kind="gold" onPress={() => setSettingsOpen(false)} />
+        </Sheet>
+      )}
     </View>
   );
 }
@@ -447,6 +474,49 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  gearBtn: {
+    width: 44,
+    height: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  gear: { width: 22, height: 22 },
+  gearSpoke: {
+    position: 'absolute',
+    left: 0,
+    top: 0,
+    width: 22,
+    height: 22,
+    alignItems: 'center',
+  },
+  gearTooth: {
+    width: 3.5,
+    height: 5,
+    borderRadius: 1,
+    backgroundColor: color.text,
+  },
+  gearRing: {
+    position: 'absolute',
+    left: 4,
+    top: 4,
+    width: 14,
+    height: 14,
+    borderRadius: 7,
+    borderWidth: 2,
+    borderColor: color.text,
+  },
+  settingsTitle: {
+    color: color.gold,
+    fontFamily: greekFont,
+    fontSize: 22,
+    textAlign: 'center',
+  },
+  settingsCode: {
+    color: color.textFaint,
+    textAlign: 'center',
+    letterSpacing: 2,
+    fontWeight: '700',
+  },
   exitStroke: { position: 'absolute', width: 18, height: 2, borderRadius: 1, backgroundColor: color.text },
   scores: {
     flexDirection: 'row',
@@ -457,15 +527,6 @@ const styles = StyleSheet.create({
   },
   scoreNum: { fontSize: 22, fontWeight: '800' },
   scoreTo: { color: color.textFaint, fontSize: 12 },
-  room: {
-    width: 40,
-    textAlign: 'right',
-    paddingRight: 4,
-    color: color.textFaint,
-    fontSize: 12,
-    fontWeight: '700',
-    letterSpacing: 1,
-  },
   content: { flex: 1, paddingHorizontal: 12, gap: 8 },
   topRow: { alignItems: 'center' },
   middle: { flex: 1, flexDirection: 'row', gap: 8, alignItems: 'stretch' },

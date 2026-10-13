@@ -2,14 +2,21 @@
 // Generates game sounds using the Web Audio API (no audio files needed).
 
 let muted = localStorage.getItem('cyprus-sound') !== 'on'; // off by default
+const mutedListeners = new Set<() => void>();
 
 export function isMuted(): boolean {
   return muted;
 }
 
+export function subscribeMuted(listener: () => void): () => void {
+  mutedListeners.add(listener);
+  return () => mutedListeners.delete(listener);
+}
+
 export function setMuted(value: boolean): void {
   muted = value;
   localStorage.setItem('cyprus-sound', value ? 'off' : 'on');
+  mutedListeners.forEach((listener) => listener());
 }
 
 let ctx: AudioContext | null = null;

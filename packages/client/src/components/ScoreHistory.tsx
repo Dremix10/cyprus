@@ -13,6 +13,12 @@ export function ScoreHistory({ history, myTeam = 0, onClose }: ScoreHistoryProps
   if (history.length === 0) {
     return (
       <div className="score-history">
+        <div className="score-history-header">
+          <h3>{t('score.scoreHistory')}</h3>
+          {onClose && (
+            <button className="btn btn-small" onClick={onClose}>{t('score.close')}</button>
+          )}
+        </div>
         <p className="info">{t('score.noRounds')}</p>
       </div>
     );

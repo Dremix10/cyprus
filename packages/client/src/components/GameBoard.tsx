@@ -15,7 +15,7 @@ import { QuickGuideButton } from './QuickGuide.js';
 import { GrandTichuView, PassingView, ScoringView, GameOverView, TichuCallBadges, PointCards, ScoreBreakdown } from './PhaseViews.js';
 import { ReportBotPlayButton } from './ReportBotPlayPanel.js';
 import { HintButton } from './HintButton.js';
-import { isMuted, setMuted } from '../sounds.js';
+import { isMuted, setMuted, subscribeMuted } from '../sounds.js';
 
 function getRelativePositions(myPos: PlayerPosition) {
   return {
@@ -25,19 +25,37 @@ function getRelativePositions(myPos: PlayerPosition) {
   };
 }
 
-function SoundToggle() {
+function SoundToggle({ variant = 'icon' }: { variant?: 'icon' | 'row' }) {
   const t = useT();
   const [muted, setMutedState] = useState(isMuted);
+  useEffect(() => subscribeMuted(() => setMutedState(isMuted())), []);
   const toggle = useCallback(() => {
-    const next = !muted;
-    setMuted(next);
-    setMutedState(next);
-  }, [muted]);
+    setMuted(!isMuted());
+  }, []);
+
+  if (variant === 'row') {
+    return (
+      <button type="button" className="game-settings-row" onClick={toggle}>
+        {muted ? t('game.soundOff') : t('game.soundOn')}
+      </button>
+    );
+  }
 
   return (
     <button className="sound-toggle" onClick={toggle} title={muted ? t('game.unmute') : t('game.mute')}>
       {muted ? '\uD83D\uDD07' : '\uD83D\uDD0A'}
     </button>
+  );
+}
+
+function GearIcon() {
+  return (
+    <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true">
+      <path
+        fill="currentColor"
+        d="M19.14 12.94c.04-.31.06-.63.06-.94s-.02-.63-.06-.94l2.03-1.58a.5.5 0 0 0 .12-.64l-1.92-3.32a.5.5 0 0 0-.61-.22l-2.39.96a7.2 7.2 0 0 0-1.63-.94l-.36-2.54a.5.5 0 0 0-.49-.42h-3.84a.5.5 0 0 0-.49.42l-.36 2.54c-.59.24-1.14.55-1.63.94l-2.39-.96a.5.5 0 0 0-.61.22L2.71 8.84a.5.5 0 0 0 .12.64l2.03 1.58c-.04.31-.06.63-.06.94s.02.63.06.94L2.83 14.52a.5.5 0 0 0-.12.64l1.92 3.32c.14.23.42.32.64.22l2.39-.96c.49.4 1.04.72 1.63.94l.36 2.54c.05.24.26.42.5.42h3.84c.24 0 .45-.18.5-.42l.36-2.54c.59-.22 1.14-.54 1.63-.94l2.39.96c.22.1.5 0 .64-.22l1.92-3.32a.5.5 0 0 0-.12-.64l-2.03-1.58zM12 15.5A3.5 3.5 0 1 1 12 8.5a3.5 3.5 0 0 1 0 7z"
+      />
+    </svg>
   );
 }
 
@@ -50,7 +68,17 @@ export function GameBoard() {
   const roomCode = useRoomStore((s) => s.roomCode);
   const reset = useRoomStore((s) => s.reset);
   const [showHistory, setShowHistory] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
   const [leaveConfirm, setLeaveConfirm] = useState(false);
+
+  useEffect(() => {
+    if (!settingsOpen) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setSettingsOpen(false);
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [settingsOpen]);
 
   if (!gameState) {
     return <div className="game-board">{t('game.loading')}</div>;
@@ -115,6 +143,16 @@ export function GameBoard() {
         <span className="name-opponent">
           {t('game.opponents')}: {gameState.scores[1 - myTeam]}{isQuickGame(gameState.targetScore) ? '' : ` / ${gameState.targetScore}`}
         </span>
+        <button
+          type="button"
+          className="game-settings-btn"
+          aria-label={t('game.settings')}
+          aria-haspopup="dialog"
+          aria-expanded={settingsOpen}
+          onClick={() => setSettingsOpen(true)}
+        >
+          <GearIcon />
+        </button>
       </div>
       {gameState.botDifficulty && (
         <div className="bot-difficulty-label">
@@ -122,10 +160,38 @@ export function GameBoard() {
         </div>
       )}
 
-      {showHistory && gameState.roundHistory && (
+      {settingsOpen && (
+        <div className="game-settings-overlay" onClick={() => setSettingsOpen(false)}>
+          <div
+            className="game-settings-sheet"
+            role="dialog"
+            aria-label={t('game.settings')}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3>{t('game.settings')}</h3>
+            <SoundToggle variant="row" />
+            <button
+              type="button"
+              className="game-settings-row"
+              onClick={() => {
+                setSettingsOpen(false);
+                setShowHistory(true);
+              }}
+            >
+              {t('game.scoreHistory')}
+            </button>
+            {!gameState.isSpectator && <ReportBotPlayButton variant="row" />}
+            <button type="button" className="game-settings-row game-settings-close" onClick={() => setSettingsOpen(false)}>
+              {t('score.close')}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {showHistory && (
         <div className="history-modal-overlay" onClick={() => setShowHistory(false)}>
           <div className="history-modal" onClick={(e) => e.stopPropagation()}>
-            <ScoreHistory history={gameState.roundHistory} myTeam={myTeam} onClose={() => setShowHistory(false)} />
+            <ScoreHistory history={gameState.roundHistory ?? []} myTeam={myTeam} onClose={() => setShowHistory(false)} />
           </div>
         </div>
       )}

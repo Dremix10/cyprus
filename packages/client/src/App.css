@@ -6275,3 +6275,114 @@ span.pass-zone-avatar {
   0%, 100% { transform: scale(1); opacity: 1; }
   50%      { transform: scale(1.15); opacity: 0.7; }
 }
+
+/* Phone game screen: sound, history, and report live in a settings sheet. */
+.game-settings-btn {
+  display: none;
+}
+
+@media (max-width: 768px), (hover: none) and (pointer: coarse) {
+  .game-board .game-info {
+    position: relative;
+    grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+    padding-left: 46px;
+    padding-right: 46px;
+  }
+
+  .game-board .game-info > .name-teammate,
+  .game-board .game-info > .name-opponent {
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .game-board .game-controls .sound-toggle,
+  .game-board .game-controls .history-btn,
+  .game-board .game-controls .btn-report-bot {
+    display: none;
+  }
+
+  .game-settings-btn {
+    display: inline-flex;
+    position: absolute;
+    top: 50%;
+    right: 2px;
+    transform: translateY(-50%);
+    width: 44px;
+    height: 44px;
+    min-width: 44px;
+    min-height: 44px;
+    padding: 0;
+    margin: 0;
+    border: none;
+    border-radius: 10px;
+    background: transparent;
+    color: #c9a84c;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    z-index: 2;
+  }
+
+  .game-settings-btn:hover,
+  .game-settings-btn:focus-visible {
+    background: rgba(201, 168, 76, 0.16);
+  }
+}
+
+.game-settings-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+  z-index: 80;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+}
+
+.game-settings-sheet {
+  width: min(100%, 480px);
+  background: var(--bg);
+  border: 1px solid rgba(201, 168, 76, 0.35);
+  border-bottom: none;
+  border-radius: 18px 18px 0 0;
+  padding: 0.9rem 1rem calc(1rem + env(safe-area-inset-bottom));
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.game-settings-sheet h3 {
+  margin: 0 0 0.2rem;
+  text-align: center;
+  font-size: 1.05rem;
+  color: #c9a84c;
+  letter-spacing: 0.04em;
+}
+
+.game-settings-row {
+  min-height: 44px;
+  width: 100%;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: rgba(255, 255, 255, 0.06);
+  color: inherit;
+  font: inherit;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 0.65rem 1rem;
+  text-align: left;
+}
+
+.game-settings-row:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.game-settings-close {
+  text-align: center;
+  background: #c9a84c;
+  color: #1a1203;
+  border-color: transparent;
+  font-weight: 700;
+}

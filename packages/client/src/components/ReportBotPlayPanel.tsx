@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useGameStore, type ReportableBotPlay } from '../stores/gameStore.js';
 import { useAuthStore } from '../stores/authStore.js';
+import { useT } from '../i18n.js';
 
 function relativeTime(at: number): string {
   const seconds = Math.max(0, Math.floor((Date.now() - at) / 1000));
@@ -10,10 +11,12 @@ function relativeTime(at: number): string {
   return `${minutes}m ago`;
 }
 
-export function ReportBotPlayButton() {
+export function ReportBotPlayButton({ variant = 'icon' }: { variant?: 'icon' | 'row' }) {
+  const t = useT();
   const user = useAuthStore((s) => s.user);
   const plays = useGameStore((s) => s.reportableBotPlays);
   const [open, setOpen] = useState(false);
+  const disabled = !user || plays.length === 0;
   const disabledReason = !user
     ? 'Sign in to report bot plays'
     : plays.length === 0
@@ -23,12 +26,13 @@ export function ReportBotPlayButton() {
   return (
     <>
       <button
-        className="btn btn-small btn-report-bot"
+        type="button"
+        className={variant === 'row' ? 'game-settings-row' : 'btn btn-small btn-report-bot'}
         onClick={() => setOpen(true)}
         title={disabledReason}
-        disabled={!user || plays.length === 0}
+        disabled={disabled}
       >
-        Report
+        {variant === 'row' ? t('game.reportBug') : 'Report'}
       </button>
       {open && <ReportBotPlayModal onClose={() => setOpen(false)} />}
     </>
