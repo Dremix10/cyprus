@@ -539,6 +539,55 @@ body {
   gap: 0.85rem;
 }
 
+.length-picker {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.length-label {
+  text-align: center;
+  color: rgba(201, 168, 76, 0.7);
+  font-size: 0.8rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.length-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  justify-content: center;
+}
+
+.length-option {
+  flex: 1 1 5.5rem;
+  min-height: 2.4rem;
+  padding: 0.4rem 0.55rem;
+  border-radius: 10px;
+  border: 1px solid rgba(201, 168, 76, 0.35);
+  background: rgba(22, 33, 62, 0.8);
+  color: rgba(232, 213, 163, 0.85);
+  font: inherit;
+  font-size: 0.82rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.length-option-active {
+  background: #c9a84c;
+  border-color: #c9a84c;
+  color: #1a1203;
+}
+
+@media (max-width: 520px) {
+  .length-option {
+    flex: 1 1 calc(50% - 0.4rem);
+    min-height: 2.6rem;
+    font-size: 0.9rem;
+  }
+}
+
 .target-score-row {
   display: flex;
   align-items: center;
@@ -1255,10 +1304,9 @@ body {
   position: fixed;
   inset: 0;
   display: flex;
-  align-items: center;
   justify-content: center;
   background: #0a0a1a;
-  overflow-y: auto;
+  overflow: hidden;
 }
 
 .leaderboard-content {
@@ -1266,15 +1314,39 @@ body {
   z-index: 2;
   width: 100%;
   max-width: 800px;
-  padding: 2rem 1.5rem;
+  min-height: 0;
+  padding: max(1.25rem, env(safe-area-inset-top)) 1.5rem 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.leaderboard-header {
+  width: 100%;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.85rem;
+  padding-bottom: 1rem;
+  text-align: center;
+}
+
+.leaderboard-heading {
+  text-align: center;
+}
+
+.leaderboard-scroll {
+  width: 100%;
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 1.5rem;
-}
-
-.leaderboard-header {
-  text-align: center;
+  padding-bottom: max(1.5rem, env(safe-area-inset-bottom));
 }
 
 .leaderboard-header .title-greek {
@@ -1964,10 +2036,16 @@ body {
 
 .friend-actions {
   display: flex;
+  align-items: center;
   gap: 0.35rem;
   margin-left: auto;
   flex-shrink: 0;
 }
+
+.friend-actions .btn-friend-remove {
+  margin-left: 0;
+}
+
 
 .btn-friend {
   border: none;
@@ -2033,6 +2111,14 @@ body {
   color: rgba(255, 255, 255, 0.45);
   white-space: nowrap;
   margin-left: auto;
+}
+
+.friend-status-label.friend-invite-error {
+  max-width: 9rem;
+  margin-left: 0;
+  color: #f44336;
+  white-space: normal;
+  text-align: right;
 }
 
 .friend-action-feedback {
@@ -2282,11 +2368,12 @@ body {
 }
 
 .btn-back-lobby {
+  align-self: flex-start;
   background: transparent;
   border: 1px solid rgba(201, 168, 76, 0.4);
   color: #c9a84c;
   font-size: 0.85rem;
-  margin-top: 1rem;
+  margin-top: 0;
 }
 
 .btn-back-lobby:hover {
@@ -2531,8 +2618,8 @@ body {
 /* ─── Game Board ────────────────────────── */
 
 .game-board {
-  width: 100%;
-  max-width: 900px;
+  width: min(100%, 900px);
+  margin-inline: auto;
   padding: 1rem;
   min-height: 100vh;
   display: flex;
@@ -2540,15 +2627,21 @@ body {
 }
 
 .game-info {
-  display: flex;
-  justify-content: space-between;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
   align-items: center;
+  column-gap: 0.75rem;
+  width: 100%;
   padding: 0.5rem 1rem;
   background: var(--surface);
   border-radius: 10px;
   margin-bottom: 1rem;
   font-size: 0.9rem;
   border: 1px solid rgba(255, 255, 255, 0.04);
+}
+
+.game-info > .name-opponent {
+  text-align: right;
 }
 
 .bot-difficulty-label {
@@ -2582,6 +2675,9 @@ body {
   letter-spacing: 0.05em;
   display: flex;
   align-items: center;
+  justify-content: center;
+  justify-self: center;
+  text-align: center;
   gap: 0.4rem;
 }
 
@@ -2756,14 +2852,72 @@ body {
   overflow: hidden;
 }
 
-.special-corner {
-  font-size: 0.7rem;
-  font-weight: 700;
+.special-index {
+  position: absolute;
+  top: 1px;
+  left: 2px;
   z-index: 1;
+  line-height: 1;
+  pointer-events: none;
 }
 
-.card-sm .special-corner {
-  font-size: 0.55rem;
+.special-mark {
+  font-size: 0.95rem;
+  font-weight: 800;
+}
+
+.card-sm .special-mark {
+  font-size: 0.68rem;
+}
+
+.special-mini {
+  display: block;
+  width: 18px;
+  height: 20px;
+  overflow: hidden;
+}
+
+.special-mini svg {
+  width: 18px;
+  height: 20px;
+  display: block;
+}
+
+.card-sm .special-mini,
+.card-sm .special-mini svg {
+  width: 13px;
+  height: 15px;
+}
+
+.special-name {
+  position: absolute;
+  z-index: 1;
+  left: 1px;
+  right: 1px;
+  bottom: 3px;
+  text-align: center;
+  font-weight: 800;
+  font-size: 0.68rem;
+  line-height: 1;
+  letter-spacing: -0.04em;
+  pointer-events: none;
+  white-space: nowrap;
+  /* Title case keeps the tonos (Δράκος). Do not inherit uppercase. */
+  text-transform: none;
+}
+
+.card-sm .special-name {
+  font-size: 8px;
+  bottom: 1px;
+  letter-spacing: -0.06em;
+}
+
+.special-card .card-center {
+  padding: 12px 2px 14px;
+}
+
+.card-sm.special-card .card-center {
+  padding: 8px 1px 10px;
 }
 
 .special-dragon {
@@ -3254,6 +3408,20 @@ span.player-avatar {
 .no-trick {
   color: var(--text-muted);
   font-style: italic;
+}
+
+.dog-lead-label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--warning);
+  text-align: center;
+  line-height: 1.3;
+  max-width: 16rem;
+}
+
+.my-hand-row.dog-lead-target {
+  box-shadow: 0 0 0 2px var(--warning);
+  border-radius: 12px;
 }
 
 /* ─── Trick Animations ─────────────────── */
@@ -4516,6 +4684,28 @@ span.pass-zone-avatar {
     height: 40px;
   }
 
+  .special-name {
+    font-size: 7px;
+    letter-spacing: -0.08em;
+    bottom: 1px;
+  }
+
+  .special-mini,
+  .special-mini svg {
+    width: 12px;
+    height: 14px;
+  }
+
+  .card-sm .special-name {
+    display: none;
+  }
+
+  .card-sm .special-mini,
+  .card-sm .special-mini svg {
+    width: 11px;
+    height: 12px;
+  }
+
   .card-rank {
     font-size: 0.65rem;
   }
@@ -4567,8 +4757,13 @@ span.pass-zone-avatar {
     font-size: 1.25rem;
   }
 
-  .player-hand .special-corner {
-    font-size: 0.68rem;
+  .player-hand .special-name {
+    font-size: 0.5rem;
+    letter-spacing: -0.06em;
+  }
+
+  .player-hand .special-mark {
+    font-size: 0.82rem;
   }
 
   .player-avatar {
@@ -5062,6 +5257,11 @@ span.pass-zone-avatar {
     font-size: 0.75rem;
   }
 
+  .dog-lead-label {
+    font-size: 0.65rem;
+    max-width: 12rem;
+  }
+
   .your-turn {
     font-size: 0.8rem;
   }
@@ -5313,6 +5513,11 @@ span.pass-zone-avatar {
     font-size: 0.95rem;
   }
 
+  .player-hand .special-name {
+    font-size: 7px;
+    letter-spacing: -0.08em;
+  }
+
   /* Compact opponent panels — horizontal layout */
   .opponent-panel {
     padding: 0.2rem 0.4rem;
@@ -5405,6 +5610,11 @@ span.pass-zone-avatar {
 
   .no-trick {
     font-size: 0.7rem;
+  }
+
+  .dog-lead-label {
+    font-size: 0.62rem;
+    max-width: 10rem;
   }
 
   .your-turn {
@@ -6066,4 +6276,115 @@ span.pass-zone-avatar {
 @keyframes hint-pulse {
   0%, 100% { transform: scale(1); opacity: 1; }
   50%      { transform: scale(1.15); opacity: 0.7; }
+}
+
+/* Phone game screen: sound, history, and report live in a settings sheet. */
+.game-settings-btn {
+  display: none;
+}
+
+@media (max-width: 768px), (hover: none) and (pointer: coarse) {
+  .game-board .game-info {
+    position: relative;
+    grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+    padding-left: 46px;
+    padding-right: 46px;
+  }
+
+  .game-board .game-info > .name-teammate,
+  .game-board .game-info > .name-opponent {
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .game-board .game-controls .sound-toggle,
+  .game-board .game-controls .history-btn,
+  .game-board .game-controls .btn-report-bot {
+    display: none;
+  }
+
+  .game-settings-btn {
+    display: inline-flex;
+    position: absolute;
+    top: 50%;
+    right: 2px;
+    transform: translateY(-50%);
+    width: 44px;
+    height: 44px;
+    min-width: 44px;
+    min-height: 44px;
+    padding: 0;
+    margin: 0;
+    border: none;
+    border-radius: 10px;
+    background: transparent;
+    color: #c9a84c;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    z-index: 2;
+  }
+
+  .game-settings-btn:hover,
+  .game-settings-btn:focus-visible {
+    background: rgba(201, 168, 76, 0.16);
+  }
+}
+
+.game-settings-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+  z-index: 80;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+}
+
+.game-settings-sheet {
+  width: min(100%, 480px);
+  background: var(--bg);
+  border: 1px solid rgba(201, 168, 76, 0.35);
+  border-bottom: none;
+  border-radius: 18px 18px 0 0;
+  padding: 0.9rem 1rem calc(1rem + env(safe-area-inset-bottom));
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.game-settings-sheet h3 {
+  margin: 0 0 0.2rem;
+  text-align: center;
+  font-size: 1.05rem;
+  color: #c9a84c;
+  letter-spacing: 0.04em;
+}
+
+.game-settings-row {
+  min-height: 44px;
+  width: 100%;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: rgba(255, 255, 255, 0.06);
+  color: inherit;
+  font: inherit;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 0.65rem 1rem;
+  text-align: left;
+}
+
+.game-settings-row:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.game-settings-close {
+  text-align: center;
+  background: #c9a84c;
+  color: #1a1203;
+  border-color: transparent;
+  font-weight: 700;
 }

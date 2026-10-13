@@ -1,6 +1,6 @@
 import { memo } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
-import { Suit, SpecialCardType, getRankLabel, type Card } from '@cyprus/shared';
+import { Suit, SpecialCardType, SPECIAL_CARD_NAMES, getRankLabel, type Card } from '@cyprus/shared';
 import { color } from '@/lib/theme';
 
 // Suits differ by SHAPE as well as colour (same glyphs as the website).
@@ -18,10 +18,10 @@ const SUIT_COLOR: Record<Suit, string> = {
 };
 
 const SPECIAL: Record<SpecialCardType, { corner: string; name: string; glyph: string; bg: string; ink: string }> = {
-  [SpecialCardType.MAHJONG]: { corner: '1', name: 'Mahjong', glyph: '🀄', bg: '#F6E9C9', ink: '#8A1C1C' },
-  [SpecialCardType.DOG]: { corner: 'Dg', name: 'Dog', glyph: '🐕', bg: '#D9C3A0', ink: '#3E2A10' },
-  [SpecialCardType.PHOENIX]: { corner: 'Ph', name: 'Phoenix', glyph: '🦅', bg: '#FFD9A0', ink: '#B2350F' },
-  [SpecialCardType.DRAGON]: { corner: 'Dr', name: 'Dragon', glyph: '🐉', bg: '#1D2B3A', ink: '#FFFFFF' },
+  [SpecialCardType.MAHJONG]: { corner: '1', name: SPECIAL_CARD_NAMES[SpecialCardType.MAHJONG], glyph: '1', bg: '#F6E9C9', ink: '#8A1C1C' },
+  [SpecialCardType.DOG]: { corner: '🐕', name: SPECIAL_CARD_NAMES[SpecialCardType.DOG], glyph: '🐕', bg: '#D9C3A0', ink: '#3E2A10' },
+  [SpecialCardType.PHOENIX]: { corner: '🦅', name: SPECIAL_CARD_NAMES[SpecialCardType.PHOENIX], glyph: '🦅', bg: '#FFD9A0', ink: '#B2350F' },
+  [SpecialCardType.DRAGON]: { corner: '🐉', name: SPECIAL_CARD_NAMES[SpecialCardType.DRAGON], glyph: '🐉', bg: '#1D2B3A', ink: '#FFFFFF' },
 };
 
 export const CARD_ASPECT = 1.42;
@@ -53,8 +53,12 @@ export const CardView = memo(function CardView({ card, width, selected, dim }: P
     centre = s.glyph;
     name = s.name;
   }
+  const cornerSize = card.type === 'normal' ? rankSize : Math.max(11, Math.round(width * 0.28));
+  const showName = name !== null && width >= 40;
+  const showCentre = card.type === 'normal' ? width >= 48 : width >= 36;
   return (
     <View
+      accessibilityLabel={name ?? `${corner}${sub}`}
       style={[
         styles.card,
         { width, height, backgroundColor: bg, borderRadius: Math.max(5, width * 0.12) },
@@ -62,17 +66,31 @@ export const CardView = memo(function CardView({ card, width, selected, dim }: P
         dim && styles.dim,
       ]}
     >
-      <Text style={[styles.corner, { color: ink, fontSize: rankSize, lineHeight: rankSize + 2 }]} numberOfLines={1}>
+      <Text
+        style={[styles.corner, { color: ink, fontSize: cornerSize, lineHeight: cornerSize + 1 }]}
+        numberOfLines={1}
+      >
         {corner}
       </Text>
-      <Text style={{ color: ink, fontSize: suitSize, lineHeight: suitSize + 2 }}>{sub}</Text>
-      {width >= 48 && (
+      {card.type === 'normal' && (
+        <Text style={{ color: ink, fontSize: suitSize, lineHeight: suitSize + 2 }}>{sub}</Text>
+      )}
+      {showCentre && (
         <View style={styles.centre} pointerEvents="none">
-          <Text style={{ color: ink, fontSize: width * 0.55, opacity: card.type === 'normal' ? 0.16 : 0.9 }}>{centre}</Text>
-          {name && width >= 56 && (
-            <Text style={{ color: ink, fontSize: 9, fontWeight: '800', letterSpacing: 0.5, marginTop: 2 }}>{name.toUpperCase()}</Text>
-          )}
+          <Text style={{ color: ink, fontSize: width * (card.type === 'normal' ? 0.55 : 0.46), opacity: card.type === 'normal' ? 0.16 : 0.95 }}>
+            {centre}
+          </Text>
         </View>
+      )}
+      {showName && (
+        <Text
+          style={[styles.specialName, { color: ink, fontSize: Math.max(8, Math.min(11, width * 0.16)) }]}
+          numberOfLines={1}
+          adjustsFontSizeToFit
+          minimumFontScale={0.6}
+        >
+          {name}
+        </Text>
       )}
     </View>
   );
@@ -93,6 +111,16 @@ const styles = StyleSheet.create({
   },
   corner: { fontWeight: '800' },
   centre: { ...StyleSheet.absoluteFillObject, alignItems: 'center', justifyContent: 'center' },
+  specialName: {
+    position: 'absolute',
+    left: 1,
+    right: 1,
+    bottom: 2,
+    textAlign: 'center',
+    fontWeight: '800',
+    letterSpacing: -0.4,
+    textTransform: 'none',
+  },
   selected: { borderColor: color.gold, borderWidth: 2.5 },
   dim: { opacity: 0.45 },
 });

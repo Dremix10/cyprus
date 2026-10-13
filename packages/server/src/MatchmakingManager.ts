@@ -1,5 +1,6 @@
 import type { Server } from 'socket.io';
 import type { ClientToServerEvents, ServerToClientEvents } from '@cyprus/shared';
+import { normalizeTargetScore } from '@cyprus/shared';
 import type { RoomManager } from './RoomManager.js';
 
 type MatchSocket = Server<ClientToServerEvents, ServerToClientEvents>;
@@ -44,7 +45,7 @@ export class MatchmakingManager {
     this.queue.push({
       socketId,
       nickname,
-      targetScore,
+      targetScore: normalizeTargetScore(targetScore),
       joinedAt: Date.now(),
       userId,
     });
@@ -75,44 +76,17 @@ export class MatchmakingManager {
   private processQueue(): void {
     if (this.queue.length === 0) return;
 
-    const now = Date.now();
+    const groups = takeMatchGroups(this.queue, Date.now());
+    if (groups.length === 0) return;
 
-    // Check if 4 players are ready — instant match
-    if (this.queue.length >= 4) {
-      const group = this.queue.splice(0, 4);
-      this.createMatch(group);
-      return;
-    }
-
-    // Check if oldest player has waited long enough to start with bots
-    const oldest = this.queue[0];
-    const elapsed = now - oldest.joinedAt;
-
-    if (elapsed >= QUEUE_TIMEOUT_MS && this.queue.length >= 1) {
-      // Time's up — start with however many humans we have (1-3)
-      const group = this.queue.splice(0, Math.min(this.queue.length, 4));
-      this.createMatch(group);
-      return;
-    }
-
-    // If 3 players and waited 30+ seconds, start with 1 bot
-    if (this.queue.length >= 3 && elapsed >= 30_000) {
-      const group = this.queue.splice(0, 3);
-      this.createMatch(group);
-      return;
-    }
-
-    // If 2 players and waited 45+ seconds, start with 2 bots
-    if (this.queue.length >= 2 && elapsed >= 45_000) {
-      const group = this.queue.splice(0, 2);
-      this.createMatch(group);
-      return;
-    }
+    const taken = new Set(groups.flat().map((entry) => entry.socketId));
+    this.queue = this.queue.filter((entry) => !taken.has(entry.socketId));
+    for (const group of groups) this.createMatch(group);
   }
 
   private createMatch(players: QueueEntry[]): void {
-    // Online matches are always 500 points for shorter games
-    const targetScore = 500;
+    // Everyone in the group asked for the same length.
+    const targetScore = normalizeTargetScore(players[0].targetScore);
 
     // First player creates the room
     const creator = players[0];
@@ -174,11 +148,53 @@ export class MatchmakingManager {
     const now = Date.now();
     for (const entry of this.queue) {
       const elapsed = now - entry.joinedAt;
+      const length = normalizeTargetScore(entry.targetScore);
+      const playersInQueue = this.queue.filter(
+        (other) => normalizeTargetScore(other.targetScore) === length,
+      ).length;
       this.io.to(entry.socketId).emit('matchmaking:update', {
-        playersInQueue: this.queue.length,
+        playersInQueue,
         elapsed,
       });
     }
   }
 
+}
+
+const QUICK_WAIT_MS = 30_000;
+const PAIR_WAIT_MS = 45_000;
+
+/**
+ * How many players from the front of one length-bucket should start a game.
+ * Four start at once. Fewer start with bots after the usual wait.
+ */
+export function matchGroupSize(joinedAt: number[], now: number): number {
+  const count = joinedAt.length;
+  if (count >= 4) return 4;
+  if (count === 0) return 0;
+  const elapsed = now - joinedAt[0];
+  if (elapsed >= QUEUE_TIMEOUT_MS) return count;
+  if (count >= 3 && elapsed >= QUICK_WAIT_MS) return 3;
+  if (count >= 2 && elapsed >= PAIR_WAIT_MS) return 2;
+  return 0;
+}
+
+/** Players only share a table with others who picked the same game length. */
+export function takeMatchGroups<T extends { socketId: string; targetScore: number; joinedAt: number }>(
+  queue: T[],
+  now: number,
+): T[][] {
+  const byScore = new Map<number, T[]>();
+  for (const entry of queue) {
+    const score = normalizeTargetScore(entry.targetScore);
+    const bucket = byScore.get(score);
+    if (bucket) bucket.push(entry);
+    else byScore.set(score, [entry]);
+  }
+  const groups: T[][] = [];
+  for (const bucket of byScore.values()) {
+    const count = matchGroupSize(bucket.map((entry) => entry.joinedAt), now);
+    if (count > 0) groups.push(bucket.slice(0, count));
+  }
+  return groups;
 }

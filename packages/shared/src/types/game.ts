@@ -50,6 +50,13 @@ export type ReceivedCard = {
   fromTeammate: boolean;
 };
 
+/** Dog stays on the table until the player who received the lead plays. */
+export type DogLead = {
+  from: PlayerPosition;
+  to: PlayerPosition;
+  card: Card;
+};
+
 export type ClientGameState = {
   roomCode: string;
   phase: GamePhase;
@@ -70,6 +77,8 @@ export type ClientGameState = {
   hasPlayedCards?: boolean;
   wishPending?: PlayerPosition | null;
   dogPending?: boolean;
+  /** Set from the moment the Dog is played until the new leader plays. */
+  dogLead?: DogLead | null;
   trickWonPending?: boolean;
   turnDeadline?: number | null;
   disconnectDeadlines?: Record<number, number>; // position -> timestamp when bot replaces player

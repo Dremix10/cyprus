@@ -1,156 +1,10 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useGameStore } from '../stores/gameStore.js';
 import { useRoomStore } from '../stores/roomStore.js';
-import { GamePhase, SpecialCardType, CombinationType, getRankLabel, sortCards } from '@cyprus/shared';
-import type { Card, Combination, PlayerPosition } from '@cyprus/shared';
+import { GamePhase, SpecialCardType, getRankLabel, sortCards, sortCombinationForDisplay, getPhoenixDisplayLabel, isQuickGame } from '@cyprus/shared';
+import type { PlayerPosition } from '@cyprus/shared';
 import { useT } from '../i18n.js';
 
-/** Get the effective rank label for Phoenix in a combo. For singles, pass the previous play's rank. */
-function getPhoenixLabel(combo: Combination, prevRank?: number): string | null {
-  const phoenix = combo.cards.find((c) => c.type === 'special' && c.specialType === SpecialCardType.PHOENIX);
-  if (!phoenix) return null;
-
-  // Phoenix as single — show the rank it beats (prevRank + 0.5, displayed as the rank it sits above)
-  if (combo.cards.length === 1 && prevRank !== undefined) {
-    return getRankLabel(prevRank) + '½';
-  }
-  if (combo.cards.length <= 1) return null;
-
-  const getCardRank = (c: Card) => c.type === 'normal' ? c.rank : (c.type === 'special' && c.specialType === SpecialCardType.MAHJONG ? 1 : 0);
-  const others = combo.cards.filter((c) => c !== phoenix);
-  const ranks = others.map(getCardRank);
-
-  if (combo.type === CombinationType.STRAIGHT) {
-    const minRank = Math.min(...ranks);
-    const maxRank = Math.max(...ranks);
-    // Default: extend up, unless top is ACE (14) — then extend down
-    let phoenixRank = maxRank >= 14 ? minRank - 1 : maxRank + 1;
-    for (let r = minRank; r <= maxRank; r++) {
-      if (!ranks.includes(r)) { phoenixRank = r; break; }
-    }
-    return getRankLabel(phoenixRank);
-  }
-  if (combo.type === CombinationType.CONSECUTIVE_PAIRS) {
-    const rankCounts = new Map<number, number>();
-    for (const r of ranks) rankCounts.set(r, (rankCounts.get(r) ?? 0) + 1);
-    const minRank = Math.min(...ranks);
-    const maxRank = Math.max(...ranks);
-    let phoenixRank = maxRank + 1;
-    // Prefer a rank missing from the run entirely
-    for (let r = minRank; r <= maxRank; r++) {
-      if (!rankCounts.has(r)) { phoenixRank = r; break; }
-    }
-    // Otherwise fill the rank that's only present once
-    if (phoenixRank === maxRank + 1) {
-      for (const [r, count] of rankCounts) {
-        if (count === 1) { phoenixRank = r; break; }
-      }
-    }
-    return getRankLabel(phoenixRank);
-  }
-  if (combo.type === CombinationType.PAIR || combo.type === CombinationType.TRIPLE || combo.type === CombinationType.FULL_HOUSE) {
-    // Phoenix matches the rank of the other cards in its group
-    const rankCounts = new Map<number, number>();
-    for (const r of ranks) rankCounts.set(r, (rankCounts.get(r) ?? 0) + 1);
-    // FULL_HOUSE 2+2+Phoenix tiebreaker: Phoenix joins the HIGHER pair (matches engine rule)
-    if (combo.type === CombinationType.FULL_HOUSE && rankCounts.size === 2) {
-      const [r1, r2] = [...rankCounts.keys()];
-      if (rankCounts.get(r1) === 2 && rankCounts.get(r2) === 2) {
-        return getRankLabel(Math.max(r1, r2));
-      }
-    }
-    // Find the rank with fewer cards (Phoenix completes it)
-    let minCount = Infinity;
-    let phoenixRank = ranks[0];
-    for (const [r, count] of rankCounts) {
-      if (count < minCount) { minCount = count; phoenixRank = r; }
-    }
-    return getRankLabel(phoenixRank);
-  }
-  return null;
-}
-
-/** Sort cards for display: Phoenix placed at its effective position in the combo. */
-function sortForDisplay(combo: Combination): Card[] {
-  if (combo.type === CombinationType.FULL_HOUSE) {
-    const phoenix = combo.cards.find((c) => c.type === 'special' && c.specialType === SpecialCardType.PHOENIX);
-    const normalCards = combo.cards.filter((c) => c !== phoenix || !phoenix);
-    const rankCounts = new Map<number, Card[]>();
-    for (const c of normalCards) {
-      const rank = c.type === 'normal' ? c.rank : 0;
-      const group = rankCounts.get(rank) ?? [];
-      group.push(c);
-      rankCounts.set(rank, group);
-    }
-    // Phoenix completes whichever group is smaller (the pair needs one more).
-    // For 2+2+Phoenix, join the HIGHER-ranked pair to match engine rule.
-    if (phoenix) {
-      const entries = [...rankCounts.entries()];
-      const minLen = Math.min(...entries.map(([, g]) => g.length));
-      const candidates = entries.filter(([, g]) => g.length === minLen);
-      const targetRank = Math.max(...candidates.map(([r]) => r));
-      const targetGroup = rankCounts.get(targetRank);
-      if (targetGroup) targetGroup.push(phoenix);
-    }
-    const groups = [...rankCounts.values()].sort((a, b) => b.length - a.length);
-    return groups.flat();
-  }
-
-  // For combos with Phoenix, figure out the rank it fills and sort it there
-  const phoenix = combo.cards.find((c) => c.type === 'special' && c.specialType === SpecialCardType.PHOENIX);
-  if (phoenix && combo.cards.length > 1) {
-    const others = combo.cards.filter((c) => c !== phoenix);
-    const sorted = sortCards(others);
-
-    const getCardRank = (c: Card) => c.type === 'normal' ? c.rank : (c.type === 'special' && c.specialType === SpecialCardType.MAHJONG ? 1 : 0);
-
-    if (combo.type === CombinationType.STRAIGHT || combo.type === CombinationType.CONSECUTIVE_PAIRS) {
-      const ranks = sorted.map(getCardRank);
-      const minRank = Math.min(...ranks);
-      const maxRank = Math.max(...ranks);
-
-      // Find the gap rank that Phoenix fills.
-      // Default: extend up, unless top is ACE (straights only) — then extend down.
-      let phoenixRank = combo.type === CombinationType.STRAIGHT && maxRank >= 14
-        ? minRank - 1
-        : maxRank + 1;
-      if (combo.type === CombinationType.STRAIGHT) {
-        for (let r = minRank; r <= maxRank; r++) {
-          if (!ranks.includes(r)) { phoenixRank = r; break; }
-        }
-      } else {
-        // Consecutive pairs: each rank should appear twice; find the one with only 1
-        const rankCounts = new Map<number, number>();
-        for (const r of ranks) rankCounts.set(r, (rankCounts.get(r) ?? 0) + 1);
-        // Check for a rank gap (missing rank entirely)
-        for (let r = minRank; r <= maxRank; r++) {
-          if (!rankCounts.has(r)) { phoenixRank = r; break; }
-        }
-        // Check for a rank with only 1 card (Phoenix completes the pair)
-        if (phoenixRank === maxRank + 1) {
-          for (const [r, count] of rankCounts) {
-            if (count === 1) { phoenixRank = r; break; }
-          }
-        }
-      }
-
-      // Insert Phoenix at the right position
-      const insertIdx = sorted.findIndex((c) => getCardRank(c) > phoenixRank);
-      if (insertIdx === -1) {
-        sorted.push(phoenix);
-      } else {
-        sorted.splice(insertIdx, 0, phoenix);
-      }
-      return sorted;
-    }
-
-    // For pairs/triples: Phoenix matches the rank of the others
-    sorted.push(phoenix);
-    return sorted;
-  }
-
-  return sortCards(combo.cards);
-}
 import { CardComponent } from './CardComponent.js';
 import { PlayerHand } from './PlayerHand.js';
 import { OpponentHand } from './OpponentHand.js';
@@ -161,7 +15,7 @@ import { QuickGuideButton } from './QuickGuide.js';
 import { GrandTichuView, PassingView, ScoringView, GameOverView, TichuCallBadges, PointCards, ScoreBreakdown } from './PhaseViews.js';
 import { ReportBotPlayButton } from './ReportBotPlayPanel.js';
 import { HintButton } from './HintButton.js';
-import { isMuted, setMuted } from '../sounds.js';
+import { isMuted, setMuted, subscribeMuted } from '../sounds.js';
 
 function getRelativePositions(myPos: PlayerPosition) {
   return {
@@ -171,19 +25,37 @@ function getRelativePositions(myPos: PlayerPosition) {
   };
 }
 
-function SoundToggle() {
+function SoundToggle({ variant = 'icon' }: { variant?: 'icon' | 'row' }) {
   const t = useT();
   const [muted, setMutedState] = useState(isMuted);
+  useEffect(() => subscribeMuted(() => setMutedState(isMuted())), []);
   const toggle = useCallback(() => {
-    const next = !muted;
-    setMuted(next);
-    setMutedState(next);
-  }, [muted]);
+    setMuted(!isMuted());
+  }, []);
+
+  if (variant === 'row') {
+    return (
+      <button type="button" className="game-settings-row" onClick={toggle}>
+        {muted ? t('game.soundOff') : t('game.soundOn')}
+      </button>
+    );
+  }
 
   return (
     <button className="sound-toggle" onClick={toggle} title={muted ? t('game.unmute') : t('game.mute')}>
       {muted ? '\uD83D\uDD07' : '\uD83D\uDD0A'}
     </button>
+  );
+}
+
+function GearIcon() {
+  return (
+    <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true">
+      <path
+        fill="currentColor"
+        d="M19.14 12.94c.04-.31.06-.63.06-.94s-.02-.63-.06-.94l2.03-1.58a.5.5 0 0 0 .12-.64l-1.92-3.32a.5.5 0 0 0-.61-.22l-2.39.96a7.2 7.2 0 0 0-1.63-.94l-.36-2.54a.5.5 0 0 0-.49-.42h-3.84a.5.5 0 0 0-.49.42l-.36 2.54c-.59.24-1.14.55-1.63.94l-2.39-.96a.5.5 0 0 0-.61.22L2.71 8.84a.5.5 0 0 0 .12.64l2.03 1.58c-.04.31-.06.63-.06.94s.02.63.06.94L2.83 14.52a.5.5 0 0 0-.12.64l1.92 3.32c.14.23.42.32.64.22l2.39-.96c.49.4 1.04.72 1.63.94l.36 2.54c.05.24.26.42.5.42h3.84c.24 0 .45-.18.5-.42l.36-2.54c.59-.22 1.14-.54 1.63-.94l2.39.96c.22.1.5 0 .64-.22l1.92-3.32a.5.5 0 0 0-.12-.64l-2.03-1.58zM12 15.5A3.5 3.5 0 1 1 12 8.5a3.5 3.5 0 0 1 0 7z"
+      />
+    </svg>
   );
 }
 
@@ -196,7 +68,17 @@ export function GameBoard() {
   const roomCode = useRoomStore((s) => s.roomCode);
   const reset = useRoomStore((s) => s.reset);
   const [showHistory, setShowHistory] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
   const [leaveConfirm, setLeaveConfirm] = useState(false);
+
+  useEffect(() => {
+    if (!settingsOpen) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setSettingsOpen(false);
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [settingsOpen]);
 
   if (!gameState) {
     return <div className="game-board">{t('game.loading')}</div>;
@@ -235,11 +117,14 @@ export function GameBoard() {
       )}
       <div className="game-info">
         <span className="name-teammate">
-          {t('game.yourTeam')}: {gameState.scores[myTeam]} / {gameState.targetScore}
+          {t('game.yourTeam')}: {gameState.scores[myTeam]}{isQuickGame(gameState.targetScore) ? '' : ` / ${gameState.targetScore}`}
         </span>
         <span className="phase-label">
           {roomCode && <span className="room-code-badge">{roomCode}</span>}
-          <span className="game-phase-title">{formatPhase(gameState.phase)}</span>
+          <span className="game-phase-title">
+            {formatPhase(gameState.phase)}
+            {isQuickGame(gameState.targetScore) ? ` · ${t('game.oneRound')}` : ''}
+          </span>
           <span className="game-controls">
             <SoundToggle />
             <QuickGuideButton />
@@ -256,8 +141,18 @@ export function GameBoard() {
           </span>
         </span>
         <span className="name-opponent">
-          {t('game.opponents')}: {gameState.scores[1 - myTeam]} / {gameState.targetScore}
+          {t('game.opponents')}: {gameState.scores[1 - myTeam]}{isQuickGame(gameState.targetScore) ? '' : ` / ${gameState.targetScore}`}
         </span>
+        <button
+          type="button"
+          className="game-settings-btn"
+          aria-label={t('game.settings')}
+          aria-haspopup="dialog"
+          aria-expanded={settingsOpen}
+          onClick={() => setSettingsOpen(true)}
+        >
+          <GearIcon />
+        </button>
       </div>
       {gameState.botDifficulty && (
         <div className="bot-difficulty-label">
@@ -265,10 +160,38 @@ export function GameBoard() {
         </div>
       )}
 
-      {showHistory && gameState.roundHistory && (
+      {settingsOpen && (
+        <div className="game-settings-overlay" onClick={() => setSettingsOpen(false)}>
+          <div
+            className="game-settings-sheet"
+            role="dialog"
+            aria-label={t('game.settings')}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3>{t('game.settings')}</h3>
+            <SoundToggle variant="row" />
+            <button
+              type="button"
+              className="game-settings-row"
+              onClick={() => {
+                setSettingsOpen(false);
+                setShowHistory(true);
+              }}
+            >
+              {t('game.scoreHistory')}
+            </button>
+            {!gameState.isSpectator && <ReportBotPlayButton variant="row" />}
+            <button type="button" className="game-settings-row game-settings-close" onClick={() => setSettingsOpen(false)}>
+              {t('score.close')}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {showHistory && (
         <div className="history-modal-overlay" onClick={() => setShowHistory(false)}>
           <div className="history-modal" onClick={(e) => e.stopPropagation()}>
-            <ScoreHistory history={gameState.roundHistory} myTeam={myTeam} onClose={() => setShowHistory(false)} />
+            <ScoreHistory history={gameState.roundHistory ?? []} myTeam={myTeam} onClose={() => setShowHistory(false)} />
           </div>
         </div>
       )}
@@ -392,7 +315,10 @@ function PlayingLayout({
     }
   }, [lastEvent]);
 
-  const isMyTurn = gameState.currentPlayer === gameState.myPosition;
+  const dogLead = gameState.dogLead ?? null;
+  const activeSeat = dogLead?.to ?? gameState.currentPlayer;
+  const isMyTurn = activeSeat === gameState.myPosition;
+  const dogLeadName = dogLead ? gameState.players[dogLead.to]?.nickname || '' : '';
   const myInfo = gameState.players[gameState.myPosition];
   const isDragonGive = gameState.phase === GamePhase.DRAGON_GIVE;
   const isTeammate = (pos: PlayerPosition) => pos % 2 === gameState.myPosition % 2;
@@ -413,7 +339,7 @@ function PlayingLayout({
         <OpponentHand
           player={gameState.players[rel.top]}
           position="top"
-          isCurrentTurn={gameState.currentPlayer === rel.top}
+          isCurrentTurn={activeSeat === rel.top}
           isTeammate={isTeammate(rel.top)}
           hasPassed={passedSet.has(rel.top)}
           disconnectDeadline={gameState.disconnectDeadlines?.[rel.top]}
@@ -425,7 +351,7 @@ function PlayingLayout({
         <OpponentHand
           player={gameState.players[rel.left]}
           position="left"
-          isCurrentTurn={gameState.currentPlayer === rel.left}
+          isCurrentTurn={activeSeat === rel.left}
           isTeammate={isTeammate(rel.left)}
           hasPassed={passedSet.has(rel.left)}
           disconnectDeadline={gameState.disconnectDeadlines?.[rel.left]}
@@ -453,8 +379,8 @@ function PlayingLayout({
                       {(() => {
                         const playIdx = gameState.currentTrick.plays.indexOf(play);
                         const prevRank = playIdx > 0 ? gameState.currentTrick.plays[playIdx - 1].combination.rank : undefined;
-                        const phoenixLabel = getPhoenixLabel(play.combination, prevRank);
-                        return sortForDisplay(play.combination).map((c) => (
+                        const phoenixLabel = getPhoenixDisplayLabel(play.combination, prevRank);
+                        return sortCombinationForDisplay(play.combination).map((c) => (
                           <div key={c.id} className="trick-card-wrap">
                             <CardComponent card={c} size="small" />
                             {phoenixLabel && c.type === 'special' && c.specialType === SpecialCardType.PHOENIX && (
@@ -468,17 +394,31 @@ function PlayingLayout({
                 );
               })}
             </div>
+          ) : dogLead ? (
+            <div className="trick-cards dog-lead-notice">
+              <div className="trick-play trick-play-latest">
+                <span className={`trick-player ${isTeammate(dogLead.from) ? 'name-teammate' : 'name-opponent'}`}>
+                  {gameState.players[dogLead.from]?.nickname}
+                </span>
+                <div className="trick-combo">
+                  <CardComponent card={dogLead.card} size="small" />
+                </div>
+              </div>
+            </div>
           ) : (
             <span className="no-trick">
               {isMyTurn ? t('game.yourLead') : t('game.playerLead', { name: gameState.players[gameState.currentPlayer]?.nickname || '' })}
             </span>
+          )}
+          {dogLead && (
+            <span className="dog-lead-label">{t('game.dogLead', { name: dogLeadName })}</span>
           )}
         </div>
 
         <OpponentHand
           player={gameState.players[rel.right]}
           position="right"
-          isCurrentTurn={gameState.currentPlayer === rel.right}
+          isCurrentTurn={activeSeat === rel.right}
           isTeammate={isTeammate(rel.right)}
           hasPassed={passedSet.has(rel.right)}
           disconnectDeadline={gameState.disconnectDeadlines?.[rel.right]}
@@ -496,16 +436,16 @@ function PlayingLayout({
           <span className="your-turn">{t('game.yourTurn')}</span>
         ) : (
           <span className="info">
-            {t('game.playerTurn', { name: gameState.players[gameState.currentPlayer]?.nickname || '' })}
+            {t('game.playerTurn', { name: gameState.players[activeSeat]?.nickname || '' })}
           </span>
         )}
-        {gameState.turnDeadline && (
+        {gameState.turnDeadline && !gameState.dogPending && (
           <TurnTimer deadline={gameState.turnDeadline} />
         )}
       </div>
 
       {/* My hand */}
-      <div className="my-hand-row">
+      <div className={`my-hand-row ${dogLead?.to === gameState.myPosition ? 'dog-lead-target' : ''}`}>
         {myInfo?.tichuCall !== 'none' && (
           <span className={`tichu-badge ${myInfo.tichuCall === 'grand_tichu' ? 'tichu-badge-grand' : ''}`}>
             {myInfo.tichuCall === 'grand_tichu' ? 'GRAND TICHU' : 'TICHU'}
@@ -515,7 +455,7 @@ function PlayingLayout({
           <span className="my-finish-badge">#{myInfo.finishOrder}</span>
         )}
         <PlayerHand
-          cards={gameState.myHand}
+          cards={sortCards(gameState.myHand)}
           selectedCards={selectedCards}
           onToggle={toggleCard}
           lockedCards={undefined}

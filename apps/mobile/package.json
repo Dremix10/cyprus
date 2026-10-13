@@ -8,7 +8,7 @@
     "ios": "expo run:ios",
     "lint": "expo lint",
     "typecheck": "tsc --noEmit",
-    "test": "node --test --disable-warning=ExperimentalWarning --disable-warning=MODULE_TYPELESS_PACKAGE_JSON lib/*.test.ts",
+    "test": "node --experimental-strip-types --test --disable-warning=ExperimentalWarning --disable-warning=MODULE_TYPELESS_PACKAGE_JSON lib/*.test.ts",
     "android": "expo run:android"
   },
   "dependencies": {
@@ -22,6 +22,7 @@
     "expo-crypto": "~15.0.9",
     "expo-glass-effect": "~0.1.10",
     "expo-haptics": "~15.0.8",
+    "expo-keep-awake": "~15.0.8",
     "expo-linking": "~8.0.12",
     "expo-router": "~6.0.24",
     "expo-secure-store": "~15.0.8",
