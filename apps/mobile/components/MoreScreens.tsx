@@ -52,6 +52,7 @@ export function TutorialScreen({ onClose }: { onClose: () => void }) {
 export { LeaderboardScreen } from './Leaderboard';
 
 export function LiveGamesScreen({ onClose }: { onClose: () => void }) {
+  const t = useT();
   const insets = useSafeAreaInsets();
   const spectate = useApp((s) => s.spectate);
   const [games, setGames] = useState<Array<{ roomCode: string; players: Array<{ nickname: string; isBot: boolean }>; scores: [number, number]; phase: string }> | null>(null);
@@ -63,21 +64,21 @@ export function LiveGamesScreen({ onClose }: { onClose: () => void }) {
   return (
     <Hall>
       <ScrollView contentContainerStyle={[styles.scroll, { paddingTop: insets.top + 24, paddingBottom: insets.bottom + 24 }]}>
-        <GoldTitle title="Live Games" subtitle="Watch a table" />
+        <GoldTitle title={t('live.title')} subtitle={t('live.subtitle')} />
         <GlassCard>
-          {games === null && <Text style={styles.p}>Loading...</Text>}
-          {games?.length === 0 && <Text style={styles.p}>No active games right now</Text>}
+          {games === null && <Text style={styles.p}>{t('leaderboard.loading')}</Text>}
+          {games?.length === 0 && <Text style={styles.p}>{t('live.none')}</Text>}
           {games?.map((g) => (
             <View key={g.roomCode} style={styles.line}>
               <View style={{ flex: 1 }}>
                 <Text style={styles.name}>{g.roomCode} · {g.scores[0]}–{g.scores[1]}</Text>
                 <Text style={styles.meta}>{g.players.map((p) => p.nickname).join(', ')}</Text>
               </View>
-              <Btn label="Watch" kind="gold" small onPress={() => { void spectate(g.roomCode); onClose(); }} />
+              <Btn label={t('live.watch')} kind="gold" small onPress={() => { void spectate(g.roomCode); onClose(); }} />
             </View>
           ))}
         </GlassCard>
-        <Back label="Back" onPress={onClose} />
+        <Back label={t('lobby.back')} onPress={onClose} />
       </ScrollView>
     </Hall>
   );
@@ -325,8 +326,8 @@ export function InvitePopup() {
   return (
     <View style={styles.sheet}>
       <GlassCard>
-        <Text style={styles.h}>{invite.inviterName} invited you</Text>
-        <Text style={styles.p}>Room {invite.roomCode}</Text>
+        <Text style={styles.h}>{tr('friends.invitedYou', { name: invite.inviterName })}</Text>
+        <Text style={styles.p}>{tr('waiting.room', { code: invite.roomCode })}</Text>
         <Btn label={tr('friends.accept')} kind="gold" onPress={accept} />
         <Btn label={tr('friends.reject')} kind="ghost" onPress={decline} />
       </GlassCard>

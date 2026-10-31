@@ -168,13 +168,21 @@ const WISH_RANKS = [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14] as NormalRank[];
 
 export function WishSheet() {
   const wish = useApp((s) => s.wish);
+  const t = useT();
   return (
     <Sheet>
-      <Text style={styles.h2}>You played the Mahjong</Text>
-      <Text style={styles.p}>Wish for a rank. Whoever can play it must.</Text>
+      <Text testID="wish-sheet" style={styles.h2}>{t('game.wishTitle')}</Text>
+      <Text style={styles.p}>{t('game.wishBody')}</Text>
       <View style={styles.wishGrid}>
         {WISH_RANKS.map((r) => (
-          <Pressable key={r} accessibilityRole="button" accessibilityLabel={`Wish ${getRankLabel(r)}`} onPress={() => wish(r)} style={styles.wishBtn}>
+          <Pressable
+            key={r}
+            testID={`wish-${r}`}
+            accessibilityRole="button"
+            accessibilityLabel={t('game.wishRank', { rank: getRankLabel(r) })}
+            onPress={() => wish(r)}
+            style={styles.wishBtn}
+          >
             <Text style={styles.wishText}>{getRankLabel(r)}</Text>
           </Pressable>
         ))}
@@ -186,13 +194,14 @@ export function WishSheet() {
 // ── Dragon give ─────────────────────────────────────────────────────
 export function DragonSheet({ g }: { g: ClientGameState }) {
   const give = useApp((s) => s.dragonGive);
+  const t = useT();
   const opp = g.players.filter((p) => p.position % 2 !== g.myPosition % 2);
   return (
     <Sheet>
-      <Text style={styles.h2}>You won with the Dragon</Text>
-      <Text style={styles.p}>Give the trick to an opponent.</Text>
-      {opp.map((p) => (
-        <Btn key={p.position} label={p.nickname} kind="ghost" onPress={() => give(p.position)} />
+      <Text testID="dragon-sheet" style={styles.h2}>{t('game.dragonTitle')}</Text>
+      <Text style={styles.p}>{t('game.dragonBody')}</Text>
+      {opp.map((p, i) => (
+        <Btn key={p.position} testID={`dragon-give-${i}`} label={p.nickname} kind="ghost" onPress={() => give(p.position)} />
       ))}
     </Sheet>
   );

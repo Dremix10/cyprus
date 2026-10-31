@@ -8,7 +8,7 @@ import { Btn } from './Btn';
 import { GlassCard, GoldTitle, Hall } from './Olympus';
 import { color, radius } from '@/lib/theme';
 import { useAuth } from '@/lib/authStore';
-import { useT } from '@/lib/i18n';
+import { tError, useT } from '@/lib/i18n';
 
 WebBrowser.maybeCompleteAuthSession();
 
@@ -46,7 +46,11 @@ export function AuthPanel({ onClose }: { onClose: () => void }) {
     if (mode === 'forgot') {
       const result = await forgotPassword(email.trim());
       setBusy(false);
-      setNote(result.success ? (result.message ?? 'Check your email') : (result.error ?? 'Failed'));
+      setNote(
+        result.success
+          ? result.message ? tError(result.message) : t('auth.checkEmail')
+          : (result.error ?? t('error.failed')),
+      );
       return;
     }
     const ok =
@@ -69,13 +73,13 @@ export function AuthPanel({ onClose }: { onClose: () => void }) {
           AppleAuthentication.AppleAuthenticationScope.EMAIL,
         ],
       });
-      if (!cred.identityToken) throw new Error('Apple did not return an identity token. Please try again.');
+      if (!cred.identityToken) throw new Error(t('auth.appleNoToken'));
       const name = [cred.fullName?.givenName, cred.fullName?.familyName].filter(Boolean).join(' ');
       const ok = await loginWithApple(cred.identityToken, name || null);
       if (ok) onClose();
     } catch (err) {
       if ((err as { code?: string }).code !== 'ERR_REQUEST_CANCELED') {
-        setNote(err instanceof Error ? err.message : 'Apple sign-in failed. Please try again.');
+        setNote(err instanceof Error ? err.message : t('auth.appleRetry'));
       }
     } finally {
       setBusy(false);

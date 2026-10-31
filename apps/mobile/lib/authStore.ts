@@ -4,7 +4,7 @@ import type { AuthUser } from '@cyprus/shared';
 import { api } from './api';
 import { socket } from './socket';
 import { setSocketToken } from './token';
-import { useLangStore, type Lang } from './i18n';
+import { t, tError, useLangStore, type Lang } from './i18n';
 
 const KEY = 'cyprus-auth';
 
@@ -73,14 +73,14 @@ export const useAuth = create<AuthStore>((set) => ({
       const res = await api('/auth/login', { method: 'POST', body: JSON.stringify({ username, password }) });
       const data = await res.json();
       if (!res.ok) {
-        set({ error: data.error || 'Login failed' });
+        set({ error: data.error ? tError(data.error) : t('auth.loginFailed') });
         return false;
       }
       await remember(data.token, data.user);
       set({ user: data.user, error: null });
       return true;
     } catch {
-      set({ error: 'Connection failed' });
+      set({ error: t('error.connectionFailed') });
       return false;
     }
   },
@@ -94,14 +94,14 @@ export const useAuth = create<AuthStore>((set) => ({
       });
       const data = await res.json();
       if (!res.ok) {
-        set({ error: data.error || 'Registration failed' });
+        set({ error: data.error ? tError(data.error) : t('auth.registerFailed') });
         return false;
       }
       await remember(data.token, data.user);
       set({ user: data.user, error: null });
       return true;
     } catch {
-      set({ error: 'Connection failed' });
+      set({ error: t('error.connectionFailed') });
       return false;
     }
   },
@@ -112,14 +112,14 @@ export const useAuth = create<AuthStore>((set) => ({
       const res = await api('/auth/google', { method: 'POST', body: JSON.stringify({ credential }) });
       const data = await res.json();
       if (!res.ok) {
-        set({ error: data.error || 'Google sign-in failed' });
+        set({ error: data.error ? tError(data.error) : t('auth.googleFailed') });
         return false;
       }
       await remember(data.token, data.user);
       set({ user: data.user });
       return true;
     } catch {
-      set({ error: 'Connection failed' });
+      set({ error: t('error.connectionFailed') });
       return false;
     }
   },
@@ -133,14 +133,14 @@ export const useAuth = create<AuthStore>((set) => ({
       });
       const data = await res.json();
       if (!res.ok) {
-        set({ error: data.error || 'Apple sign-in failed' });
+        set({ error: data.error ? tError(data.error) : t('auth.appleFailed') });
         return false;
       }
       await remember(data.token, data.user);
       set({ user: data.user });
       return true;
     } catch {
-      set({ error: 'Connection failed' });
+      set({ error: t('error.connectionFailed') });
       return false;
     }
   },
@@ -150,9 +150,9 @@ export const useAuth = create<AuthStore>((set) => ({
       const res = await api('/auth/forgot-password', { method: 'POST', body: JSON.stringify({ email }) });
       const data = await res.json();
       if (res.ok) return { success: true, message: data.message };
-      return { success: false, error: data.error || 'Failed' };
+      return { success: false, error: data.error ? tError(data.error) : t('error.failed') };
     } catch {
-      return { success: false, error: 'Connection failed' };
+      return { success: false, error: t('error.connectionFailed') };
     }
   },
 
@@ -172,7 +172,7 @@ export const useAuth = create<AuthStore>((set) => ({
         body: JSON.stringify({ currentPassword, newPassword }),
       });
       const data = await res.json();
-      if (!res.ok) return { success: false, error: data.error || 'Failed' };
+      if (!res.ok) return { success: false, error: data.error ? tError(data.error) : t('error.failed') };
       setSocketToken(null);
       await SecureStore.deleteItemAsync(KEY);
       socket.disconnect();
@@ -180,7 +180,7 @@ export const useAuth = create<AuthStore>((set) => ({
       set({ user: null });
       return { success: true };
     } catch {
-      return { success: false, error: 'Connection failed' };
+      return { success: false, error: t('error.connectionFailed') };
     }
   },
 
@@ -189,7 +189,7 @@ export const useAuth = create<AuthStore>((set) => ({
       const res = await api('/auth/delete-account', { method: 'POST', body: JSON.stringify({ password }) });
       // A failed delete answers 500 with { error }; keep the session and show that message.
       const data = (await res.json().catch(() => ({}))) as { error?: string };
-      if (!res.ok) return { success: false, error: data.error || 'Failed' };
+      if (!res.ok) return { success: false, error: data.error ? tError(data.error) : t('error.failed') };
       setSocketToken(null);
       await SecureStore.deleteItemAsync(KEY);
       socket.disconnect();
@@ -197,7 +197,7 @@ export const useAuth = create<AuthStore>((set) => ({
       set({ user: null });
       return { success: true };
     } catch {
-      return { success: false, error: 'Connection failed' };
+      return { success: false, error: t('error.connectionFailed') };
     }
   },
 
@@ -205,11 +205,11 @@ export const useAuth = create<AuthStore>((set) => ({
     try {
       const res = await api('/auth/change-display-name', { method: 'POST', body: JSON.stringify({ displayName }) });
       const data = await res.json();
-      if (!res.ok) return { success: false, error: data.error || 'Failed' };
+      if (!res.ok) return { success: false, error: data.error ? tError(data.error) : t('error.failed') };
       set((s) => ({ user: s.user ? { ...s.user, displayName, displayNameChangedAt: new Date().toISOString() } : s.user }));
       return { success: true };
     } catch {
-      return { success: false, error: 'Connection failed' };
+      return { success: false, error: t('error.connectionFailed') };
     }
   },
 
@@ -217,11 +217,11 @@ export const useAuth = create<AuthStore>((set) => ({
     try {
       const res = await api('/auth/change-avatar', { method: 'POST', body: JSON.stringify({ avatar }) });
       const data = await res.json();
-      if (!res.ok) return { success: false, error: data.error || 'Failed' };
+      if (!res.ok) return { success: false, error: data.error ? tError(data.error) : t('error.failed') };
       set((s) => ({ user: s.user ? { ...s.user, avatar } : s.user }));
       return { success: true };
     } catch {
-      return { success: false, error: 'Connection failed' };
+      return { success: false, error: t('error.connectionFailed') };
     }
   },
 

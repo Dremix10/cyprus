@@ -4,6 +4,7 @@ import type { ClientGameState, GameEvent, NormalRank, PlayerPosition, RoomState 
 import { MATCHMAKING_TARGET_SCORE, planFriendLobbyInvite, runFriendLobbyInvite } from '@cyprus/shared';
 import { socket } from './socket';
 import { useAuth } from './authStore';
+import { t, tError } from './i18n';
 import { clearTicket, loadProfile, loadTicket, saveProfile, saveTicket } from './session';
 
 export type Conn = 'connecting' | 'connected' | 'reconnecting';
@@ -101,7 +102,7 @@ export const useApp = create<AppStore>((set, get) => {
 
   const emitAction = <T extends (...a: never[]) => void>(fn: T) => {
     if (!socket.connected) {
-      notify('Not connected. Reconnecting…', 'warn');
+      notify(t('toast.notConnected'), 'warn');
       return;
     }
     fn();
@@ -114,18 +115,18 @@ export const useApp = create<AppStore>((set, get) => {
     nextView: View | null,
   ) => {
     const { nickname } = get();
-    if (!nickname.trim()) return notify('Enter a nickname', 'error');
+    if (!nickname.trim()) return notify(t('error.enterNickname'), 'error');
     set({ busy: true });
     try {
       await ensureConnected();
     } catch {
       set({ busy: false });
-      return notify('Could not reach the server. Try again.', 'error');
+      return notify(t('toast.serverUnreachable'), 'error');
     }
     await saveProfile({ nickname: nickname.trim(), targetScore: get().targetScore, difficulty: get().difficulty });
     run((res) => {
       set({ busy: false });
-      if (res.error || !res.sessionId) return notify(res.error ?? 'Something went wrong', 'error');
+      if (res.error || !res.sessionId) return notify(res.error ? tError(res.error) : t('toast.somethingWrong'), 'error');
       const code = res.roomCode ?? fallbackCode ?? '';
       void saveTicket(res.sessionId, code, nickname.trim());
       set({ roomCode: code, roomState: null, game: null, selected: [], ...(nextView ? { view: nextView } : {}) });
@@ -154,7 +155,7 @@ export const useApp = create<AppStore>((set, get) => {
           if (PERMANENT.some((m) => res.error.includes(m))) {
             void clearTicket();
             set({ view: 'lobby', roomCode: null, roomState: null, game: null });
-            notify(res.error, 'warn');
+            notify(tError(res.error), 'warn');
           }
           return finish(false);
         }
@@ -217,14 +218,15 @@ export const useApp = create<AppStore>((set, get) => {
       void tryReconnect();
       return;
     }
-    notify(message, 'error');
+    // Logic below compares the raw English message; only the toast is translated.
+    notify(tError(message), 'error');
     void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error).catch(() => {});
     // "Slow down" is not a stale board. Asking again just makes more of them.
     if (message === 'Too many requests, slow down') return;
     if (socket.connected && get().game) socket.emit('game:resync');
   });
-  socket.on('room:player_disconnected', (n) => notify(`${n} disconnected`, 'warn'));
-  socket.on('room:player_reconnected', (n) => notify(`${n} reconnected`));
+  socket.on('room:player_disconnected', (n) => notify(t('toast.playerDisconnected', { name: n }), 'warn'));
+  socket.on('room:player_reconnected', (n) => notify(t('toast.playerReconnected', { name: n })));
   socket.on('server:maintenance', (d) => set({ maintenance: d.message }));
   socket.io.on('reconnect', () => set({ maintenance: null }));
   socket.on('matchmaking:update', (data) => set({ queue: { players: data.playersInQueue, elapsed: data.elapsed } }));
@@ -298,16 +300,16 @@ export const useApp = create<AppStore>((set, get) => {
       ),
     joinQueue: async () => {
       const { nickname } = get();
-      if (!nickname.trim()) return notify('Enter a nickname', 'error');
+      if (!nickname.trim()) return notify(t('error.enterNickname'), 'error');
       set({ busy: true });
       try { await ensureConnected(); } catch {
         set({ busy: false });
-        return notify('Could not reach the server. Try again.', 'error');
+        return notify(t('toast.serverUnreachable'), 'error');
       }
       // Matchmaking has one fixed length; the lobby's length picker is only for Create Room and Solo.
       socket.emit('matchmaking:join', nickname.trim(), MATCHMAKING_TARGET_SCORE, (res) => {
         set({ busy: false });
-        if ('error' in res) return notify(res.error, 'error');
+        if ('error' in res) return notify(tError(res.error), 'error');
         set({ view: 'queue', queue: { players: 1, elapsed: 0 } });
       });
     },
@@ -317,7 +319,7 @@ export const useApp = create<AppStore>((set, get) => {
     },
     spectate: (code) => {
       socket.emit('room:spectate', code.trim().toUpperCase(), (res) => {
-        if ('error' in res) return notify(res.error, 'error');
+        if ('error' in res) return notify(tError(res.error), 'error');
         set({ view: 'game', roomCode: res.roomCode, game: null });
       });
     },
@@ -335,15 +337,15 @@ export const useApp = create<AppStore>((set, get) => {
           new Promise((resolve) => {
             const { nickname, targetScore, difficulty } = get();
             if (!nickname.trim()) {
-              notify('Enter a nickname', 'error');
-              resolve({ ok: false, error: 'Enter a nickname' });
+              notify(t('error.enterNickname'), 'error');
+              resolve({ ok: false, error: t('error.enterNickname') });
               return;
             }
             void ensureConnected()
               .then(() => {
                 socket.emit('room:create', nickname.trim(), targetScore, difficulty, (res) => {
                   if ('error' in res || !res.sessionId || !res.roomCode) {
-                    const error = 'error' in res ? res.error : 'Could not create room';
+                    const error = 'error' in res ? tError(res.error) : t('toast.couldNotCreateRoom');
                     notify(error, 'error');
                     resolve({ ok: false, error });
                     return;
@@ -360,31 +362,31 @@ export const useApp = create<AppStore>((set, get) => {
                 });
               })
               .catch(() => {
-                notify('Could not reach the server. Try again.', 'error');
-                resolve({ ok: false, error: 'Could not reach the server. Try again.' });
+                notify(t('toast.serverUnreachable'), 'error');
+                resolve({ ok: false, error: t('toast.serverUnreachable') });
               });
           }),
         sendInvite: () =>
           new Promise((resolve) => {
             socket.emit('friend:invite:send', friendUserId, (res) => {
               if ('error' in res) {
-                notify(res.error, 'error');
-                resolve({ ok: false, error: res.error });
+                notify(tError(res.error), 'error');
+                resolve({ ok: false, error: tError(res.error) });
               } else {
-                notify('Invite sent');
+                notify(t('toast.inviteSent'));
                 resolve({ ok: true });
               }
             });
           }),
       });
       if (!result.success && result.error && !result.createdRoom && plan.kind === 'blocked') {
-        notify(result.error, 'error');
+        notify(tError(result.error), 'error');
       }
       return { success: result.success, createdRoom: result.createdRoom };
     },
     acceptInvite: () => {
       socket.emit('friend:invite:accept', (res) => {
-        if ('error' in res) return notify(res.error, 'error');
+        if ('error' in res) return notify(tError(res.error), 'error');
         void saveTicket(res.sessionId, res.roomCode, get().nickname.trim() || 'Guest');
         set({ invite: null, roomCode: res.roomCode, view: 'waiting' });
       });
@@ -395,15 +397,15 @@ export const useApp = create<AppStore>((set, get) => {
     },
     reportBot: (eventId) => {
       socket.emit('bot:report-play', eventId, (res) => {
-        if ('error' in res) notify(res.error, 'error');
-        else notify('Reported');
+        if ('error' in res) notify(tError(res.error), 'error');
+        else notify(t('toast.reported'));
       });
     },
     toggleSound: () => set((s) => ({ soundOn: !s.soundOn })),
     joinRoom: (code) => {
       const c = code.trim().toUpperCase();
       if (!c) {
-        notify('Enter a room code', 'error');
+        notify(t('error.enterRoomCode'), 'error');
         return Promise.resolve();
       }
       return enterRoom((cb) => socket.emit('room:join', c, get().nickname.trim(), cb), c, 'waiting');

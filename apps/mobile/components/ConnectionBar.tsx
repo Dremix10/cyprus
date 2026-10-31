@@ -3,6 +3,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { GlassSurface } from './GlassSurface';
 import { color, radius } from '@/lib/theme';
 import { useApp } from '@/lib/store';
+import { useT } from '@/lib/i18n';
 
 /** Connection trouble, maintenance, and transient notices (toasts), as glass pills. */
 export function StatusPills() {
@@ -10,8 +11,9 @@ export function StatusPills() {
   const ready = useApp((s) => s.ready);
   const maintenance = useApp((s) => s.maintenance);
   const notice = useApp((s) => s.notice);
+  const t = useT();
   const offline = conn !== 'connected' && ready;
-  const label = maintenance ?? (offline ? 'Connection lost. Reconnecting…' : null);
+  const label = maintenance ?? (offline ? t('connection.lost') : null);
   return (
     <>
       {label && (

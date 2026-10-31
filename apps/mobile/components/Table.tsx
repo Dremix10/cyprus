@@ -29,7 +29,7 @@ import {
 import { ScoreHistorySheet } from './MoreScreens';
 import { Sheet } from './Sheet';
 import { color, greekFont, radius } from '@/lib/theme';
-import { useT } from '@/lib/i18n';
+import { tError, useT } from '@/lib/i18n';
 import { useApp } from '@/lib/store';
 import { socket } from '@/lib/socket';
 
@@ -46,11 +46,12 @@ function useCountdown(deadline?: number | null): number | null {
 
 export function Table() {
   const g = useApp((s) => s.game);
+  const t = useT();
   if (!g) {
     return (
       <View style={styles.center}>
         <ActivityIndicator color={color.text} />
-        <Text style={styles.dim}>Loading the table…</Text>
+        <Text style={styles.dim}>{t('game.loadingTable')}</Text>
       </View>
     );
   }
@@ -70,7 +71,7 @@ export function Table() {
       return (
         <View style={styles.center}>
           <ActivityIndicator color={color.text} />
-          <Text style={styles.dim}>Dealing…</Text>
+          <Text style={styles.dim}>{t('game.dealing')}</Text>
         </View>
       );
   }
@@ -95,6 +96,7 @@ function OpponentTile({ p, g, compact }: { p: PublicPlayerState; g: ClientGameSt
   const turn = activeSeat === p.position && g.phase === GamePhase.PLAYING;
   const passed = g.currentTrick.passedPlayers?.includes(p.position);
   const dc = useCountdown(g.disconnectDeadlines?.[p.position]);
+  const t = useT();
   return (
     <View style={[styles.tile, compact && styles.tileCompact, turn && styles.tileTurn, p.isOut && { opacity: 0.6 }]}>
       <Text
@@ -108,7 +110,7 @@ function OpponentTile({ p, g, compact }: { p: PublicPlayerState; g: ClientGameSt
       </Text>
       <View style={styles.tileRow}>
         {p.isOut ? (
-          <Text style={styles.tileBadge}>OUT #{p.finishOrder}</Text>
+          <Text style={styles.tileBadge}>{t('game.outN', { n: p.finishOrder ?? '' })}</Text>
         ) : (
           <>
             <CardBack width={16} />
@@ -121,8 +123,8 @@ function OpponentTile({ p, g, compact }: { p: PublicPlayerState; g: ClientGameSt
           {p.tichuCall === 'grand_tichu' ? 'GRAND TICHU' : 'TICHU'}
         </Text>
       )}
-      {passed && !p.isOut && <Text style={styles.passChip}>passed</Text>}
-      {dc !== null && p.connected === false && <Text style={styles.dcChip}>bot in {dc}s</Text>}
+      {passed && !p.isOut && <Text style={styles.passChip}>{t('game.passedChip')}</Text>}
+      {dc !== null && p.connected === false && <Text style={styles.dcChip}>{t('game.botIn', { s: dc })}</Text>}
     </View>
   );
 }
@@ -184,18 +186,20 @@ function Playing({ g }: { g: ClientGameState }) {
   // Event-driven toasts (animation/sound cues only; the snapshot is the truth).
   useEffect(() => {
     if (!lastEvent) return;
-    const name = lastEvent.playerPosition !== undefined ? g.players[lastEvent.playerPosition]?.nickname : undefined;
-    if (lastEvent.type === 'BOMB') notify(`${name ?? 'Someone'} played a bomb!`, 'warn');
-    else if (lastEvent.type === 'TICHU_CALL') notify(`${name ?? 'Someone'} called Tichu`, 'warn');
-    else if (lastEvent.type === 'GRAND_TICHU_CALL') notify(`${name ?? 'Someone'} called Grand Tichu`, 'warn');
-    else if (lastEvent.type === 'PLAYER_OUT') notify(`${name ?? 'Someone'} is out`);
+    const who =
+      (lastEvent.playerPosition !== undefined ? g.players[lastEvent.playerPosition]?.nickname : undefined) ??
+      t('game.someone');
+    if (lastEvent.type === 'BOMB') notify(t('game.toastBomb', { name: who }), 'warn');
+    else if (lastEvent.type === 'TICHU_CALL') notify(t('game.toastTichu', { name: who }), 'warn');
+    else if (lastEvent.type === 'GRAND_TICHU_CALL') notify(t('game.toastGrandTichu', { name: who }), 'warn');
+    else if (lastEvent.type === 'PLAYER_OUT') notify(t('game.toastOut', { name: who }));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [lastEvent]);
 
   const confirmLeave = () =>
-    Alert.alert('Leave this game?', 'A bot will take your seat.', [
-      { text: 'Stay', style: 'cancel' },
-      { text: 'Leave', style: 'destructive', onPress: leave },
+    Alert.alert(t('game.leaveTitle'), t('game.leaveBody'), [
+      { text: t('game.stay'), style: 'cancel' },
+      { text: t('waiting.leave'), style: 'destructive', onPress: leave },
     ]);
 
   const hint = () => {
@@ -203,10 +207,10 @@ function Playing({ g }: { g: ClientGameState }) {
     setHinting(true);
     socket.emit('game:hint', (res) => {
       setHinting(false);
-      if ('error' in res) notify(res.error, 'error');
+      if ('error' in res) notify(tError(res.error), 'error');
       else if ('pass' in res) {
         clearSel();
-        notify('Hint: pass');
+        notify(t('game.hintPass'));
       } else useApp.setState({ selected: res.play });
     });
   };
@@ -226,7 +230,7 @@ function Playing({ g }: { g: ClientGameState }) {
               <Pressable
                 onPress={confirmLeave}
                 accessibilityRole="button"
-                accessibilityLabel="Leave game"
+                accessibilityLabel={t('game.leaveGame')}
                 hitSlop={10}
                 style={styles.exit}
               >
@@ -237,7 +241,7 @@ function Playing({ g }: { g: ClientGameState }) {
             <View style={styles.scores}>
               <Text style={[styles.scoreNum, { color: color.teamUs }]}>{g.scores[myTeam]}</Text>
               <Text style={styles.scoreTo}>
-                {isQuickGame(g.targetScore) ? t('game.oneRound') : `to ${g.targetScore}`}
+                {isQuickGame(g.targetScore) ? t('game.oneRound') : t('game.toScore', { score: g.targetScore })}
               </Text>
               <Text style={[styles.scoreNum, { color: color.teamThem }]}>{g.scores[1 - myTeam]}</Text>
             </View>
@@ -264,7 +268,7 @@ function Playing({ g }: { g: ClientGameState }) {
           <OpponentTile p={g.players[rel.left]} g={g} compact />
           <View style={styles.felt}>
             {g.wish.active && g.wish.wishedRank !== null && (
-              <Text style={styles.wish}>Wish: {getRankLabel(g.wish.wishedRank)}</Text>
+              <Text style={styles.wish}>{t('game.wish', { rank: getRankLabel(g.wish.wishedRank) })}</Text>
             )}
             {latest ? (
               <View style={{ alignItems: 'center', gap: 6 }}>
@@ -304,7 +308,7 @@ function Playing({ g }: { g: ClientGameState }) {
                 </Text>
               </View>
             ) : (
-              <Text style={styles.dim}>{myTurn ? 'Your lead' : `${turnName} leads`}</Text>
+              <Text style={styles.dim}>{myTurn ? t('game.yourLead') : t('game.playerLead', { name: turnName })}</Text>
             )}
           </View>
           <OpponentTile p={g.players[rel.right]} g={g} compact />
@@ -316,16 +320,18 @@ function Playing({ g }: { g: ClientGameState }) {
             <Text style={styles.bannerText}>
               {isDragon
                 ? dragonMine
-                  ? 'Choose who gets the Dragon'
-                  : `${g.players[g.currentTrick.currentWinner ?? g.currentPlayer]?.nickname} is choosing`
+                  ? t('game.chooseDragon')
+                  : t('game.playerChoosing', { name: g.players[g.currentTrick.currentWinner ?? g.currentPlayer]?.nickname ?? '' })
                 : myTurn
                   ? mustPlayWish
-                    ? `Your turn · you must play the wish${g.wish.wishedRank ? ` (${getRankLabel(g.wish.wishedRank)})` : ''}`
+                    ? g.wish.wishedRank
+                      ? t('game.yourTurnWishRank', { rank: getRankLabel(g.wish.wishedRank) })
+                      : t('game.yourTurnWish')
                     : g.mustPass
-                      ? 'Your turn · nothing beats it, pass'
-                      : 'Your turn'
-                  : `${turnName}'s turn`}
-              {secs !== null && !isDragon && !g.dogPending ? `  ·  ${secs}s` : ''}
+                      ? t('game.yourTurnMustPass')
+                      : t('game.yourTurn')
+                  : t('game.playerTurn', { name: turnName })}
+              {secs !== null && !isDragon && !g.dogPending ? `  ·  ${t('game.secondsLeft', { s: secs })}` : ''}
             </Text>
           </GlassSurface>
         </View>
@@ -347,7 +353,7 @@ function Playing({ g }: { g: ClientGameState }) {
               {me.tichuCall === 'grand_tichu' ? 'GRAND TICHU' : 'TICHU'}
             </Text>
           )}
-          {me.isOut && <Text style={styles.tileBadge}>OUT #{me.finishOrder}</Text>}
+          {me.isOut && <Text style={styles.tileBadge}>{t('game.outN', { n: me.finishOrder ?? '' })}</Text>}
         </View>
 
         {/* Floating action bar */}
@@ -365,7 +371,7 @@ function Playing({ g }: { g: ClientGameState }) {
             {g.isSolo && myTurn && canAct && !me.isOut ? (
               <Btn
                 testID="hint"
-                label={hinting ? '…' : 'Hint'}
+                label={hinting ? '…' : t('game.hint')}
                 kind="ghost"
                 small
                 onPress={hint}
@@ -378,7 +384,7 @@ function Playing({ g }: { g: ClientGameState }) {
                 {canPass && !mustPlayWish && (
                   <Btn
                     testID="pass"
-                    label="Pass"
+                    label={t('game.pass')}
                     kind={g.mustPass ? 'gold' : 'ghost'}
                     onPress={passTurn}
                     style={styles.actBtn}
@@ -386,7 +392,7 @@ function Playing({ g }: { g: ClientGameState }) {
                 )}
                 <Btn
                   testID="play"
-                  label={selected.length ? `Play ${selected.length}` : 'Play'}
+                  label={selected.length ? t('game.playN', { n: selected.length }) : t('game.play')}
                   kind="primary"
                   disabled={selected.length === 0}
                   onPress={play}
@@ -395,11 +401,11 @@ function Playing({ g }: { g: ClientGameState }) {
                 />
               </>
             ) : (
-              <Text style={styles.waiting}>{me.isOut ? 'You are out' : myTurn ? '…' : 'Waiting'}</Text>
+              <Text style={styles.waiting}>{me.isOut ? t('game.youAreOut') : myTurn ? '…' : t('game.waiting')}</Text>
             )}
             {g.isSolo && me.isOut && (
               <Btn
-                label="Skip round"
+                label={t('game.skipRound')}
                 kind="ghost"
                 small
                 onPress={useApp.getState().skipRound}

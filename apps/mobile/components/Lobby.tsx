@@ -231,7 +231,7 @@ export function Lobby({
             <View collapsable={false} style={styles.links}>
               <Link label={t('lobby.howToPlay')} onPress={onRules} />
               <Link label={t('lobby.leaderboard')} onPress={onLeaderboard} />
-              <Link label="Live Games" onPress={onLive} />
+              <Link label={t('lobby.liveGames')} onPress={onLive} />
               <Link label={t('friends.title')} onPress={user ? onFriends : onAuth} />
               <Link
                 testID="account-link"
