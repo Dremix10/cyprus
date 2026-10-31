@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, AppState, StyleSheet, View } from 'react-native';
+import { useKeepAwake } from 'expo-keep-awake';
 import { Lobby } from '@/components/Lobby';
 import { WaitingRoom } from '@/components/WaitingRoom';
 import { Table } from '@/components/Table';
@@ -12,6 +13,12 @@ import { useApp } from '@/lib/store';
 import { useAuth } from '@/lib/authStore';
 
 type Sheet = null | 'auth' | 'tutorial' | 'leaderboard' | 'profile' | 'friends' | 'live';
+
+/** Screen stays on for the whole game, including other players' turns. */
+function KeepGameAwake() {
+  useKeepAwake('cyprus-game', { suppressDeactivateWarnings: true });
+  return null;
+}
 
 export default function Home() {
   const view = useApp((s) => s.view);
@@ -57,6 +64,7 @@ export default function Home() {
 
   return (
     <View style={styles.root}>
+      {view === 'game' && <KeepGameAwake />}
       {body}
       <InvitePopup />
       <StatusOverlay />

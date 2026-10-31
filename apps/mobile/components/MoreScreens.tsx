@@ -90,6 +90,7 @@ export function FriendsScreen({ onClose }: { onClose: () => void }) {
   const [friends, setFriends] = useState<Friend[]>([]);
   const [requests, setRequests] = useState<FriendRequest[]>([]);
   const invite = useApp((s) => s.inviteFriend);
+  const [invitingId, setInvitingId] = useState<number | null>(null);
 
   const reload = async () => {
     const [f, r] = await Promise.all([api('/api/friends'), api('/api/friends/requests')]);
@@ -137,7 +138,22 @@ export function FriendsScreen({ onClose }: { onClose: () => void }) {
           {friends.map((f) => (
             <View key={f.id} style={styles.line}>
               <Text style={[styles.name, { flex: 1 }]}>{f.displayName} · {f.online ? t('friends.online') : t('friends.offline')}</Text>
-              {f.online && <Btn label="Invite" kind="gold" small onPress={() => invite(f.id)} />}
+              {f.online && (
+                <Btn
+                  label={invitingId === f.id ? t('friends.sending') : t('friends.invite')}
+                  kind="gold"
+                  small
+                  disabled={invitingId !== null}
+                  onPress={() => {
+                    if (invitingId !== null) return;
+                    setInvitingId(f.id);
+                    void invite(f.id).then((res) => {
+                      setInvitingId(null);
+                      if (res.createdRoom) onClose();
+                    });
+                  }}
+                />
+              )}
             </View>
           ))}
         </GlassCard>

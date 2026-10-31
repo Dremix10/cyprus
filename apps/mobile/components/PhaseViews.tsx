@@ -1,13 +1,14 @@
 import { useState } from 'react';
 import { Alert, ScrollView, StyleSheet, Text, View, Pressable } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { NormalRank, getCardPoints, getRankLabel, type PlayerPosition, type ClientGameState } from '@cyprus/shared';
+import { NormalRank, getCardPoints, getRankLabel, isQuickGame, sortCards, winningTeam, type PlayerPosition, type ClientGameState } from '@cyprus/shared';
 import { Btn } from './Btn';
 import { Hand } from './Hand';
 import { CardView } from './CardView';
 import { Sheet } from './Sheet';
 import { color, radius } from '@/lib/theme';
 import { useApp } from '@/lib/store';
+import { useT } from '@/lib/i18n';
 
 const myTeamOf = (g: ClientGameState) => (g.myPosition % 2) as 0 | 1;
 
@@ -37,7 +38,7 @@ export function GrandTichuView({ g }: { g: ClientGameState }) {
       <Text style={styles.h1}>Grand Tichu?</Text>
       <Text style={styles.p}>These are your first 8 cards. Call only if you expect to go out first.</Text>
       <View style={{ flex: 1, justifyContent: 'center' }}>
-        <Hand cards={g.myHand} selected={[]} onToggle={() => {}} disabled cardWidth={62} />
+        <Hand cards={sortCards(g.myHand)} selected={[]} onToggle={() => {}} disabled cardWidth={62} />
       </View>
       {g.grandTichuPending ? (
         <View style={{ gap: 10 }}>
@@ -144,7 +145,7 @@ export function PassingView({ g }: { g: ClientGameState }) {
         })}
       </View>
       <View style={{ flex: 1, justifyContent: 'flex-end' }}>
-        <Hand cards={g.myHand} selected={[...placed]} onToggle={tapCard} cardWidth={58} />
+        <Hand cards={sortCards(g.myHand)} selected={[...placed]} onToggle={tapCard} cardWidth={58} />
       </View>
       <View style={{ gap: 10, marginTop: 14 }}>
         <Btn
@@ -199,6 +200,7 @@ export function DragonSheet({ g }: { g: ClientGameState }) {
 export function ScoringView({ g }: { g: ClientGameState }) {
   const insets = useSafeAreaInsets();
   const next = useApp((s) => s.nextRound);
+  const tr = useT();
   const t = myTeamOf(g);
   const b = g.roundBreakdown;
   const teams = [
@@ -237,7 +239,7 @@ export function ScoringView({ g }: { g: ClientGameState }) {
           </View>
         ))}
       </ScrollView>
-      <Btn label="Next round" kind="gold" haptic="medium" onPress={next} />
+      <Btn label={isQuickGame(g.targetScore) ? tr('phase.seeResult') : tr('phase.nextRound')} kind="gold" haptic="medium" onPress={next} />
     </View>
   );
 }
@@ -246,13 +248,17 @@ export function ScoringView({ g }: { g: ClientGameState }) {
 export function GameOverView({ g }: { g: ClientGameState }) {
   const insets = useSafeAreaInsets();
   const leave = useApp((s) => s.leave);
+  const tr = useT();
   const t = myTeamOf(g);
-  const winner = g.scores[0] >= g.targetScore && g.scores[0] >= g.scores[1] ? 0 : g.scores[1] >= g.targetScore ? 1 : g.scores[0] > g.scores[1] ? 0 : 1;
+  const winner = winningTeam(g.scores);
+  const tied = winner === null;
   const won = winner === t;
   return (
     <View style={[styles.phase, { paddingTop: insets.top + 40, paddingBottom: insets.bottom + 16 }]}>
-      <Text style={[styles.h1, { fontSize: 44, color: won ? color.gold : color.textDim }]}>{won ? 'Victory' : 'Defeat'}</Text>
-      <Text style={styles.p}>{won ? 'Your team wins the game.' : 'The opponents win the game.'}</Text>
+      <Text style={[styles.h1, { fontSize: 44, color: tied || won ? color.gold : color.textDim }]}>
+        {tied ? tr('phase.tie') : won ? tr('phase.victory') : tr('phase.defeat')}
+      </Text>
+      <Text style={styles.p}>{tied ? tr('phase.tied') : won ? tr('phase.yourTeamWins') : tr('phase.opponentsWin')}</Text>
       <View style={styles.scoreCard}>
         <View style={styles.rowBetween}>
           <Text style={[styles.teamLabel, { color: color.teamUs }]}>Your team</Text>

@@ -1,5 +1,5 @@
 import type { PlayerPosition, RoomState } from '@cyprus/shared';
-import { GamePhase } from '@cyprus/shared';
+import { GamePhase, normalizeTargetScore } from '@cyprus/shared';
 import { GameEngine } from './GameEngine.js';
 import type { BotDifficulty } from './BotAI.js';
 import { randomUUID } from 'node:crypto';
@@ -62,8 +62,7 @@ export class RoomManager {
   createRoom(socketId: string, nickname: string, targetScore: number = 1000, userId?: number, difficulty: BotDifficulty = 'medium', avatar?: string): { roomCode: string; sessionId: string } | { error: string } {
     const nickErr = this.validateNickname(nickname);
     if (nickErr) return { error: nickErr };
-    if (targetScore < 250) targetScore = 250;
-    if (targetScore > 10000) targetScore = 10000;
+    targetScore = normalizeTargetScore(targetScore);
     const code = this.generateCode();
     const room: Room = {
       code,
@@ -104,8 +103,7 @@ export class RoomManager {
   ): { roomCode: string; sessionId: string } | { error: string } {
     const nickErr = this.validateNickname(nickname);
     if (nickErr) return { error: nickErr };
-    if (targetScore < 250) targetScore = 250;
-    if (targetScore > 10000) targetScore = 10000;
+    targetScore = normalizeTargetScore(targetScore);
     const code = this.generateCode();
 
     const botPositions = new Set<PlayerPosition>([1, 2, 3] as PlayerPosition[]);
@@ -471,6 +469,7 @@ export class RoomManager {
         avatar: p.avatar,
       })),
       isStartable: room.players.size >= 2 && !room.engine,
+      targetScore: room.targetScore,
     };
   }
 
@@ -530,7 +529,7 @@ export class RoomManager {
     if (!nickname || typeof nickname !== 'string') return 'Invalid nickname';
     const trimmed = nickname.trim();
     if (trimmed.length < 1 || trimmed.length > 20) return 'Nickname must be 1-20 characters';
-    if (!/^[\w\s\-\u00C0-\u024F]+$/u.test(trimmed)) return 'Nickname contains invalid characters';
+    if (!/^[\w\s\-\u00C0-\u024F\p{Script=Greek}]+$/u.test(trimmed)) return 'Nickname contains invalid characters';
     // Warning flag for potentially offensive content (returned as part of success, not blocking)
     return null;
   }

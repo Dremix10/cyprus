@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useRoomStore } from '../stores/roomStore.js';
 import { useT } from '../i18n.js';
-import type { PlayerPosition } from '@cyprus/shared';
+import { isQuickGame, type PlayerPosition } from '@cyprus/shared';
 import { InviteFriendButton } from './InviteFriendPicker.js';
 
 export function WaitingRoom() {
@@ -35,6 +35,12 @@ export function WaitingRoom() {
   };
 
   const myPlayer = roomState.players.find((p) => p.nickname === nickname);
+  // Older servers don't send the length; show nothing rather than guess.
+  const lengthLabel = roomState.targetScore === undefined
+    ? null
+    : isQuickGame(roomState.targetScore)
+      ? `${t('lobby.quickGame')} · ${t('game.oneRound')}`
+      : t('lobby.gameTo', { score: roomState.targetScore });
 
   return (
     <div className="waiting-room">
@@ -49,6 +55,8 @@ export function WaitingRoom() {
           {t('waiting.leave')}
         </button>
       </div>
+
+      {lengthLabel && <p className="room-length">{lengthLabel}</p>}
 
       <p className="room-code-hint">
         {t('waiting.shareCode')}

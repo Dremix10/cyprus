@@ -7,6 +7,8 @@ type GameHistoryEntry = {
   game_id: number;
   ended_at: string;
   won: boolean;
+  /** Older servers don't send it; equal scores mean a tie there. */
+  tied?: boolean;
   myScore: number;
   opponentScore: number;
   botDifficulty: string | null;
@@ -50,10 +52,16 @@ export function Leaderboard({ onBack }: { onBack: () => void }) {
 
       <div className="leaderboard-content">
         <div className="leaderboard-header">
-          <h1 className="title-greek">{t('leaderboard.title')}</h1>
-          <p className="subtitle-greek">{t('leaderboard.subtitle')}</p>
+          <button className="btn btn-olympus btn-back-lobby" onClick={onBack}>
+            {t('leaderboard.backToLobby')}
+          </button>
+          <div className="leaderboard-heading">
+            <h1 className="title-greek">{t('leaderboard.title')}</h1>
+            <p className="subtitle-greek">{t('leaderboard.subtitle')}</p>
+          </div>
         </div>
 
+        <div className="leaderboard-scroll">
         {myStats && myStats.games_played > 0 && (
           <div className="leaderboard-my-stats">
             <h3>{t('leaderboard.yourStats')}</h3>
@@ -99,15 +107,18 @@ export function Leaderboard({ onBack }: { onBack: () => void }) {
               <div className="game-history-row">
                 <span className="stat-label">{t('leaderboard.recent')}</span>
                 <div className="game-history-dots">
-                  {gameHistory.map((g) => (
-                    <span
-                      key={g.game_id}
-                      className={`game-dot ${g.won ? 'game-dot-win' : 'game-dot-loss'}`}
-                      title={`${g.won ? t('leaderboard.win') : t('leaderboard.loss')} — ${g.myScore}-${g.opponentScore}${g.botDifficulty ? ` (${g.botDifficulty} ${t('leaderboard.bots')})` : ''}`}
-                    >
-                      {g.won ? 'W' : 'L'}
-                    </span>
-                  ))}
+                  {gameHistory.map((g) => {
+                    const result = g.won ? 'win' : (g.tied ?? g.myScore === g.opponentScore) ? 'tie' : 'loss';
+                    return (
+                      <span
+                        key={g.game_id}
+                        className={`game-dot game-dot-${result}`}
+                        title={`${t(`leaderboard.${result}`)} — ${g.myScore}-${g.opponentScore}${g.botDifficulty ? ` (${g.botDifficulty} ${t('leaderboard.bots')})` : ''}`}
+                      >
+                        {t(`leaderboard.${result}Short`)}
+                      </span>
+                    );
+                  })}
                 </div>
               </div>
             )}
@@ -167,10 +178,7 @@ export function Leaderboard({ onBack }: { onBack: () => void }) {
             </table>
           </div>
         )}
-
-        <button className="btn btn-olympus btn-back-lobby" onClick={onBack}>
-          {t('leaderboard.backToLobby')}
-        </button>
+        </div>
       </div>
     </div>
   );

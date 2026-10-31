@@ -1,6 +1,9 @@
 import { useState, useEffect, useRef } from 'react';
-import { useFriendStore } from '../stores/friendStore.js';
+import { planFriendLobbyInvite, runFriendLobbyInvite } from '@cyprus/shared';
 import type { FriendStatus } from '@cyprus/shared';
+import { useFriendStore } from '../stores/friendStore.js';
+import { useRoomStore } from '../stores/roomStore.js';
+import { useAuthStore } from '../stores/authStore.js';
 import { useT } from '../i18n.js';
 
 type SearchResult = {
@@ -118,7 +121,7 @@ function AddFriendModal({
 
 export function FriendsPanel() {
   const t = useT();
-  const { friends, requests, fetchFriends, fetchRequests, searchUsers, sendRequest, acceptRequest, rejectRequest, removeFriend } = useFriendStore();
+  const { friends, requests, fetchFriends, fetchRequests, searchUsers, sendRequest, acceptRequest, rejectRequest, removeFriend, sendInvite } = useFriendStore();
   const [expanded, setExpanded] = useState(false);
   const [showAddFriend, setShowAddFriend] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -126,6 +129,8 @@ export function FriendsPanel() {
   const [searching, setSearching] = useState(false);
   const [actionFeedback, setActionFeedback] = useState<Record<number, string>>({});
   const [confirmRemoveId, setConfirmRemoveId] = useState<number | null>(null);
+  const [inviteBusyId, setInviteBusyId] = useState<number | null>(null);
+  const [inviteNote, setInviteNote] = useState<Record<number, { kind: 'sent' | 'error'; msg?: string }>>({});
   const searchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
@@ -202,6 +207,52 @@ export function FriendsPanel() {
   const handleRemoveFriend = async (friendId: number) => {
     await removeFriend(friendId);
     setConfirmRemoveId(null);
+  };
+
+  const handleInviteFriend = async (friendId: number) => {
+    setInviteBusyId(friendId);
+    setInviteNote((prev) => {
+      const next = { ...prev };
+      delete next[friendId];
+      return next;
+    });
+
+    const room = useRoomStore.getState();
+    if (!room.nickname.trim()) {
+      const authUser = useAuthStore.getState().user;
+      const name = (authUser?.displayName || authUser?.username || '').slice(0, 20);
+      if (name) room.setNickname(name);
+    }
+    const inWaiting = room.view === 'waiting' && !!room.roomCode;
+    const inGame = room.view === 'game';
+    const plan = planFriendLobbyInvite({
+      inRoom: inWaiting || inGame,
+      gameStarted: inGame,
+      playerCount: room.roomState?.players.length ?? 0,
+    });
+    const result = await runFriendLobbyInvite(plan, {
+      createRoom: async () => {
+        await useRoomStore.getState().createRoom();
+        const after = useRoomStore.getState();
+        if (after.view === 'waiting' && after.roomCode) return { ok: true };
+        return { ok: false, error: after.error ?? undefined };
+      },
+      sendInvite: async () => {
+        const sent = await sendInvite(friendId);
+        return sent.success ? { ok: true } : { ok: false, error: sent.error };
+      },
+    });
+
+    setInviteBusyId(null);
+    if (!result.success) {
+      if (result.createdRoom && result.error) useRoomStore.getState().setError(result.error);
+      setInviteNote((prev) => ({
+        ...prev,
+        [friendId]: { kind: 'error', msg: result.error || t('friends.failed') },
+      }));
+      return;
+    }
+    setInviteNote((prev) => ({ ...prev, [friendId]: { kind: 'sent' } }));
   };
 
   return (
@@ -286,14 +337,31 @@ export function FriendsPanel() {
                             </button>
                           </div>
                         ) : (
-                          <button
-                            type="button"
-                            className="btn-friend-remove"
-                            title={t('friends.removeFriend')}
-                            onClick={() => setConfirmRemoveId(friend.id)}
-                          >
-                            x
-                          </button>
+                          <div className="friend-actions">
+                            {inviteNote[friend.id]?.kind === 'sent' ? (
+                              <span className="friend-status-label">{t('friends.invited')}</span>
+                            ) : (
+                              <button
+                                type="button"
+                                className="btn-friend btn-friend-add"
+                                onClick={() => handleInviteFriend(friend.id)}
+                                disabled={inviteBusyId !== null}
+                              >
+                                {inviteBusyId === friend.id ? t('friends.sending') : t('friends.invite')}
+                              </button>
+                            )}
+                            {inviteNote[friend.id]?.kind === 'error' && (
+                              <span className="friend-status-label friend-invite-error">{inviteNote[friend.id].msg}</span>
+                            )}
+                            <button
+                              type="button"
+                              className="btn-friend-remove"
+                              title={t('friends.removeFriend')}
+                              onClick={() => setConfirmRemoveId(friend.id)}
+                            >
+                              x
+                            </button>
+                          </div>
                         )}
                       </div>
                     ))}

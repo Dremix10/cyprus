@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import type { AuthUser } from '@cyprus/shared';
 import { useLangStore } from '../i18n.js';
+import { socket } from '../socket.js';
 
 interface AuthStore {
   user: AuthUser | null;
@@ -22,6 +23,13 @@ interface AuthStore {
   changeAvatar: (avatar: string) => Promise<{ success: boolean; error?: string }>;
   changeLanguage: (language: string) => Promise<{ success: boolean; error?: string }>;
   clearError: () => void;
+}
+
+/** The server reads the login cookie only when the socket connects, so reconnect after it changes. */
+function reconnectSocket() {
+  if (!socket.connected) return;
+  socket.disconnect();
+  socket.connect();
 }
 
 async function authFetch(path: string, options?: RequestInit) {
@@ -71,7 +79,7 @@ export const useAuthStore = create<AuthStore>((set) => ({
       const data = await res.json();
       if (res.ok) {
         if (data.user?.language) useLangStore.getState().setLang(data.user.language);
-        set({ user: data.user, error: null }); return true;
+        set({ user: data.user, error: null }); reconnectSocket(); return true;
       }
       set({ error: data.error || 'Login failed' });
       return false;
@@ -91,7 +99,7 @@ export const useAuthStore = create<AuthStore>((set) => ({
       const data = await res.json();
       if (res.ok) {
         if (data.user?.language) useLangStore.getState().setLang(data.user.language);
-        set({ user: data.user, error: null }); return true;
+        set({ user: data.user, error: null }); reconnectSocket(); return true;
       }
       set({ error: data.error || 'Registration failed', fieldError: data.field || null });
       return false;
@@ -111,7 +119,7 @@ export const useAuthStore = create<AuthStore>((set) => ({
       const data = await res.json();
       if (res.ok) {
         if (data.user?.language) useLangStore.getState().setLang(data.user.language);
-        set({ user: data.user, error: null }); return true;
+        set({ user: data.user, error: null }); reconnectSocket(); return true;
       }
       set({ error: data.error || 'Google sign-in failed' });
       return false;
@@ -152,6 +160,7 @@ export const useAuthStore = create<AuthStore>((set) => ({
   logout: async () => {
     try { await authFetch('/logout', { method: 'POST' }); } catch { /* ignore */ }
     set({ user: null, error: null });
+    reconnectSocket();
   },
 
   changePassword: async (currentPassword, newPassword) => {
@@ -175,7 +184,7 @@ export const useAuthStore = create<AuthStore>((set) => ({
         body: JSON.stringify({ password }),
       });
       const data = await res.json();
-      if (res.ok) { set({ user: null }); return { success: true }; }
+      if (res.ok) { set({ user: null }); reconnectSocket(); return { success: true }; }
       return { success: false, error: data.error || 'Failed' };
     } catch {
       return { success: false, error: 'Connection failed' };

@@ -46,7 +46,7 @@ app.use(helmet({
     directives: {
       defaultSrc: ["'self'"],
       scriptSrc: ["'self'", "'unsafe-inline'", "https://accounts.google.com"],
-      styleSrc: ["'self'", "'unsafe-inline'", "https://accounts.google.com"],
+      styleSrc: ["'self'", "'unsafe-inline'", "https://accounts.google.com", "https://fonts.googleapis.com"],
       imgSrc: ["'self'", "data:", "blob:", "https://lh3.googleusercontent.com"],
       connectSrc: ["'self'", "ws:", "wss:", "https://accounts.google.com"],
       fontSrc: ["'self'", "https://fonts.gstatic.com"],
@@ -210,6 +210,7 @@ app.get('/api/leaderboard/history', (req, res) => {
       game_id: g.game_id,
       ended_at: g.ended_at,
       won: g.winner_team === myTeam,
+      tied: g.winner_team === 'Tie',
       myScore: isTeam02 ? g.final_score_02 : g.final_score_13,
       opponentScore: isTeam02 ? g.final_score_13 : g.final_score_02,
       botDifficulty: g.bot_difficulty,

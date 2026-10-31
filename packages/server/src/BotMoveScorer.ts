@@ -5,7 +5,7 @@ import {
   SpecialCardType,
   detectCombination,
   getCardPoints,
-  getCardSortRank,
+  getLedSingleRank,
   isNormalCard,
   isSpecial,
 } from '@cyprus/shared';
@@ -194,7 +194,7 @@ function scoreLeadCandidate(
   score += addFeature(features, 'special-resource', specialPenalty);
 
   if (combo.type === CombinationType.SINGLE) {
-    const rank = getCardSortRank(play[0]);
+    const rank = getLedSingleRank(play[0]);
     const normalSingleton = isNormalCard(play[0]);
     score += addFeature(features, 'single-cost', -rank * (pressure > 0 ? 0.15 : 0.8));
     if (normalSingleton && pressure > 0) {

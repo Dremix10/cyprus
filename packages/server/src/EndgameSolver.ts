@@ -11,7 +11,7 @@ import {
   detectCombination,
   findPlayableFromHand,
   getCardPoints,
-  getCardSortRank,
+  getLedSingleRank,
   isNormalCard,
   isSpecial,
 } from '@cyprus/shared';
@@ -234,7 +234,7 @@ function scoreCandidate(
         score += addFeature(features, 'low-lead-for-partner', 70);
       } else if (play.length > 1) {
         score += addFeature(features, 'hard-for-partner-to-take', -55);
-      } else if (getCardSortRank(play[0]) >= NR.KING) {
+      } else if (!isSpecial(play[0], SpecialCardType.PHOENIX) && getLedSingleRank(play[0]) >= NR.KING) {
         score += addFeature(features, 'steals-partner-control', -70);
       }
     }
@@ -250,7 +250,7 @@ function scoreCandidate(
   }
 
   if (mode === 'urgent-endgame' && combo.type === CombinationType.SINGLE) {
-    const rank = getCardSortRank(play[0]);
+    const rank = getLedSingleRank(play[0]);
     score += addFeature(features, 'control-single', rank >= NR.JACK ? rank * 2.2 : rank * 0.8);
   }
 

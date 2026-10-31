@@ -11,4 +11,6 @@ export type RoomState = {
   roomCode: string;
   players: RoomPlayer[];
   isStartable: boolean;
+  /** 0 is a quick game. Older servers don't send it. */
+  targetScore?: number;
 };

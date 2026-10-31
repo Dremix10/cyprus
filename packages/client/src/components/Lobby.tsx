@@ -3,6 +3,7 @@ import { useRoomStore } from '../stores/roomStore.js';
 import { useAuthStore } from '../stores/authStore.js';
 import { AuthForms, UserBadge } from './AuthForms.js';
 import { FriendsPanel } from './Friends.js';
+import { MATCHMAKING_TARGET_SCORE, QUICK_GAME } from '@cyprus/shared';
 import { useT } from '../i18n.js';
 import type { LegalPageType } from './LegalPages.js';
 
@@ -62,17 +63,43 @@ function GreekColumn({ side }: { side: 'left' | 'right' }) {
   );
 }
 
+function LengthPicker() {
+  const t = useT();
+  const targetScore = useRoomStore((s) => s.targetScore);
+  const setTargetScore = useRoomStore((s) => s.setTargetScore);
+  const options = [
+    { value: QUICK_GAME, label: t('lobby.quickGame') },
+    { value: 250, label: '250' },
+    { value: 500, label: '500' },
+    { value: 1000, label: '1000' },
+  ];
+  return (
+    <div className="length-picker">
+      <span className="length-label">{t('lobby.gameLength')}</span>
+      <div className="length-options" role="group" aria-label={t('lobby.gameLength')}>
+        {options.map((option) => (
+          <button
+            key={option.value}
+            type="button"
+            className={`length-option ${targetScore === option.value ? 'length-option-active' : ''}`}
+            aria-pressed={targetScore === option.value}
+            onClick={() => setTargetScore(option.value)}
+          >
+            {option.label}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export function Lobby({ onTutorial, onLeaderboard, onProfile, onLiveGames, onLegalPage }: { onTutorial: () => void; onLeaderboard: () => void; onProfile: () => void; onLiveGames: () => void; onLegalPage: (page: LegalPageType) => void }) {
   const t = useT();
   const [roomCode, setRoomCode] = useState('');
   const [difficulty, setDifficulty] = useState('medium');
-  const [guestMode, setGuestMode] = useState(false);
   const [subView, setSubView] = useState<'none' | 'create' | 'join' | 'solo'>('none');
   const nickname = useRoomStore((s) => s.nickname);
   const setNickname = useRoomStore((s) => s.setNickname);
-  const targetScore = useRoomStore((s) => s.targetScore);
-  const [scoreInput, setScoreInput] = useState(String(targetScore));
-  const setTargetScore = useRoomStore((s) => s.setTargetScore);
   const createRoom = useRoomStore((s) => s.createRoom);
   const setBotDifficulty = useRoomStore((s) => s.setBotDifficulty);
   const botDifficulty = useRoomStore((s) => s.botDifficulty);
@@ -83,6 +110,9 @@ export function Lobby({ onTutorial, onLeaderboard, onProfile, onLiveGames, onLeg
   const staleSession = useRoomStore((s) => s.staleSession);
   const trySessionReconnect = useRoomStore((s) => s.trySessionReconnect);
   const dismissStaleSession = useRoomStore((s) => s.dismissStaleSession);
+  // Kept in the store so a guest who leaves a game comes back to this form, not the sign-in card.
+  const guestMode = useRoomStore((s) => s.guestMode);
+  const setGuestMode = useRoomStore((s) => s.setGuestMode);
 
   const authUser = useAuthStore((s) => s.user);
   const authLoading = useAuthStore((s) => s.loading);
@@ -177,6 +207,7 @@ export function Lobby({ onTutorial, onLeaderboard, onProfile, onLiveGames, onLeg
                     >
                       {t('lobby.playOnline')}
                     </button>
+                    <p className="play-online-note">{t('lobby.onlineLength', { score: MATCHMAKING_TARGET_SCORE })}</p>
 
                     <div className="lobby-room-row">
                       <button
@@ -205,25 +236,7 @@ export function Lobby({ onTutorial, onLeaderboard, onProfile, onLiveGames, onLeg
                 {subView === 'create' && (
                   <div className="lobby-subview">
                     <h3 className="lobby-subview-title">{t('lobby.createRoom')}</h3>
-                    <div className="target-score-row">
-                      <label htmlFor="targetScore">{t('lobby.playTo')}</label>
-                      <input
-                        id="targetScore"
-                        type="number"
-                        min={250}
-                        step={50}
-                        value={scoreInput}
-                        onChange={(e) => setScoreInput(e.target.value)}
-                        onBlur={() => {
-                          const val = parseInt(scoreInput, 10);
-                          const clamped = isNaN(val) || val < 250 ? 250 : val;
-                          setTargetScore(clamped);
-                          setScoreInput(String(clamped));
-                        }}
-                        className="input input-score input-greek"
-                      />
-                      <span>{t('lobby.pts')}</span>
-                    </div>
+                    <LengthPicker />
                     <div className="target-score-row">
                       <label htmlFor="botDiff">{t('lobby.botLevel')}</label>
                       <select
@@ -272,25 +285,7 @@ export function Lobby({ onTutorial, onLeaderboard, onProfile, onLiveGames, onLeg
                 {subView === 'solo' && (
                   <div className="lobby-subview">
                     <h3 className="lobby-subview-title">{t('lobby.soloGame')}</h3>
-                    <div className="target-score-row">
-                      <label htmlFor="targetScore">{t('lobby.playTo')}</label>
-                      <input
-                        id="targetScore"
-                        type="number"
-                        min={250}
-                        step={50}
-                        value={scoreInput}
-                        onChange={(e) => setScoreInput(e.target.value)}
-                        onBlur={() => {
-                          const val = parseInt(scoreInput, 10);
-                          const clamped = isNaN(val) || val < 250 ? 250 : val;
-                          setTargetScore(clamped);
-                          setScoreInput(String(clamped));
-                        }}
-                        className="input input-score input-greek"
-                      />
-                      <span>{t('lobby.pts')}</span>
-                    </div>
+                    <LengthPicker />
                     <select
                       value={difficulty}
                       onChange={(e) => setDifficulty(e.target.value)}

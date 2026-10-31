@@ -3,6 +3,7 @@ import type {
   NormalRank,
   Combination,
   ClientGameState,
+  DogLead,
   TrickState,
   WishState,
   PublicPlayerState,
@@ -27,6 +28,7 @@ import {
   sameTeam,
   sumCardPoints,
   WINNING_SCORE,
+  isQuickGame,
 } from '@cyprus/shared';
 import { dealCards } from './Deck.js';
 
@@ -57,6 +59,7 @@ export type GameEngineState = {
   wish: WishState;
   wishPending: PlayerPosition | null; // position of player who must choose a wish before play continues
   dogPending: boolean; // Dog was played, waiting for visual delay before resolving
+  dogLead: DogLead | null; // Dog stays face-up until the new leader plays
   trickWonPending: boolean; // Trick was won, waiting for visual delay before clearing
   roundEndPending: boolean; // Round is about to end, waiting for visual delay so players can see the last trick
   finishOrder: PlayerPosition[];
@@ -103,6 +106,7 @@ export class GameEngine {
       wish: { active: false, wishedRank: null, wishedBy: null },
       wishPending: null,
       dogPending: false,
+      dogLead: null,
       trickWonPending: false,
       roundEndPending: false,
       finishOrder: [],
@@ -141,6 +145,7 @@ export class GameEngine {
     this.state.currentTrick = { plays: [], currentWinner: null, passCount: 0, passedPlayers: [] };
     this.state.lastTrick = null;
     this.state.dogPending = false;
+    this.state.dogLead = null;
     this.state.trickWonPending = false;
     this.state.roundEndPending = false;
     this.state.wish = { active: false, wishedRank: null, wishedBy: null };
@@ -340,13 +345,14 @@ export class GameEngine {
       if (this.state.currentTrick.plays.length > 0) {
         throw new Error('Dog can only be led');
       }
-      // Dog passes lead to partner — but keep it visible for a delay
+      // Dog passes lead to partner — keep the card on the table until they play
       this.removeCardsFromHand(player, cardIds);
       player.hasPlayedCards = true;
+      this.consumeDogLead(position);
 
       this.emit({ type: 'PLAY', playerPosition: position, data: { combination } });
 
-      // Add to trick so it's visible on table
+      // Add to trick so it's visible on table during the short resolve delay
       this.state.currentTrick.plays.push({
         playerPosition: position,
         combination,
@@ -354,6 +360,11 @@ export class GameEngine {
       this.state.dogPending = true;
 
       this.checkPlayerOut(player);
+      // Pick the receiver after the Dog player may have gone out. If that ended
+      // the round, there is no lead to pass and no notice to show.
+      this.state.dogLead = this.state.roundEndPending
+        ? null
+        : { from: position, to: this.dogLeadTarget(position), card: cards[0] };
       return this.events;
     }
 
@@ -398,6 +409,7 @@ export class GameEngine {
     // Remove cards from hand
     this.removeCardsFromHand(player, cardIds);
     player.hasPlayedCards = true;
+    this.consumeDogLead(position);
 
     // Add play to trick
     this.state.currentTrick.plays.push({
@@ -536,18 +548,16 @@ export class GameEngine {
     // Find who played the Dog (last play in the trick)
     const dogPlay = this.state.currentTrick.plays[this.state.currentTrick.plays.length - 1];
     const position = dogPlay.playerPosition;
+    const to = this.state.dogLead?.to ?? this.dogLeadTarget(position);
+    if (!this.state.dogLead) {
+      this.state.dogLead = { from: position, to, card: dogPlay.combination.cards[0] };
+    }
 
-    // Clear the trick
+    // The Dog is not a card to beat. The trick is empty, but dogLead keeps the card visible.
     this.state.currentTrick = { plays: [], currentWinner: null, passCount: 0, passedPlayers: [] };
     this.state.dogPending = false;
-
-    // Lead goes to partner
-    const partner = getPartner(position);
-    if (this.state.players[partner].isOut) {
-      this.state.currentPlayer = this.getNextActivePlayer(partner);
-    } else {
-      this.state.currentPlayer = partner;
-    }
+    this.state.currentPlayer = to;
+    if (this.state.roundEndPending) this.state.dogLead = null;
 
     return this.events;
   }
@@ -600,8 +610,10 @@ export class GameEngine {
     this.events = [];
     this.assertPhase(GamePhase.ROUND_SCORING);
 
-    // Check if game is over
-    if (this.state.scores[0] >= this.targetScore || this.state.scores[1] >= this.targetScore) {
+    // A quick game is one round: more points wins, even if both scores are low or negative.
+    const reachedTarget =
+      this.state.scores[0] >= this.targetScore || this.state.scores[1] >= this.targetScore;
+    if (isQuickGame(this.targetScore) || reachedTarget) {
       this.state.phase = GamePhase.GAME_OVER;
       this.emit({ type: 'GAME_OVER' });
       return this.events;
@@ -826,6 +838,7 @@ export class GameEngine {
       })),
     });
 
+    this.state.dogLead = null;
     this.state.phase = GamePhase.ROUND_SCORING;
     this.emit({
       type: 'ROUND_END',
@@ -842,6 +855,18 @@ export class GameEngine {
       if (!this.state.players[pos].isOut) return pos;
     }
     return from; // shouldn't happen
+  }
+
+  /** Who receives the lead after a Dog: the partner, or the next player still in. */
+  private dogLeadTarget(from: PlayerPosition): PlayerPosition {
+    const partner = getPartner(from);
+    if (this.state.players[partner].isOut) return this.getNextActivePlayer(partner);
+    return partner;
+  }
+
+  /** The Dog notice leaves the table once that player plays. */
+  private consumeDogLead(position: PlayerPosition): void {
+    if (this.state.dogLead?.to === position) this.state.dogLead = null;
   }
 
   private removeCardsFromHand(player: PlayerState, cardIds: string[]): void {
@@ -879,6 +904,7 @@ export class GameEngine {
     const nicknames = data.state.players.map((p: PlayerState) => p.nickname) as [string, string, string, string];
     const engine = new GameEngine(nicknames, data.targetScore);
     engine.state = data.state;
+    if (engine.state.dogLead === undefined) engine.state.dogLead = null;
     engine.roundTrickCards = data.roundTrickCards ?? [[], []];
     engine.roundBreakdown = data.roundBreakdown ?? null;
     engine.roundHistory = data.roundHistory ?? [];
@@ -938,6 +964,9 @@ export class GameEngine {
       wish: { ...s.wish },
       wishPending: s.wishPending,
       dogPending: s.dogPending,
+      dogLead: s.dogLead
+        ? { from: s.dogLead.from, to: s.dogLead.to, card: s.dogLead.card }
+        : null,
       trickWonPending: s.trickWonPending,
       roundEndPending: s.roundEndPending,
       finishOrder: [...s.finishOrder],
@@ -1004,6 +1033,7 @@ export class GameEngine {
       scores: this.state.scores,
       roundScores: this.state.roundScores,
       targetScore: this.targetScore,
+      dogLead: this.state.dogLead ?? undefined,
       lastTrick: this.state.lastTrick ?? undefined,
       roundTrickCards: this.roundTrickCards,
       roundBreakdown: this.roundBreakdown ?? undefined,
@@ -1057,6 +1087,7 @@ export class GameEngine {
       hasPlayedCards: player.hasPlayedCards,
       wishPending: this.state.wishPending,
       dogPending: this.state.dogPending || undefined,
+      dogLead: this.state.dogLead ?? undefined,
       trickWonPending: this.state.trickWonPending || undefined,
       roundHistory: this.roundHistory.length > 0 ? this.roundHistory : undefined,
       receivedCards: !player.hasPlayedCards && this.state.receivedCards[position]?.length > 0

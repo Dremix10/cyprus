@@ -1,5 +1,7 @@
 import { useState, useEffect } from 'react';
+import { isQuickGame } from '@cyprus/shared';
 import { useRoomStore } from '../stores/roomStore.js';
+import { useT } from '../i18n.js';
 
 interface LiveGame {
   roomCode: string;
@@ -17,6 +19,7 @@ export function LiveGames({ onBack, onSpectate }: { onBack: () => void; onSpecta
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const spectateRoom = useRoomStore((s) => s.spectateRoom);
+  const t = useT();
 
   const fetchGames = async () => {
     try {
@@ -70,7 +73,7 @@ export function LiveGames({ onBack, onSpectate }: { onBack: () => void; onSpecta
                 <span className="live-game-score">{g.scores[0]}</span>
                 <span className="live-game-vs">—</span>
                 <span className="live-game-score">{g.scores[1]}</span>
-                <span className="live-game-target">/ {g.targetScore}</span>
+                <span className="live-game-target">{isQuickGame(g.targetScore) ? t('game.oneRound') : `/ ${g.targetScore}`}</span>
               </div>
               <div className="live-game-players">
                 {humanPlayers(g).map((p) => (

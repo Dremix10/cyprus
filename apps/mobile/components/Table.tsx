@@ -4,7 +4,9 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   GamePhase,
   getRankLabel,
+  isQuickGame,
   sortCards,
+  sortCombinationForDisplay,
   type Card,
   type ClientGameState,
   type PlayerPosition,
@@ -25,7 +27,9 @@ import {
   confirmTichu,
 } from './PhaseViews';
 import { ScoreHistorySheet } from './MoreScreens';
+import { Sheet } from './Sheet';
 import { color, greekFont, radius } from '@/lib/theme';
+import { useT } from '@/lib/i18n';
 import { useApp } from '@/lib/store';
 import { socket } from '@/lib/socket';
 
@@ -72,9 +76,23 @@ export function Table() {
   }
 }
 
+function GearIcon() {
+  return (
+    <View style={styles.gear}>
+      {[0, 45, 90, 135, 180, 225, 270, 315].map((deg) => (
+        <View key={deg} style={[styles.gearSpoke, { transform: [{ rotate: `${deg}deg` }] }]}>
+          <View style={styles.gearTooth} />
+        </View>
+      ))}
+      <View style={styles.gearRing} />
+    </View>
+  );
+}
+
 function OpponentTile({ p, g, compact }: { p: PublicPlayerState; g: ClientGameState; compact?: boolean }) {
   const mate = p.position % 2 === g.myPosition % 2;
-  const turn = g.currentPlayer === p.position && g.phase === GamePhase.PLAYING;
+  const activeSeat = g.dogLead?.to ?? g.currentPlayer;
+  const turn = activeSeat === p.position && g.phase === GamePhase.PLAYING;
   const passed = g.currentTrick.passedPlayers?.includes(p.position);
   const dc = useCountdown(g.disconnectDeadlines?.[p.position]);
   return (
@@ -137,6 +155,7 @@ function Playing({ g }: { g: ClientGameState }) {
   const roomCode = useApp((s) => s.roomCode);
   const [hinting, setHinting] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
   const soundOn = useApp((s) => s.soundOn);
   const toggleSound = useApp((s) => s.toggleSound);
   const reportBot = useApp((s) => s.reportBot);
@@ -148,13 +167,16 @@ function Playing({ g }: { g: ClientGameState }) {
     top: ((g.myPosition + 2) % 4) as PlayerPosition,
     left: ((g.myPosition + 3) % 4) as PlayerPosition,
   };
+  const t = useT();
   const isDragon = g.phase === GamePhase.DRAGON_GIVE;
-  const myTurn = g.currentPlayer === g.myPosition && !isDragon;
+  const dogLead = g.dogLead ?? null;
+  const activeSeat = dogLead?.to ?? g.currentPlayer;
+  const myTurn = activeSeat === g.myPosition && !isDragon;
   const canAct = g.canAct ?? true;
   const canPass = g.canPass ?? false;
   const mustPlayWish = g.mustPlayWish ?? false;
   const secs = useCountdown(g.turnDeadline);
-  const turnName = g.players[g.currentPlayer]?.nickname ?? '';
+  const turnName = g.players[activeSeat]?.nickname ?? '';
   const dragonMine = isDragon && g.currentTrick.currentWinner === g.myPosition;
   const wishMine = g.wishPending === g.myPosition;
   const hand = sortCards(g.myHand);
@@ -198,51 +220,37 @@ function Playing({ g }: { g: ClientGameState }) {
       <Felt />
       {/* Floating top bar */}
       <View style={[styles.topWrap, { top: insets.top + 6 }]} pointerEvents="box-none">
-        <GlassSurface style={{ borderRadius: radius.pill }}>
+        <GlassSurface style={styles.topGlass}>
           <View collapsable={false} style={styles.topBar}>
-            <Pressable
-              onPress={confirmLeave}
-              accessibilityRole="button"
-              accessibilityLabel="Leave game"
-              hitSlop={10}
-              style={styles.exit}
-            >
-              <View pointerEvents="none" style={[styles.exitStroke, { transform: [{ rotate: '45deg' }] }]} />
-              <View pointerEvents="none" style={[styles.exitStroke, { transform: [{ rotate: '-45deg' }] }]} />
-            </Pressable>
+            <View style={styles.topSide}>
+              <Pressable
+                onPress={confirmLeave}
+                accessibilityRole="button"
+                accessibilityLabel="Leave game"
+                hitSlop={10}
+                style={styles.exit}
+              >
+                <View pointerEvents="none" style={[styles.exitStroke, { transform: [{ rotate: '45deg' }] }]} />
+                <View pointerEvents="none" style={[styles.exitStroke, { transform: [{ rotate: '-45deg' }] }]} />
+              </Pressable>
+            </View>
             <View style={styles.scores}>
               <Text style={[styles.scoreNum, { color: color.teamUs }]}>{g.scores[myTeam]}</Text>
-              <Text style={styles.scoreTo}>to {g.targetScore}</Text>
+              <Text style={styles.scoreTo}>
+                {isQuickGame(g.targetScore) ? t('game.oneRound') : `to ${g.targetScore}`}
+              </Text>
               <Text style={[styles.scoreNum, { color: color.teamThem }]}>{g.scores[1 - myTeam]}</Text>
             </View>
-            <Pressable
-              onPress={toggleSound}
-              accessibilityRole="button"
-              accessibilityLabel={soundOn ? 'Mute' : 'Unmute'}
-              hitSlop={8}
-            >
-              <Text style={styles.room}>{soundOn ? '♪' : '∅'}</Text>
-            </Pressable>
-            <Pressable
-              onPress={() => setHistoryOpen(true)}
-              accessibilityRole="button"
-              accessibilityLabel="Score history"
-              hitSlop={8}
-            >
-              <Text style={styles.room} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.75}>
-                {roomCode ?? '≡'}
-              </Text>
-            </Pressable>
-            {!g.isSpectator && lastEvent?.id ? (
+            <View style={[styles.topSide, styles.topSideEnd]}>
               <Pressable
-                onPress={() => reportBot(lastEvent.id!)}
+                onPress={() => setSettingsOpen(true)}
                 accessibilityRole="button"
-                accessibilityLabel="Report bot play"
-                hitSlop={8}
+                accessibilityLabel={t('game.settings')}
+                style={styles.gearBtn}
               >
-                <Text style={styles.room}>⚑</Text>
+                <GearIcon />
               </Pressable>
-            ) : null}
+            </View>
           </View>
         </GlassSurface>
       </View>
@@ -263,7 +271,7 @@ function Playing({ g }: { g: ClientGameState }) {
                 {previous && (
                   <View style={{ alignItems: 'center', opacity: 0.55 }}>
                     <Text style={styles.playerLabel}>{g.players[previous.playerPosition]?.nickname}</Text>
-                    <CardRow cards={previous.combination.cards} width={28} />
+                    <CardRow cards={sortCombinationForDisplay(previous.combination)} width={28} />
                   </View>
                 )}
                 <Text
@@ -278,9 +286,22 @@ function Playing({ g }: { g: ClientGameState }) {
                   {latest.playerPosition === g.currentTrick.currentWinner ? ' ★' : ''}
                 </Text>
                 <CardRow
-                  cards={latest.combination.cards}
+                  cards={sortCombinationForDisplay(latest.combination)}
                   width={trick.length && latest.combination.cards.length > 7 ? 30 : 42}
                 />
+                {dogLead && (
+                  <Text style={styles.dogLead}>
+                    {t('game.dogLead', { name: g.players[dogLead.to]?.nickname ?? '' })}
+                  </Text>
+                )}
+              </View>
+            ) : dogLead ? (
+              <View style={{ alignItems: 'center', gap: 6 }}>
+                <Text style={styles.playerLabel}>{g.players[dogLead.from]?.nickname}</Text>
+                <CardView card={dogLead.card} width={42} />
+                <Text style={styles.dogLead}>
+                  {t('game.dogLead', { name: g.players[dogLead.to]?.nickname ?? '' })}
+                </Text>
               </View>
             ) : (
               <Text style={styles.dim}>{myTurn ? 'Your lead' : `${turnName} leads`}</Text>
@@ -304,13 +325,13 @@ function Playing({ g }: { g: ClientGameState }) {
                       ? 'Your turn · nothing beats it, pass'
                       : 'Your turn'
                   : `${turnName}'s turn`}
-              {secs !== null && !isDragon ? `  ·  ${secs}s` : ''}
+              {secs !== null && !isDragon && !g.dogPending ? `  ·  ${secs}s` : ''}
             </Text>
           </GlassSurface>
         </View>
 
         {/* Me */}
-        <View style={styles.meRow}>
+        <View style={[styles.meRow, dogLead?.to === g.myPosition && styles.meTurn]}>
           <Text style={styles.meName} numberOfLines={1}>
             {me.nickname}
           </Text>
@@ -396,6 +417,38 @@ function Playing({ g }: { g: ClientGameState }) {
       {historyOpen && (
         <ScoreHistorySheet history={g.roundHistory ?? []} myTeam={myTeam} onClose={() => setHistoryOpen(false)} />
       )}
+      {settingsOpen && (
+        <Sheet onClose={() => setSettingsOpen(false)}>
+          <Text style={styles.settingsTitle}>{t('game.settings')}</Text>
+          {roomCode ? <Text style={styles.settingsCode}>{roomCode}</Text> : null}
+          <Btn
+            label={soundOn ? t('game.soundOn') : t('game.soundOff')}
+            kind="ghost"
+            onPress={toggleSound}
+          />
+          <Btn
+            label={t('game.scoreHistory')}
+            kind="ghost"
+            onPress={() => {
+              setSettingsOpen(false);
+              setHistoryOpen(true);
+            }}
+          />
+          {!g.isSpectator && (
+            <Btn
+              label={t('game.reportBug')}
+              kind="ghost"
+              disabled={!lastEvent?.id}
+              onPress={() => {
+                if (!lastEvent?.id) return;
+                reportBot(lastEvent.id);
+                setSettingsOpen(false);
+              }}
+            />
+          )}
+          <Btn label={t('score.close')} kind="gold" onPress={() => setSettingsOpen(false)} />
+        </Sheet>
+      )}
     </View>
   );
 }
@@ -404,7 +457,8 @@ const styles = StyleSheet.create({
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 12 },
   dim: { color: color.textDim, fontSize: 15 },
   table: { flex: 1 },
-  topWrap: { position: 'absolute', left: 12, right: 12, zIndex: 10 },
+  topWrap: { position: 'absolute', left: 12, right: 12, zIndex: 10, alignItems: 'center' },
+  topGlass: { borderRadius: radius.pill, width: '100%', alignSelf: 'center' },
   topBar: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -412,31 +466,67 @@ const styles = StyleSheet.create({
     minHeight: 52,
     paddingHorizontal: 8,
   },
+  topSide: { flex: 1, flexDirection: 'row', alignItems: 'center', minWidth: 0 },
+  topSideEnd: { justifyContent: 'flex-end' },
   exit: {
     width: 44,
     height: 44,
     alignItems: 'center',
     justifyContent: 'center',
   },
+  gearBtn: {
+    width: 44,
+    height: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  gear: { width: 22, height: 22 },
+  gearSpoke: {
+    position: 'absolute',
+    left: 0,
+    top: 0,
+    width: 22,
+    height: 22,
+    alignItems: 'center',
+  },
+  gearTooth: {
+    width: 3.5,
+    height: 5,
+    borderRadius: 1,
+    backgroundColor: color.text,
+  },
+  gearRing: {
+    position: 'absolute',
+    left: 4,
+    top: 4,
+    width: 14,
+    height: 14,
+    borderRadius: 7,
+    borderWidth: 2,
+    borderColor: color.text,
+  },
+  settingsTitle: {
+    color: color.gold,
+    fontFamily: greekFont,
+    fontSize: 22,
+    textAlign: 'center',
+  },
+  settingsCode: {
+    color: color.textFaint,
+    textAlign: 'center',
+    letterSpacing: 2,
+    fontWeight: '700',
+  },
   exitStroke: { position: 'absolute', width: 18, height: 2, borderRadius: 1, backgroundColor: color.text },
   scores: {
-    flex: 1,
     flexDirection: 'row',
     alignItems: 'baseline',
     justifyContent: 'center',
     gap: 10,
+    flexShrink: 0,
   },
   scoreNum: { fontSize: 22, fontWeight: '800' },
   scoreTo: { color: color.textFaint, fontSize: 12 },
-  room: {
-    width: 40,
-    textAlign: 'right',
-    paddingRight: 4,
-    color: color.textFaint,
-    fontSize: 12,
-    fontWeight: '700',
-    letterSpacing: 1,
-  },
   content: { flex: 1, paddingHorizontal: 12, gap: 8 },
   topRow: { alignItems: 'center' },
   middle: { flex: 1, flexDirection: 'row', gap: 8, alignItems: 'stretch' },
@@ -459,6 +549,12 @@ const styles = StyleSheet.create({
     fontSize: 14,
   },
   playerLabel: { color: color.textDim, fontSize: 13, fontWeight: '700' },
+  dogLead: {
+    color: color.gold,
+    fontSize: 12,
+    fontWeight: '700',
+    textAlign: 'center',
+  },
   tile: {
     minWidth: 92,
     borderRadius: radius.md,
@@ -517,6 +613,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 8,
     paddingHorizontal: 4,
+  },
+  meTurn: {
+    alignSelf: 'flex-start',
+    borderWidth: 2,
+    borderColor: color.gold,
+    borderRadius: radius.md,
+    paddingVertical: 4,
+    paddingHorizontal: 8,
   },
   meName: { color: color.text, fontWeight: '800', fontSize: 15, flexShrink: 1 },
   actions: {

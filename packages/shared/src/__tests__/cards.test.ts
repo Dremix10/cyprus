@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
   sortCards,
   getCardSortRank,
+  getLedSingleRank,
   getCardPoints,
   getRankLabel,
   isNormalCard,
@@ -51,7 +52,7 @@ describe('getCardSortRank', () => {
   it('returns correct ranks for special cards', () => {
     expect(getCardSortRank(sc(SpecialCardType.MAHJONG))).toBe(1);
     expect(getCardSortRank(sc(SpecialCardType.DOG))).toBe(0);
-    expect(getCardSortRank(sc(SpecialCardType.PHOENIX))).toBe(0.5);
+    expect(getCardSortRank(sc(SpecialCardType.PHOENIX))).toBe(14.5);
     expect(getCardSortRank(sc(SpecialCardType.DRAGON))).toBe(15);
   });
 });
@@ -67,6 +68,26 @@ describe('sortCards', () => {
     expect(sorted.map(getCardSortRank)).toEqual([2, 10, 13]);
   });
 
+  it('places Phoenix between the Ace and the Dragon', () => {
+    const cards: Card[] = [
+      sc(SpecialCardType.PHOENIX),
+      nc(Suit.JADE, NormalRank.TWO),
+      sc(SpecialCardType.DRAGON),
+      sc(SpecialCardType.DOG),
+      nc(Suit.STAR, NormalRank.ACE),
+      sc(SpecialCardType.MAHJONG),
+    ];
+    const sorted = sortCards(cards);
+    expect(sorted.map((c) => (c.type === 'special' ? c.specialType : c.rank))).toEqual([
+      SpecialCardType.DOG,
+      SpecialCardType.MAHJONG,
+      NormalRank.TWO,
+      NormalRank.ACE,
+      SpecialCardType.PHOENIX,
+      SpecialCardType.DRAGON,
+    ]);
+  });
+
   it('places specials correctly', () => {
     const cards: Card[] = [
       nc(Suit.JADE, NormalRank.FIVE),
@@ -76,6 +97,28 @@ describe('sortCards', () => {
     ];
     const sorted = sortCards(cards);
     expect(sorted.map(getCardSortRank)).toEqual([0, 1, 5, 15]);
+  });
+});
+
+describe('full deck order', () => {
+  it('sorts the whole deck Dog, Mahjong, 2–A, Phoenix, Dragon with no ties out of place', () => {
+    const shuffled = [...FULL_DECK].reverse();
+    const labels = sortCards(shuffled).map((c) => (c.type === 'special' ? c.specialType : String(c.rank)));
+    expect(labels[0]).toBe(SpecialCardType.DOG);
+    expect(labels[1]).toBe(SpecialCardType.MAHJONG);
+    expect(labels.slice(2, 54)).toEqual(
+      Array.from({ length: 13 }, (_, i) => Array(4).fill(String(i + 2))).flat(),
+    );
+    expect(labels.slice(54)).toEqual([SpecialCardType.PHOENIX, SpecialCardType.DRAGON]);
+  });
+});
+
+describe('getLedSingleRank', () => {
+  it('keeps a led Phoenix at 1.5 even though the hand sorts it next to the Dragon', () => {
+    expect(getLedSingleRank(sc(SpecialCardType.PHOENIX))).toBe(1.5);
+    expect(getLedSingleRank(sc(SpecialCardType.MAHJONG))).toBe(1);
+    expect(getLedSingleRank(nc(Suit.JADE, NormalRank.ACE))).toBe(14);
+    expect(getLedSingleRank(sc(SpecialCardType.DRAGON))).toBe(15);
   });
 });
 

@@ -1829,8 +1829,11 @@ export class BotAI {
       for (const single of this.sortByRank(combos.singles)) {
         if (isSpecial(single[0], SpecialCardType.DOG)) continue;
         if (isSpecial(single[0], SpecialCardType.DRAGON)) continue;
+        // A led Phoenix is 1.5, not the slot it occupies next to the Dragon.
+        if (isSpecial(single[0], SpecialCardType.PHOENIX)) continue;
         const rank = getCardSortRank(single[0]);
         // Check if any remaining card could beat this
+        // Phoenix sorts at 14.5, so a Phoenix still out beats every normal single.
         const canBeBeat = cardInfo.remainingCards.some((c) => {
           const r = getCardSortRank(c);
           return r > rank;

@@ -1,3 +1,4 @@
+import { MATCHMAKING_TARGET_SCORE } from '@cyprus/shared';
 import { useRoomStore } from '../stores/roomStore.js';
 import { useT } from '../i18n.js';
 
@@ -17,6 +18,7 @@ export function MatchmakingQueue() {
       <div className="queue-content">
         <div className="queue-card">
           <h2 className="queue-title">{t('matchmaking.searching')}</h2>
+          <p className="queue-length">{t('lobby.gameTo', { score: MATCHMAKING_TARGET_SCORE })}</p>
 
           <div className="queue-spinner">
             <div className="queue-spinner-ring" />
