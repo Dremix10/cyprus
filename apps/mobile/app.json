@@ -28,7 +28,7 @@
           "resizeMode": "contain"
         }
       ],
-      "expo-secure-store",
+      ["expo-secure-store", { "faceIDPermission": false }],
       "expo-web-browser",
       "expo-apple-authentication"
     ],
