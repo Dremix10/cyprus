@@ -1,13 +1,12 @@
 # Scenes 01 + 05: from the Grand Tichu screen (run 02 first), pass Grand Tichu, pass 3 cards,
 # then autoplay the round with Hint while shoot.sh runs a capture burst. Pick the best frames:
 #   01 hero  = trick with the Dragon / Phoenix / a bomb on the table, full hand
-#   05 gods  = the Dragon give sheet ("Give the trick to an opponent": Bot Zeus / Bot Apollo)
-#              or the Mahjong wish grid, with the bots' names visible
+#   05 gods  = the Dragon give sheet (Bot Zeus / Bot Apollo buttons) or the Mahjong wish grid
 appId: dev.aegist.titsu
 ---
-- tapOn: "Pass"
+- tapOn: "Pass|Πάσο"
 - extendedWaitUntil:
-    visible: "Pass three cards"
+    visible: "Pass three cards|Δώσε τρεις κάρτες"
     timeout: 30000
 - tapOn:
     id: "hand-0"
@@ -15,8 +14,10 @@ appId: dev.aegist.titsu
     id: "hand-6"
 - tapOn:
     id: "hand-13"
-- tapOn: "Pass cards"
+- tapOn: "Pass cards|Δώσε τις κάρτες"
 - extendedWaitUntil:
-    visible: "Your turn.*|.*'s turn|.*leads|Your lead"
+    visible:
+      id: "hint"
     timeout: 60000
+    optional: true
 - runFlow: sub/autoplay-until-round-over.yaml

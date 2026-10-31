@@ -32,6 +32,15 @@ friends.forEach(async (profile, i) => {
     if (!accept || accepting || currentRoom === data.roomCode) return;
     // Stagger so the seats fill one by one, like real people.
     setTimeout(() => {
+      if (currentRoom && currentRoom !== data.roomCode) {
+        // Still seated in an older room: leave the way the apps do (drop + reconnect). On reconnect
+        // the server re-sends the pending invite, which lands back here.
+        log(name, `LEAVING ${currentRoom}`);
+        currentRoom = null;
+        socket.disconnect();
+        socket.connect();
+        return;
+      }
       accepting = true;
       socket.emit('friend:invite:accept', (res) => {
         accepting = false;

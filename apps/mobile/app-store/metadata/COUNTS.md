@@ -11,7 +11,7 @@ Greek keyword note: `el/keywords.txt` also fits in 100 UTF-8 bytes. Try `el/keyw
 | el | name.txt | 20 | 30 | ok |
 | el | subtitle.txt | 29 | 30 | ok |
 | el | promotional_text.txt | 166 | 170 | ok |
-| el | description.txt | 2271 | 4000 | ok |
+| el | description.txt | 2327 | 4000 | ok |
 | el | keywords.txt | 55 | 100 | ok | 8 terms, 95 bytes |
 | el | keywords_extended.txt | 97 | 100 | ok | 13 terms, 174 bytes (over 100 bytes: fine if ASC counts characters) |
 | el | release_notes.txt | 183 | 4000 | ok |
@@ -21,7 +21,7 @@ Greek keyword note: `el/keywords.txt` also fits in 100 UTF-8 bytes. Try `el/keyw
 | en-GB | name.txt | 22 | 30 | ok |
 | en-GB | subtitle.txt | 27 | 30 | ok |
 | en-GB | promotional_text.txt | 157 | 170 | ok |
-| en-GB | description.txt | 2077 | 4000 | ok |
+| en-GB | description.txt | 2109 | 4000 | ok |
 | en-GB | keywords.txt | 96 | 100 | ok | 14 terms, 96 bytes |
 | en-GB | release_notes.txt | 167 | 4000 | ok |
 | en-GB | support_url.txt | 26 | 255 | ok |
@@ -30,10 +30,10 @@ Greek keyword note: `el/keywords.txt` also fits in 100 UTF-8 bytes. Try `el/keyw
 | en-US | name.txt | 22 | 30 | ok |
 | en-US | subtitle.txt | 27 | 30 | ok |
 | en-US | promotional_text.txt | 157 | 170 | ok |
-| en-US | description.txt | 2077 | 4000 | ok |
+| en-US | description.txt | 2109 | 4000 | ok |
 | en-US | keywords.txt | 100 | 100 | ok | 15 terms, 100 bytes |
 | en-US | release_notes.txt | 167 | 4000 | ok |
 | en-US | support_url.txt | 26 | 255 | ok |
 | en-US | marketing_url.txt | 18 | 255 | ok |
 | en-US | privacy_url.txt | 26 | 255 | ok |
-| review | notes.txt | 2570 | 4000 | ok |
+| review | notes.txt | 2696 | 4000 | ok |

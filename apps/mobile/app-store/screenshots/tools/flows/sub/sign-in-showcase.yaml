@@ -1,6 +1,5 @@
 # Fresh launch, sign in as the seeded showcase account (andreas_cy / "Andreas") on the
 # screenshot server (port 3321). Seed first: shots-server.sh seed. Local server only.
-# Env: SHOTS_PASSWORD (default below matches shots-common.mjs).
 appId: dev.aegist.titsu
 env:
   SHOTS_PASSWORD: showcase-pass-123

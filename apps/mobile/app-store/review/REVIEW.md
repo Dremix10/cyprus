@@ -8,7 +8,7 @@ Paste these into App Store Connect > Titsu > iOS App (version page) > **App Revi
 | User name | `appreview` |
 | Password | in `demo-account.local.md` (gitignored, local only) |
 | Contact first/last name, phone, email | **Owner to fill.** Template: `contact.example.json` → `contact.local.json` |
-| Notes | the full text of [`notes.txt`](notes.txt) (2,570 chars, limit 4,000) |
+| Notes | the full text of [`notes.txt`](notes.txt) (about 2,700 chars, limit 4,000) |
 | Attachment | none needed |
 
 ## Demo account
@@ -41,33 +41,21 @@ Paste these into App Store Connect > Titsu > iOS App (version page) > **App Revi
   anyone after 60 s). So review never waits forever.
 - **Private room**: Start game fills empty seats with bots. Friend invites need a second account.
 
-## Account deletion: BLOCKER, must be fixed before submitting
+## Account deletion (Guideline 5.1.1(v)): done
 
 Apple requires apps that let people create an account to also let them start **deleting that
-account inside the app** (Guideline 5.1.1(v)).
+account inside the app**. Status on 2026-10-31 (commit `a77e099`):
 
-**Current state (checked 2026-10-30):**
-
-1. `apps/mobile/components/MoreScreens.tsx` `ProfileScreen` has avatar, display name, **Sign Out**,
-   and no **Delete Account** button. The store already has `useAuth().deleteAccount(password)`
-   (`lib/authStore.ts`) calling `POST /auth/delete-account`. Only the UI is missing.
-   i18n already has `profile.deleteAccount`, `profile.deleteWarning`, `profile.enterPasswordConfirm`,
-   `profile.yesDeleteAccount` in EN and EL.
-2. **Server bug:** `bot_play_reports.reporter_user_id REFERENCES users(id)` has no `ON DELETE`
-   action, and `foreign_keys = ON`. Deleting a user who ever tapped **Report a bug** throws
-   `FOREIGN KEY constraint failed` (reproduced with sqlite3). The async route has no try/catch,
-   so the request hangs and the app shows "Connection failed". `deleteAllUserSessions` has already
-   run, so the user is signed out but the account still exists. Fix in `AuthService.deleteAccount` /
-   `Database.deleteUser`: delete or anonymise that user's `bot_play_reports` rows first (or migrate the
-   FK to `ON DELETE CASCADE`), wrap it in a transaction, and return JSON errors.
-3. Sign in with Apple accounts have an empty password hash, so the server already lets them delete
-   with an empty password (`AuthService.deleteAccount`). The UI must **not** ask them for a password:
-   show the password field only when `user.hasPassword` is true.
-
-**What the review notes promise (build it like this):** Lobby > tap your display name > Profile >
-**Delete Account** (red, below Sign Out) > warning text (`profile.deleteWarning`) > password field
-if `hasPassword` > **Yes, delete my account** > signed out, back to the lobby. If the final UI
-differs, update the deletion paragraph in `notes.txt` before submitting.
+- **App:** Lobby > tap your display name > Profile > scroll down > red **Delete Account** > a sheet
+  explains what is deleted and that it is permanent > password field only when `user.hasPassword`
+  (Sign in with Apple accounts are not asked) > **Yes, delete my account** > signed out, back in the
+  lobby with a "deleted" toast. Built in `7d67861` (`components/MoreScreens.tsx`,
+  `DeleteAccountSheet`), covered by the Maestro flow `e2e/flows/11-delete-account.yaml`. The
+  deletion paragraph in `notes.txt` matches this UI.
+- **Server:** the `bot_play_reports` foreign-key failure (users who had tapped **Report a bug**
+  could not be deleted, and the request hung) is fixed in `7781dc4`: their reports are removed in
+  the same transaction, and the route answers 500 instead of hanging if deletion throws.
+  Production restarted at `2026-10-31T02:26Z`, after that commit.
 
 **Recommended (Apple asks for it, rarely enforced):** when an account that used Sign in with Apple
 is deleted, revoke its Apple tokens with the Sign in with Apple REST API (`/auth/revoke`). That needs
@@ -81,17 +69,12 @@ and `connections.user_id` stay as bare numbers after the user row is gone.
 
 ## Other things review may trip on
 
-- **The production server is older than the app.** `https://aegist.dev/health` shows
-  `startedAt 2026-10-05`, before commit `70c0404` (2026-10-12, one-tap game lengths). That server
-  clamps a target score of 0 up to 250, so **Quick game becomes a 250-point game** for review, and
-  any other newer server behaviour is missing too. Deploy the current server (with the deletion fix)
-  before you submit, then confirm `/health` shows a new `startedAt`.
-- In-game screens are partly **hard-coded English** in the current tree (`PhaseViews.tsx` Grand
-  Tichu, passing, round over and game over; `WaitingRoom.tsx`; `RulesSheet.tsx`; the Live Games
-  screen). The listing says "Play in Greek or English", which is true for the lobby, leaderboard,
-  friends, profile and tutorial. Finish the in-game strings before the Greek screenshots, or keep
-  the Greek screenshots to translated screens.
-- The tutorial calls Grand Tichu "a bold bet". It is a scoring call, like a bid in Bridge. Consider
-  rewording it to "a bold call" so a reviewer does not read it as simulated gambling.
+- **Production server version:** `https://aegist.dev/health` shows `startedAt 2026-10-31T02:26Z`
+  (`commit: unknown`, archive deploy). Make sure that deploy is the current `main`, which includes
+  one-tap game lengths (Quick game = 1 round; older servers clamp it to 250) and the deletion fix.
+- **Greek UI:** done in `a77e099`. With ΕΛ selected, the table, Play / Pass / Hint, the wish and
+  Dragon sheets, the waiting room and the scoring screens are Greek. (`RulesSheet.tsx` is still
+  English but is not used anywhere.)
+- **Tutorial wording:** Grand Tichu is now "a bold call", not "a bold bet".
 - The Apple sign-in sheet still needs one retry on a real iPhone with the final build
   (the simulator cannot finish real Apple sign-in; see `apps/mobile/README.md`).

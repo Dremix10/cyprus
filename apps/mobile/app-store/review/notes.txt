@@ -8,14 +8,14 @@ SIGN-IN IS OPTIONAL
 
 HOW TO TEST ON YOUR OWN
 - Fastest: Solo Game > Game length "Quick game" (a single round) > any Bot level > Start. You and a bot partner play against two bots (Zeus, Athena, Apollo). A quick game takes about 3 to 5 minutes. Each round: choose Pass or Call Grand Tichu, tap three cards to pass, then select cards and tap Play, or tap Pass. In solo games a Hint button suggests a play.
-- Play Online is matchmaking with other people. If nobody else is searching, the game starts after about a minute and bots take the empty seats. Online games are always to 500 points.
+- Play Online is matchmaking with other people. If nobody else is searching, the game starts after about a minute and bots take the empty seats. Online games are always to 500 points (the home screen says so under Play Online).
 - Private room: Create Room > Create Room shows a four-letter code. Tap Start game and bots fill the empty seats. Inviting a friend needs a second signed-in account on another device, so it is optional for review.
 - How to Play (lobby links) is a step-by-step rules guide. Leaderboard is in the same row.
 - Language: tap EN or ΕΛ at the top right of the lobby to switch between English and Greek.
 - If the connection drops, the app reconnects you to your seat automatically.
 
 ACCOUNT DELETION (Guideline 5.1.1(v))
-- While signed in: on the lobby, tap your display name in the row of links at the bottom to open Profile, tap Delete Account, then confirm. Accounts with a password confirm with that password; Sign in with Apple accounts confirm without one. The account, profile, friends and sessions are deleted immediately.
+- While signed in: on the lobby, tap your display name in the row of links at the bottom to open Profile, scroll down, tap the red Delete Account button, then tap "Yes, delete my account". Accounts with a password type it first; Sign in with Apple accounts are not asked for one. The account, profile, friends and sessions are deleted immediately and the app returns to the lobby signed out.
 - To keep the demo account available, you may want to test deletion on a new account (Sign in > "Don't have an account? Register"). Deleting the demo account is also fine; we will recreate it.
 
 Contact for review questions: see App Review Information contact details.

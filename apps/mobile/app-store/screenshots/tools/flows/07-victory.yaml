@@ -11,9 +11,9 @@ appId: dev.aegist.titsu
     commands:
       - runFlow:
           when:
-            visible: "Back to lobby"
+            visible: "Back to lobby|Πίσω στο Lobby"
           commands:
-            - tapOn: "Back to lobby"
+            - tapOn: "Back to lobby|Πίσω στο Lobby"
       - extendedWaitUntil:
           visible: "Solo Game|Παιχνίδι Μόνος"
           timeout: 15000
@@ -23,11 +23,11 @@ appId: dev.aegist.titsu
       - tapOn:
           id: "play-solo"
       - extendedWaitUntil:
-          visible: "Grand Tichu?"
+          visible: "Grand Tichu."
           timeout: 20000
-      - tapOn: "Pass"
+      - tapOn: "Pass|Πάσο"
       - extendedWaitUntil:
-          visible: "Pass three cards"
+          visible: "Pass three cards|Δώσε τρεις κάρτες"
           timeout: 30000
       - tapOn:
           id: "hand-0"
@@ -35,7 +35,7 @@ appId: dev.aegist.titsu
           id: "hand-1"
       - tapOn:
           id: "hand-2"
-      - tapOn: "Pass cards"
+      - tapOn: "Pass cards|Δώσε τις κάρτες"
       - runFlow: sub/autoplay-until-round-over.yaml
       - runFlow:
           when:

@@ -1,9 +1,11 @@
-# Scene 08 (el set): How to Play, step 3 "The Cards: Special Cards".
+# Scene 08 (el set): How to Play, step 1 of 19 ("Καλώς ήρθες στο Tichu").
+# Step 3 (special cards) uses the English card names inside the Greek text, so step 1 reads better.
 appId: dev.aegist.titsu
 ---
 - runFlow: sub/sign-in-showcase.yaml
 - runFlow: sub/set-language.yaml
 - tapOn: "How to Play|Πώς να Παίξεις"
-- tapOn: "Next|Επόμενο"
-- tapOn: "Next|Επόμενο"
+- extendedWaitUntil:
+    visible: "(Step|Βήμα) 1 (of|από) 19"
+    timeout: 5000
 - waitForAnimationToEnd

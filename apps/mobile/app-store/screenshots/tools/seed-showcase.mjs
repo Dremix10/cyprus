@@ -7,7 +7,7 @@
 // - registers the showcase account (andreas_cy / "Andreas") and 17 Greek-named regulars
 // - makes Andreas friends with 6 of them (3 are kept online by friends-online.mjs)
 // - writes ELO / stats straight into user_stats so the leaderboard looks lived-in
-// - writes ~8 finished games for Andreas so "Recent" shows wins and losses (online + vs bots)
+// - writes 9 finished games for Andreas so "Recent" shows wins, losses and a tie (online + vs bots)
 // - --reset-bots hides the bot rows again (solo games played during capture give bots ELO)
 // Idempotent: run it again any time. Never point SHOTS_DB at a real database.
 import { BASE, PLAYERS, SHOWCASE, befriend, ensureUser, http } from './shots-common.mjs';
@@ -67,6 +67,7 @@ const GAMES = [
   [3, 500, 0, null, 535, 410, 'maria_p', 'stelios_k', 'georgia_n'],
   [5, 1000, 1, 'hard', 1015, 780, 'Bot Athena', 'Bot Zeus', 'Bot Apollo'],
   [26, 500, 0, null, 380, 505, 'kostas_lim', 'panikos', 'eleni_ch'],
+  [27, 250, 0, null, 265, 265, 'loukia', 'georgia_n', 'antonis'],
   [29, 500, 0, null, 520, 300, 'panikos', 'michalis_v', 'sofia_a'],
   [50, 250, 1, 'extreme', 190, 265, 'Bot Athena', 'Bot Zeus', 'Bot Apollo'],
   [74, 500, 0, null, 610, 395, 'maria_p', 'nikos_thess', 'christos_m'],
@@ -92,7 +93,7 @@ db.transaction(() => {
       end: `-${hoursAgo} hours`,
       target, solo, diff,
       s02: mine, s13: theirs,
-      winner: mine > theirs ? 'Team 0-2' : 'Team 1-3',
+      winner: mine === theirs ? 'Tie' : mine > theirs ? 'Team 0-2' : 'Team 1-3',
       rounds: Math.max(1, Math.round(target / 120)),
     });
     const seat = (name, pos) => {
@@ -108,7 +109,25 @@ db.transaction(() => {
 
 if (process.argv.includes('--reset-bots')) {
   db.prepare(`UPDATE bot_elo SET elo_games = 0, games_won = 0, elo = 1000, elo_peak = 1000`).run();
-  console.log('bot rows hidden from the leaderboard');
+  // Games played while capturing (solo Victory runs etc.) would push the seeded ones out of
+  // "Recent" and differ between sets: drop them so every leaderboard shot shows the same history.
+  db.transaction(() => {
+    const ids = db.prepare(`SELECT id FROM games WHERE room_code NOT LIKE 'SHW%'`).all().map((r) => r.id);
+    const delPlayers = db.prepare(`DELETE FROM game_players WHERE game_id = ?`);
+    const delEvents = db.prepare(`DELETE FROM game_events WHERE game_id = ?`);
+    const delGame = db.prepare(`DELETE FROM games WHERE id = ?`);
+    for (const id of ids) {
+      try { delEvents.run(id); } catch { /* snapshots/reports may reference events; keep them */ }
+      delPlayers.run(id);
+      try { delGame.run(id); } catch { /* still referenced: leave it, it has no ended_at impact */ }
+    }
+  })();
+  // Re-apply the seeded stats (capture games update user_stats too).
+  db.transaction(() => {
+    users.forEach((u, i) => upsert.run(statsFor(u.user.id, u.gp, u.wr, u.elo, 12 + ((i * 7) % 40))));
+    upsert.run(statsFor(me.user.id, 168, 0.56, 1498, 33));
+  })();
+  console.log('bot rows hidden, capture games removed from history');
 }
 db.close();
 

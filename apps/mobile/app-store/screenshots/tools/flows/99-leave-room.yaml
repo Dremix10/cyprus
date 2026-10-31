@@ -1,0 +1,8 @@
+# Leave the waiting room after scene 04 so the next run starts clean.
+appId: dev.aegist.titsu
+---
+- runFlow:
+    when:
+      visible: "Leave|Αποχώρηση"
+    commands:
+      - tapOn: "Leave|Αποχώρηση"

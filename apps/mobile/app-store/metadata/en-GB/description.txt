@@ -6,7 +6,7 @@ PLAY YOUR WAY
 • Play Online: one tap finds you a table for a full game to 500. If the table isn't full after a short wait, bots take the empty seats.
 • Private rooms: open a table, share the four-letter room code or invite friends straight from your friends list, and let bots fill any empty seats.
 • Solo: partner with a bot against two more. Zeus, Athena and Apollo play at five levels, from Easy to Unfair.
-• Your length: a Quick game of a single round, or play to 250, 500 or 1000.
+• Your length: in private rooms and solo, pick a Quick game of a single round, or play to 250, 500 or 1000.
 
 THE FULL RULES
 • Call Grand Tichu after your first eight cards, or Tichu before your first play.

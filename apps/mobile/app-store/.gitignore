@@ -8,3 +8,6 @@ screenshots/raw/
 screenshots/tools/.qa-*
 screenshots/tools/*.db
 screenshots/tools/*.log
+
+# Unframed copies of the finals (35 MB); regenerate with tools/finalize.sh
+screenshots/final-plain/

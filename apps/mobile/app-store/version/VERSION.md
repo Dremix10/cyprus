@@ -1,63 +1,45 @@
 # Marketing version
 
-**Decision (2026-10-30): ship as `1.0`.** It matches the version App Store Connect already
-prepared, so nothing has to change there. `app.json` is now `"version": "1.0"`, and the store
-build uses the new `production` profile in `eas.json` (OTA channel `production`, so updates to
-`preview` never reach App Store users). Next versions: `1.0.1`, `1.1`, and so on.
+**Decision (2026-10-30): ship the first public release as `1.0`.** It matches the version App
+Store Connect already prepared, so nothing has to change there. Next versions: `1.0.1`, `1.1`, and so on.
 
-The original recommendation below (1.0.0) is kept for context. Either works; `1.0` saves an
-App Store Connect edit.
-
----
-
-**Earlier recommendation: ship the first public release as `1.0.0`.**
-
-## What exists today (checked 2026-10-30)
+## Current state (checked 2026-10-31)
 
 | Where | Value |
 |---|---|
-| `app.json` → `expo.version` | `0.1.0` |
-| `app.json` → `runtimeVersion.policy` | `appVersion`, so the OTA runtime equals the marketing version |
-| `eas.json` → `cli.appVersionSource` | `remote`. EAS manages the **build number** only. The marketing version still comes from `app.json`. |
-| `eas.json` → `build.testflight.ios.autoIncrement` | `true`. EAS builds 3 to 9 exist, all `0.1.0`; the next build becomes 10 |
-| App Store Connect version (from `eas metadata:pull`) | **`1.0`**, prepared and never submitted (only the en-US title "Titsu" is filled in) |
+| `app.json` → `expo.version` | **`1.0`** (done, commit `31d62e0`) |
+| `app.json` → `runtimeVersion.policy` | `appVersion`, so the OTA runtime is `1.0` |
+| `eas.json` → `cli.appVersionSource` | `remote`. EAS manages the **build number** only; the marketing version comes from `app.json` |
+| `eas.json` → `build.production` | **New store profile:** `distribution: store`, OTA `channel: production`, `autoIncrement`, `EXPO_PUBLIC_SERVER_URL=https://aegist.dev`. Updates published to `preview` (TestFlight) never reach App Store users. |
+| `eas.json` → `submit.production.ios` | `ascAppId 6819067929`, `metadataPath ./app-store/store.config.js` |
+| Earlier TestFlight builds | 3 to 9, all `0.1.0` (`testflight` profile, channel `preview`) |
+| App Store Connect version | **`1.0`**, prepared, never submitted |
 | Ever released? | **No.** `itunes.apple.com/lookup?id=6819067929` and `?bundleId=dev.aegist.titsu` return 0 results |
 
-## Why 1.0.0 and not 0.1.0
+## Why 1.0
 
-- It is the first public release. Users read 0.x as an unfinished beta.
-- ASC already prepared "1.0". The build's version string has to match the App Store version it is
-  attached to, so a `0.1.0` build does not fit the current page anyway.
-- Nothing was released before, so there is no ordering constraint. Any version is allowed now, and
-  later versions only need to be higher.
-- Semver `1.0.0` keeps future `1.0.1` / `1.1.0` clean, and gives a fresh OTA runtime that
-  TestFlight `0.1.0` builds will not accidentally receive.
+- It is the first public release; 0.x reads as an unfinished beta.
+- The build's version string has to match the App Store version it is attached to. ASC already
+  has `1.0`, so `1.0` needs no App Store Connect edit. (`1.0.0` would have worked too, but needs the
+  ASC field renamed.)
+- Nothing was released before, so there is no ordering constraint. Later versions only need to be higher.
+- A new runtime (`1.0`) means OTA updates made for the `0.1.0` TestFlight builds never apply to the store build.
 
-## What to change (I did not edit these; they are outside `app-store/`)
-
-1. **`apps/mobile/app.json`:** `"version": "0.1.0"` → `"version": "1.0.0"`.
-   Leave `ios.buildNumber` unset. EAS (remote source, autoIncrement) assigns 10, 11, and so on.
-2. **App Store Connect:** on the iOS App version page, change the version field **`1.0` → `1.0.0`**
-   (editable while it is "Prepare for Submission"). Or leave ASC at `1.0` and set `app.json` to
-   `"1.0"`. The two must match exactly.
-3. **Optional but recommended, `apps/mobile/eas.json`:** the store build uses the `testflight`
-   profile with update channel `preview`. Any OTA update published to `preview` would then reach
-   App Store users. Before launch, either add a `production` build profile (same as `testflight` but
-   `"channel": "production"`) and a matching `submit.production` with `ascAppId`, or accept that
-   `preview` is your production channel.
-4. **For EAS Metadata later (optional):** add `"metadataPath": "./app-store/store.config.js"` under
-   the submit profile's `ios` (for example `submit.testflight.ios`), then `eas metadata:push -e testflight`.
-   Do this only after step 2, so the editable version matches. `store.config.js` deliberately does
-   not set `apple.version`, so it updates whatever version is currently editable.
-
-## Check commands (read-only)
+## Build and upload (agent / owner, when ready)
 
 ```bash
 cd apps/mobile
-eas build:version:get -p ios        # current remote build number (expect 9)
+eas build -p ios --profile production            # -> 1.0 (10 or higher), points at https://aegist.dev
+eas submit -p ios --profile production --id <build-id>
+# optional, later: eas metadata:push -e production   (uses ./app-store/store.config.js)
+```
+
+Read-only checks:
+
+```bash
+eas build:version:get -p ios          # current remote build number
 eas build:list --platform ios --limit 3 --non-interactive
 npx expo config --type public | grep -E '"version"|runtimeVersion' -A1
 ```
 
-After the version bump, the release build is `1.0.0 (10)`. Its runtime version is `1.0.0`, so
-publish OTA updates for it with that runtime only.
+Publish OTA updates for the store build only to channel `production` with runtime `1.0`.

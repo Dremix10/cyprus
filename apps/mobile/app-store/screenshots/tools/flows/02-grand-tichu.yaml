@@ -1,16 +1,22 @@
 # Scene 02: the Grand Tichu decision (first 8 cards). Solo, to 1000, Hard bots.
-# Leaves the app ON the Grand Tichu screen. Re-run (new deal) until the 8 cards look strong:
-# a Dragon/Phoenix/Ace or a pair of Aces reads well. Then shoot.sh captures it.
+# Re-deals (relaunch + new solo game) until the 8 cards include the Dragon or the Phoenix
+# (hand cards are labelled DRAGON / PHOENIX / "JADE 14"...), so the "if you dare" caption fits.
+# Leaves the app ON the Grand Tichu screen.
 appId: dev.aegist.titsu
 ---
-- runFlow: sub/sign-in-showcase.yaml
-- runFlow: sub/set-language.yaml
-- tapOn: "Solo Game|Παιχνίδι Μόνος"
-- tapOn: "1000"
-- tapOn: "Hard|Δύσκολο"
-- tapOn:
-    id: "play-solo"
-- extendedWaitUntil:
-    visible: "Grand Tichu?"
-    timeout: 20000
-- waitForAnimationToEnd
+- repeat:
+    times: 12
+    while:
+      notVisible: "DRAGON|PHOENIX"
+    commands:
+      - runFlow: sub/sign-in-showcase.yaml
+      - runFlow: sub/set-language.yaml
+      - tapOn: "Solo Game|Παιχνίδι Μόνος"
+      - tapOn: "1000"
+      - tapOn: "Hard|Δύσκολο"
+      - tapOn:
+          id: "play-solo"
+      - extendedWaitUntil:
+          visible: "Grand Tichu."
+          timeout: 20000
+      - waitForAnimationToEnd

@@ -1,21 +1,51 @@
-# Play the human seat with the solo Hint button until the round (or game) ends.
-# Handles the Mahjong wish and the Dragon give sheets. Solo games only (Hint is solo-only).
+# Play the human seat with the solo Hint button until the round (or game) ends, in EN or EL.
+# Same loop as e2e/flows/05-quick-game.yaml. The wish and Dragon sheets are HELD for ~4 s so a
+# capture burst running in parallel catches them (scene 05 "gods").
 appId: dev.aegist.titsu
 ---
 - repeat:
     while:
-      notVisible: "Round over|Victory!|Defeat|Tie|Νίκη!|Ήττα|Ισοπαλία"
+      notVisible: "Round over|Τέλος Γύρου|Victory!|Defeat|Tie|Νίκη!|Ήττα|Ισοπαλία"
+    times: 200
     commands:
       - runFlow:
           when:
-            visible: "You played the Mahjong"
+            visible:
+              id: "wish-sheet"
           commands:
-            - tapOn: "Wish A"
+            - extendedWaitUntil:
+                visible: "__hold_for_capture__"
+                timeout: 4000
+                optional: true
+            - tapOn:
+                id: "wish-14"
       - runFlow:
           when:
-            visible: "You won with the Dragon"
+            visible:
+              id: "dragon-sheet"
           commands:
-            - tapOn: "Bot (Zeus|Apollo|Athena)"
+            - extendedWaitUntil:
+                visible: "__hold_for_capture__"
+                timeout: 4000
+                optional: true
+            - tapOn:
+                id: "dragon-give-0"
+      - runFlow:
+          when:
+            visible: "Skip round|Παράλειψη γύρου"
+          commands:
+            - tapOn: "Skip round|Παράλειψη γύρου"
+      # Nothing can beat the trick: pass straight away (Hint would only say "pass" after a 10 s wait).
+      - runFlow:
+          when:
+            visible: "(Your turn · nothing beats it, pass|Η σειρά σου · δεν κερδίζεις, πάσο).*"
+          commands:
+            - tapOn:
+                id: "pass"
+            - extendedWaitUntil:
+                notVisible: "(Your turn · nothing beats it, pass|Η σειρά σου · δεν κερδίζεις, πάσο).*"
+                timeout: 4000
+                optional: true
       - runFlow:
           when:
             visible:
@@ -23,22 +53,27 @@ appId: dev.aegist.titsu
           commands:
             - tapOn:
                 id: "hint"
-            - waitForAnimationToEnd:
-                timeout: 1500
+            - extendedWaitUntil:
+                visible: "(Play|Παίξε) [0-9]+"
+                timeout: 10000
+                optional: true
+            # Pass branch first: after a play the Pass button lingers until game:state lands.
             - runFlow:
                 when:
-                  visible:
-                    id: "play"
-                    enabled: true
-                commands:
-                  - tapOn:
-                      id: "play"
-            - runFlow:
-                when:
+                  notVisible: "(Play|Παίξε) [0-9]+"
                   visible:
                     id: "pass"
                 commands:
                   - tapOn:
                       id: "pass"
-      - waitForAnimationToEnd:
-          timeout: 1500
+            - runFlow:
+                when:
+                  visible: "(Play|Παίξε) [0-9]+"
+                commands:
+                  - tapOn:
+                      id: "play"
+      - extendedWaitUntil:
+          visible:
+            id: "hint"
+          timeout: 4000
+          optional: true

@@ -1,8 +1,11 @@
-# Scene 03 "Play your way": signed-in lobby, Quick game chip selected, all three ways to play visible.
+# Scene 03 "Play your way": signed-in home panel: Play Online with "Online games go to 500
+# points", Create Room / Join, Solo Game, and the links row with "Andreas".
 appId: dev.aegist.titsu
 ---
 - runFlow: sub/sign-in-showcase.yaml
 - runFlow: sub/set-language.yaml
-- tapOn: "Quick game|Γρήγορο"
-- hideKeyboard
+- extendedWaitUntil:
+    visible:
+      id: "online-length"
+    timeout: 5000
 - waitForAnimationToEnd

@@ -1,8 +1,9 @@
 # Titsu: App Store submission kit
 
 Everything needed to submit **Titsu** (`dev.aegist.titsu`, ASC app id `6819067929`, team
-`4856X9H6NP`) to the App Store. Prepared 2026-10-30. Phase 1 is everything except the final
-screenshots. Phase 2 builds the screenshot app and captures them.
+`4856X9H6NP`) to the App Store as version **1.0**. Phase 1 (2026-10-30) prepared the copy, review,
+privacy, age rating and version. Phase 2 (2026-10-31) captured the screenshots from the final app
+(commit `a77e099`).
 
 **Legend:** ✅ done · 🧑 **OWNER** (you, in App Store Connect or a decision) · 🤖 **AGENT**
 (I'll do it when you say go) · 🛠 **DEV** (code or server change in the app repo, outside this folder)
@@ -13,24 +14,26 @@ screenshots. Phase 2 builds the screenshot app and captures them.
 |---|---|
 | `metadata/en-US/`, `metadata/el/`, `metadata/en-GB/` | Paste-ready text: `name`, `subtitle`, `promotional_text`, `description`, `keywords` (+ `el/keywords_extended`), `release_notes`, `support_url`, `marketing_url`, `privacy_url` (fastlane-style file names) |
 | `metadata/COUNTS.md` | Verified character counts (`node scripts/check-limits.mjs --write`) |
-| `store.config.js` | EAS Metadata config built from the files above (validated against eas-cli's schema). **Not pushed.** |
-| `review/` | `notes.txt` (paste into ASC), `REVIEW.md` (demo account, deletion blocker, risks), `contact.example.json`, `demo-account.local.md` (**gitignored**, has the password) |
+| `store.config.js` | EAS Metadata config built from the files above (validated against eas-cli's schema). Wired to `eas.json` `submit.production`. **Not pushed.** |
+| `review/` | `notes.txt` (paste into ASC), `REVIEW.md` (demo account, deletion, risks), `contact.example.json`, `demo-account.local.md` (**gitignored**, has the password) |
 | `privacy/` | `APP_PRIVACY.md` (nutrition-label answers), `privacy-policy-update.md` (fixes for aegist.dev/privacy) |
 | `age-rating/AGE_RATING.md` | Questionnaire answers. Expected rating **4+** |
-| `version/VERSION.md` | Why `1.0.0`, and the exact edits to make |
-| `screenshots/PLAN.md` | Required sizes, 8-scene story with EN/EL captions, phase-2 run sheet |
+| `version/VERSION.md` | Version **1.0** (decided) and the `production` EAS profile |
+| `screenshots/final/<locale>/<size>/` | **Upload these.** Caption frames, 8 per set, `en-US` and `el`, `6.9` (1320×2868) and `6.3` (1206×2622), 8-bit PNG, no alpha (26 MB). en-GB reuses en-US. |
+| `screenshots/final-plain/<locale>/<size>/` | The same screenshots without frames, if you prefer plain ones (35 MB; don't commit it if you upload the frames) |
+| `screenshots/PLAN.md` | Sizes, story, captions, and how to re-shoot |
 | `screenshots/tools/` | Local 3321 server, seed, friend bots, Maestro flows, capture/finalize scripts |
 
-## Blockers: fix before you press Submit
+## Blockers before you press Submit
 
-| | Item | Detail |
+| | Item | Status |
 |---|---|---|
-| 🛠 | **In-app account deletion is missing.** `ProfileScreen` has only Sign Out. Apple rejects apps with sign-up but no in-app deletion (5.1.1(v)). | `review/REVIEW.md`: the store function and translations already exist. Add the button, and no password prompt for Apple-only accounts. |
-| 🛠 | **Server: delete fails for users who reported a bot play** (`bot_play_reports` FK without cascade, `foreign_keys=ON`). The request hangs and the user ends up signed out but not deleted. | `review/REVIEW.md` |
-| 🧑🛠 | **Deploy the current server to aegist.dev.** Production has run since 2026-10-05 and predates one-tap game lengths (`70c0404`). It clamps Quick game (0) up to a 250-point game. | Deploy, then check `curl -s https://aegist.dev/health` shows a new `startedAt` |
-| 🧑 | **Support contact:** `aegist.dev/contact` only links the GitHub repo. Add a support email (for example `support@aegist.dev` via Spaceship forwarding) to the contact and privacy pages. | `privacy/privacy-policy-update.md` |
-| 🧑 | **Privacy policy gaps:** it never mentions Titsu, Sign in with Apple, Expo, Keychain, retention or an operator name. | `privacy/privacy-policy-update.md` (EN + EL drop-in text) |
-| 🛠 | Optional but advised: finish the Greek strings on in-game screens (`PhaseViews`, `WaitingRoom`, `RulesSheet`, Live Games), and change the tutorial's "a bold bet" to "a bold call". | `review/REVIEW.md` |
+| ✅ | In-app account deletion (5.1.1(v)) | Done: Profile > Delete Account > confirmation sheet (password only for password accounts). Commit `7d67861`. |
+| ✅ | Server: deleting a user who reported a bot play | Fixed in `7781dc4` (reports removed in the same transaction; 500 instead of a hang). |
+| ✅ / 🧑 | Production server up to date | `aegist.dev/health` shows `startedAt 2026-10-31T02:26Z`, after `7781dc4`. Confirm that deploy included the current `main` (Quick game, deletion fix). |
+| 🧑 | **Support contact:** `aegist.dev/contact` only links the GitHub repo. Add a support email (for example `support@aegist.dev` via Spaceship forwarding). | Still open (live page checked 2026-10-31) |
+| 🧑 | **Privacy policy gaps:** no mention of Titsu, Sign in with Apple, Expo, Keychain, retention or operator name. | Still open: live page still says "Last updated: May 11, 2026". Drop-in EN + EL text in `privacy/privacy-policy-update.md`. |
+| ✅ | Greek in-game screens, tutorial "a bold call" | Done in `a77e099` / `7d67861`. |
 
 ## Decisions for you
 
@@ -40,23 +43,25 @@ screenshots. Phase 2 builds the screenshot app and captures them.
    `Titsu: Greek Card Game` (en) and `Titsu: Τίτσου Online` (el, already proposed). With the safer
    name, move `tichu` into the en keywords.
 2. **Add an English (U.K.) localization?** Recommended. Greece and Cyprus storefronts default to
-   **English (U.K.)** with Greek as the extra language, so en-US alone is not what most of your home
-   market sees. `metadata/en-GB/` is ready (same copy, British "practise", different keywords).
-3. **Version 1.0.0** (recommended) or keep 0.1.0. See `version/VERSION.md`.
+   **English (U.K.)** with Greek as the extra language. `metadata/en-GB/` is ready; upload the en-US
+   screenshots for it.
+3. **Framed or plain screenshots?** `final/` has caption frames (recommended); `final-plain/` has
+   the raw screens. Use one style for every locale.
 4. **Release:** manual release after approval (recommended for the first launch; `store.config.js` sets it).
 5. **Price/territories:** Free. All territories, or at least Cyprus, Greece, UK and US.
 6. **Contests age answer:** Infrequent (recommended) or None. Both keep 4+.
 
+Decided: version **1.0** (matches the prepared ASC version, so no ASC edit).
+
 ## Submission checklist (in App Store Connect order)
 
 ### A. Before App Store Connect
-- [ ] 🛠 Fix the two deletion blockers above. Then 🧑 deploy the server and confirm `/health`.
 - [ ] 🧑 Update aegist.dev `/privacy` and `/contact` (support email, Titsu, Apple, Expo, retention).
-- [ ] 🧑 or 🤖 Set `apps/mobile/app.json` `"version": "1.0.0"` (tell me and I'll do it at build time).
+- [x] ✅ `apps/mobile/app.json` `"version": "1.0"`; `eas.json` has the `production` build + submit profiles.
 - [ ] 🧑 **EU Digital Services Act trader status** (ASC > Business > Compliance, or the prompt on the
       app page). Required to distribute in EU storefronts, including Cyprus and Greece. If you declare
       yourself a trader, your address, phone and email are shown publicly on EU store pages.
-- [x] ✅ Agreements: free apps need only the Apple Developer Program License Agreement (no paid-apps or banking setup).
+- [x] ✅ Agreements: free apps need only the Apple Developer Program License Agreement.
 - [x] ✅ Export compliance: `ITSAppUsesNonExemptEncryption = false` is in `app.json`, so ASC asks nothing.
 - [x] ✅ Sign in with Apple capability on the App ID (production logs show Apple tokens verifying).
 
@@ -78,13 +83,15 @@ screenshots. Phase 2 builds the screenshot app and captures them.
 - [ ] 🧑 Data types and purposes: copy `privacy/APP_PRIVACY.md`. Tracking: **No**. Then **Publish**.
 
 ### E. Version page (iOS App > 1.0)
-- [ ] 🧑 Change the version string **1.0 → 1.0.0** (must match the build).
+- [x] ✅ Version string is already `1.0`, matching `app.json`.
 - [ ] 🧑 Per locale (en-US, el, en-GB): Promotional Text, Description, Keywords, Support URL,
       Marketing URL from `metadata/<locale>/`. Greek keywords: paste `keywords_extended.txt`; if ASC
       says it is too long, use `keywords.txt` (it fits even if Apple counts bytes).
-- [ ] 🤖 **Screenshots** for each locale: 6.9" (1320×2868) and **6.3" (1206×2622, the required slot)**. Phase 2: `screenshots/PLAN.md`.
-- [ ] 🤖 **Build:** `eas build -p ios --profile testflight` → `1.0.0 (10)`, then
-      `eas submit -p ios --profile testflight --id <build-id>`. Wait for "Ready to Submit", then
+- [ ] 🧑 **Screenshots** (ready, ✅ captured): for each locale, drag
+      `screenshots/final/<locale>/6.9/*.png` into **iPhone 6.9"** and
+      `screenshots/final/<locale>/6.3/*.png` into **iPhone 6.3"** (the required slot). en-GB: use the en-US files.
+- [ ] 🤖 **Build:** `eas build -p ios --profile production` → `1.0 (10+)`, then
+      `eas submit -p ios --profile production --id <build-id>`. Wait for "Ready to Submit", then
       🧑 select it under **Build**.
 - [ ] 🧑 **Copyright:** `2026 <your seller name>`.
 - [ ] 🧑 **App Review Information:** contact name, phone, email. Sign-in: `appreview` plus the password
@@ -92,7 +99,7 @@ screenshots. Phase 2 builds the screenshot app and captures them.
 - [ ] 🧑 **Version Release:** "Manually release this version".
 - [x] ✅ What's New: not shown for a first version (`release_notes.txt` is ready for 1.0.1).
 
-### F. Final device check (TestFlight build 1.0.0)
+### F. Final device check (TestFlight build 1.0)
 - [ ] 🧑 On a real iPhone: Sign in with Apple, then delete that account in Profile; register and
       delete a password account; solo Quick game; Play Online starts with bots after about 60 s;
       airplane-mode toggle reconnects; EN/ΕΛ switch.
@@ -110,16 +117,16 @@ screenshots. Phase 2 builds the screenshot app and captures them.
   answers all None, nothing ever released.
 - ✅ Demo account `appreview` created on production and login verified (password only in the gitignored local file).
 - ✅ `store.config.js` validates against eas-cli 24.10's metadata schema once you fill
-  `review/contact.local.json`. To push later (not now): add `"metadataPath": "./app-store/store.config.js"`
-  to the submit profile's `ios` in `eas.json`, then `eas metadata:push -e testflight`. EAS Metadata
-  cannot push screenshots or App Privacy, so those stay manual.
-- ✅ Screenshot tooling written and syntax-checked. Guards refuse production, ports 3301/3311 and
-  the shared simulators. `finalize.sh` tested on synthetic images, including Greek captions.
+  `review/contact.local.json`. `eas.json` `submit.production.ios.metadataPath` already points at it;
+  `eas metadata:push -e production` would push (not done). EAS Metadata cannot push screenshots or
+  App Privacy, so those stay manual.
+- ✅ Screenshots captured from the final app on a local server with showcase data (no QA names),
+  clean 9:41 status bar, both sizes natively (iPhone 17 Pro Max and iPhone 17 Pro simulators). See `screenshots/PLAN.md`.
 
 ## Useful commands
 
 ```bash
 node apps/mobile/app-store/scripts/check-limits.mjs --write   # recount after any copy edit
 node apps/mobile/app-store/store.config.js                    # preview the EAS config (password masked)
-curl -s https://aegist.dev/health                             # is the new server deployed?
+curl -s https://aegist.dev/health                             # which server build is live?
 ```
