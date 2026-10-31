@@ -225,8 +225,8 @@ function runGame(difficulty: BotDifficulty): GameResult {
 }
 
 function runBatch(numGames: number, difficulty: BotDifficulty, label: string) {
-  let wins = [0, 0];
-  let totalScores = [0, 0];
+  const wins = [0, 0];
+  const totalScores = [0, 0];
   let totalRounds = 0;
   let totalTurns = 0;
   let totalPasses = 0;
@@ -237,7 +237,7 @@ function runBatch(numGames: number, difficulty: BotDifficulty, label: string) {
   let totalTichuSuccess = 0;
   let totalGTCalls = 0;
   let totalGTSuccess = 0;
-  let firstOutCounts = [0, 0, 0, 0];
+  const firstOutCounts = [0, 0, 0, 0];
   let errors = 0;
   let totalGames = 0;
   const errorBreakdown = new Map<string, number>();

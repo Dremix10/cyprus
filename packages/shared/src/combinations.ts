@@ -748,7 +748,7 @@ function findConsecutivePairs(
   if (phoenix) {
     for (let pairCount = 2; pairCount <= sortedRanks.length + 1; pairCount++) {
       for (let startRank = NormalRank.TWO; startRank + pairCount - 1 <= NormalRank.ACE; startRank++) {
-        let gapCount = 0;
+        const gapCount = 0;
         let valid = true;
         const cards: Card[] = [];
 

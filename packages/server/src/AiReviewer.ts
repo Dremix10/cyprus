@@ -94,7 +94,7 @@ export class AiReviewer {
         });
         proc.on('error', reject);
         // Kill if takes too long
-        setTimeout(() => { try { proc.kill(); } catch {} reject(new Error('Timeout')); }, 120_000);
+        setTimeout(() => { try { proc.kill(); } catch { /* already exited */ } reject(new Error('Timeout')); }, 120_000);
       });
     } catch (err: any) {
       this.db.saveAiReview(

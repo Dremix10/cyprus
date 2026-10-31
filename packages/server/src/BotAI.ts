@@ -5,7 +5,6 @@ import type {
   PlayerPosition,
   TrickState,
   WishState,
-  Combination,
   TichuCall,
 } from '@cyprus/shared';
 import {
@@ -14,7 +13,6 @@ import {
   CombinationType,
   findPlayableFromHand,
   detectCombination,
-  canBeat,
   isSpecial,
   isNormalCard,
   getCardSortRank,
@@ -295,10 +293,6 @@ function analyzePlayedCards(playedCards: Card[], myHand: Card[]): CardCountInfo 
 
   const remainingCards = FULL_DECK.filter((c) => !knownIds.has(c.id));
 
-  const dragonPlayed = playedCards.some((c) => isSpecial(c, SpecialCardType.DRAGON)) ||
-    myHand.some((c) => isSpecial(c, SpecialCardType.DRAGON));
-  const phoenixPlayed = playedCards.some((c) => isSpecial(c, SpecialCardType.PHOENIX)) ||
-    myHand.some((c) => isSpecial(c, SpecialCardType.PHOENIX));
 
   const acesRemaining = remainingCards.filter(
     (c) => isNormalCard(c) && c.rank === NR.ACE
@@ -2579,7 +2573,7 @@ export class BotAI {
 
   // ─── Wish ────────────────────────────────────────────────────────
 
-  chooseWish(hand: Card[], context?: GameContext): NormalRank {
+  chooseWish(hand: Card[], _context?: GameContext): NormalRank {
     if (this.effectiveDifficulty === 'easy') {
       const ranks = [
         NR.TWO, NR.THREE, NR.FOUR, NR.FIVE, NR.SIX, NR.SEVEN,

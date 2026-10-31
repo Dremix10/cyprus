@@ -12,7 +12,7 @@ import { PlayerAvatar } from './PlayerAvatar.js';
 import { WishSelector } from './WishSelector.js';
 import { ScoreHistory } from './ScoreHistory.js';
 import { QuickGuideButton } from './QuickGuide.js';
-import { GrandTichuView, PassingView, ScoringView, GameOverView, TichuCallBadges, PointCards, ScoreBreakdown } from './PhaseViews.js';
+import { GrandTichuView, PassingView, ScoringView, GameOverView } from './PhaseViews.js';
 import { ReportBotPlayButton } from './ReportBotPlayPanel.js';
 import { HintButton } from './HintButton.js';
 import { isMuted, setMuted, subscribeMuted } from '../sounds.js';

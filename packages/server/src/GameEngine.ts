@@ -1,7 +1,6 @@
 import type {
   Card,
   NormalRank,
-  Combination,
   ClientGameState,
   DogLead,
   TrickState,
@@ -26,7 +25,6 @@ import {
   getTeam,
   getPartner,
   sameTeam,
-  sumCardPoints,
   WINNING_SCORE,
   isQuickGame,
 } from '@cyprus/shared';
@@ -626,9 +624,6 @@ export class GameEngine {
 
   private resolveTrick(): void {
     const winner = this.state.currentTrick.currentWinner!;
-    const trickCards = this.state.currentTrick.plays.flatMap(
-      (p) => p.combination.cards
-    );
 
     this.emit({ type: 'TRICK_WON', playerPosition: winner });
 

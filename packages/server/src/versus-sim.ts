@@ -257,8 +257,8 @@ console.log('');
 const start = Date.now();
 let teamAWins = 0, teamBWins = 0, errors = 0;
 let totalScoreA = 0, totalScoreB = 0, totalRounds = 0;
-let totalTichuA = { calls: 0, success: 0 };
-let totalTichuB = { calls: 0, success: 0 };
+const totalTichuA = { calls: 0, success: 0 };
+const totalTichuB = { calls: 0, success: 0 };
 let totalFirstOutA = 0, totalFirstOutB = 0;
 
 // Also run games with swapped positions to eliminate positional bias

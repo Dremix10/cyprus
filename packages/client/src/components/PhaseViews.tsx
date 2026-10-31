@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useGameStore } from '../stores/gameStore.js';
 import { useRoomStore } from '../stores/roomStore.js';
 import type { PlayerPosition, RoundScoreBreakdown } from '@cyprus/shared';
-import { getCardPoints, getRankLabel, sortCards, isQuickGame, winningTeam } from '@cyprus/shared';
+import { getCardPoints, sortCards, isQuickGame, winningTeam } from '@cyprus/shared';
 import { CardComponent } from './CardComponent.js';
 import { PlayerHand } from './PlayerHand.js';
 import { PlayerAvatar } from './PlayerAvatar.js';
@@ -103,7 +103,6 @@ export function GrandTichuView() {
   const [confirming, setConfirming] = useState(false);
 
   if (!gameState.grandTichuPending) {
-    const myTeam = gameState.myPosition % 2;
     const waiting = gameState.players.filter((p) => !p.grandTichuDecided);
     const names = waiting.map((p) => p.nickname).join(', ');
     return (

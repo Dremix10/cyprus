@@ -1,16 +1,12 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { GameEngine, type PlayerState } from '../GameEngine.js';
+import { GameEngine } from '../GameEngine.js';
 import {
   GamePhase,
   SpecialCardType,
   CombinationType,
   Suit,
   NormalRank,
-  FULL_DECK,
   sortCards,
-  detectCombination,
-  getTeam,
-  sameTeam,
   WINNING_SCORE,
 } from '@cyprus/shared';
 import type { Card, NormalCard, SpecialCard, PlayerPosition } from '@cyprus/shared';
@@ -51,13 +47,6 @@ function advanceToPlaying(engine: GameEngine): void {
   }
 }
 
-/**
- * Build a controlled hand and inject it directly into engine state.
- * This lets us test specific card interactions deterministically.
- */
-function setPlayerHand(engine: GameEngine, position: PlayerPosition, cards: Card[]): void {
-  engine.state.players[position].hand = sortCards(cards);
-}
 
 /**
  * Inject a fully controlled deal. All 4 players get exactly the cards specified.
@@ -124,7 +113,7 @@ describe('GameEngine', () => {
     it('uses default winning score (WINNING_SCORE) when not specified', () => {
       engine.state.phase = GamePhase.ROUND_SCORING;
       engine.state.scores = [WINNING_SCORE, 0];
-      const events = engine.nextRound();
+      engine.nextRound();
       expect(engine.state.phase).toBe(GamePhase.GAME_OVER);
     });
 
@@ -894,7 +883,7 @@ describe('GameEngine', () => {
       const pos = engine.state.currentPlayer;
       expect(engine.state.players[pos].hasPlayedCards).toBe(false);
 
-      const events = engine.callTichu(pos);
+      engine.callTichu(pos);
       expect(engine.state.players[pos].tichuCall).toBe('tichu');
     });
 
@@ -1512,7 +1501,7 @@ describe('GameEngine', () => {
       engine.state.phase = GamePhase.ROUND_SCORING;
       engine.state.scores = [400, WINNING_SCORE];
 
-      const events = engine.nextRound();
+      engine.nextRound();
 
       expect(engine.state.phase).toBe(GamePhase.GAME_OVER);
     });
@@ -1521,7 +1510,7 @@ describe('GameEngine', () => {
       engine.state.phase = GamePhase.ROUND_SCORING;
       engine.state.scores = [WINNING_SCORE + 200, 400];
 
-      const events = engine.nextRound();
+      engine.nextRound();
 
       expect(engine.state.phase).toBe(GamePhase.GAME_OVER);
     });

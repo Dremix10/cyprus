@@ -499,7 +499,7 @@ describe('RoomManager', () => {
     });
 
     it('includes correct player info and scores', () => {
-      const created = rm.createSoloRoom('socket1', 'Alice') as { roomCode: string };
+      rm.createSoloRoom('socket1', 'Alice');
       rm.startGame('socket1');
 
       const games = rm.getActiveGames();
@@ -592,7 +592,7 @@ describe('RoomManager', () => {
     });
 
     it('rejects when game already started', () => {
-      const created = rm.createSoloRoom('socket1', 'Alice') as { roomCode: string };
+      rm.createSoloRoom('socket1', 'Alice');
       rm.startGame('socket1');
       const result = rm.startGame('socket1');
       expect(result.error).toBe('Game already started');
@@ -658,7 +658,7 @@ describe('RoomManager', () => {
     });
 
     it('rejects moving during a game', () => {
-      const created = rm.createSoloRoom('socket1', 'Alice') as { roomCode: string };
+      rm.createSoloRoom('socket1', 'Alice');
       rm.startGame('socket1');
       const moved = rm.sitAt('socket1', 2);
       expect(moved).toBe(false);

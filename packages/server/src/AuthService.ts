@@ -268,7 +268,7 @@ export class AuthService {
       }
 
       const displayName = name.slice(0, DISPLAY_NAME_MAX_LENGTH) || username;
-      const userId = this.db.createUser(username, displayName, null, normalizedEmail, googleId);
+      this.db.createUser(username, displayName, null, normalizedEmail, googleId);
       user = this.db.getUserByUsername(username)!;
     }
 

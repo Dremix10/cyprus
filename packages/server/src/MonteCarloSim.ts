@@ -15,7 +15,6 @@ import {
   findPlayableFromHand,
   FULL_DECK,
   detectCombination,
-  getCardSortRank,
   isSpecial,
   isNormalCard,
   SpecialCardType,
@@ -74,7 +73,7 @@ function shuffle<T>(arr: T[]): T[] {
 // ─── Pre-filter: select top N candidates ──────────────────────────────
 
 /** Quick heuristic score for a candidate play (higher = more promising). */
-function scoreCandidateHeuristic(cards: Card[] | null, hand: Card[]): number {
+function scoreCandidateHeuristic(cards: Card[] | null, _hand: Card[]): number {
   if (!cards) return -100; // pass when leading = bad
 
   // Prefer multi-card combos (empties hand faster)
