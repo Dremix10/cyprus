@@ -1,0 +1,78 @@
+# Invite a second friend while already in a waiting room: the invite must go into the SAME room
+# (store.inviteFriend -> plan "invite-current-room"), not create a second one.
+# Waiting room -> "Invite friend" opens Friends over the room; inviting keeps Friends open; Back
+# returns to the same room, where the second friend now sits. Re-inviting a seated friend must
+# show the server's "Already in your room" error.
+# Requires: local QA server, qa-seed.mjs, and both helpers running:
+#   node e2e/helpers/qa-friend.mjs friend    (QA Friend)
+#   node e2e/helpers/qa-friend.mjs friend2   (QA Pal)
+# The helpers print room=<code> for each invite they get; both must match.
+appId: dev.aegist.titsu
+---
+- runFlow: sub/sign-in-qa-host.yaml
+- tapOn: "Friends"
+- extendedWaitUntil:
+    visible: "QA Friend · Online"
+    timeout: 15000
+- assertVisible: "QA Pal · Online"
+# First invite from the lobby creates the room.
+- tapOn:
+    text: "Invite"
+    rightOf: "QA Friend · Online"
+- extendedWaitUntil:
+    visible: "Seat [0-9], QA Friend"
+    timeout: 20000
+# Remember this room ("Room code ABCD. Tap to copy").
+- copyTextFrom:
+    text: "Room code .*"
+- assertVisible: "Invite friend"
+- takeScreenshot: 90-waiting-room-invite-friend-button
+# From the waiting room, back to the friends list.
+- tapOn: "Invite friend"
+- extendedWaitUntil:
+    visible: "QA Pal · Online"
+    timeout: 15000
+- takeScreenshot: 91-friends-over-waiting-room
+# rightOf alone is not row-bound in Maestro (it hit QA Friend's button), so also require below.
+- tapOn:
+    text: "Invite"
+    rightOf: "QA Pal · Online"
+    below: "QA Friend · Online"
+# invite-current-room: no new room, so the Friends screen stays open.
+- extendedWaitUntil:
+    visible: "Invite sent"
+    timeout: 10000
+- assertVisible: "QA Pal · Online"
+- assertNotVisible: "ROOM CODE"
+- tapOn: "Back"
+# Same room as before, now with both friends seated.
+- extendedWaitUntil:
+    visible: "Seat [0-9], QA Pal"
+    timeout: 20000
+- assertVisible: "${maestro.copiedText}"
+- assertVisible: "Seat [0-9], QA Friend"
+- assertVisible: "Seat [0-9], QA Host"
+- takeScreenshot: 92-waiting-room-two-friends
+# Re-inviting a friend who is already seated is refused by the server.
+- tapOn: "Invite friend"
+- extendedWaitUntil:
+    visible: "QA Friend · Online"
+    timeout: 15000
+- tapOn:
+    text: "Invite"
+    rightOf: "QA Friend · Online"
+    above: "QA Pal · Online"
+- extendedWaitUntil:
+    visible: "Already in your room"
+    timeout: 10000
+- assertNotVisible: "Invite sent"
+- takeScreenshot: 93-already-in-your-room
+- tapOn: "Back"
+- extendedWaitUntil:
+    visible: "Seat [0-9], QA Pal"
+    timeout: 10000
+- assertVisible: "${maestro.copiedText}"
+- tapOn: "Leave"
+- extendedWaitUntil:
+    visible: "TICHU"
+    timeout: 15000

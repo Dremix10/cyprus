@@ -1,6 +1,8 @@
 # Opening sign-in must work when native Google OAuth is not configured.
 appId: dev.aegist.titsu
 ---
+# Guest run: clearState keeps the keychain session from earlier flows, so drop it too.
+- clearKeychain
 - launchApp:
     clearState: true
 - extendedWaitUntil:

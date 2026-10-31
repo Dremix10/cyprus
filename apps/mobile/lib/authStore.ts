@@ -187,7 +187,8 @@ export const useAuth = create<AuthStore>((set) => ({
   deleteAccount: async (password) => {
     try {
       const res = await api('/auth/delete-account', { method: 'POST', body: JSON.stringify({ password }) });
-      const data = await res.json();
+      // A failed delete answers 500 with { error }; keep the session and show that message.
+      const data = (await res.json().catch(() => ({}))) as { error?: string };
       if (!res.ok) return { success: false, error: data.error || 'Failed' };
       setSocketToken(null);
       await SecureStore.deleteItemAsync(KEY);

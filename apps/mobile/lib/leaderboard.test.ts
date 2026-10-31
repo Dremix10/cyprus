@@ -4,6 +4,7 @@ import { buildApiHeaders } from './http.ts';
 import {
   leaderboardUrl,
   loadLeaderboard,
+  parseHistory,
   parseLeaderboard,
   publicLeaderboardHeaders,
 } from './leaderboard.ts';
@@ -132,5 +133,65 @@ describe('public leaderboard request', () => {
     const personal = calls[1].init?.headers as Record<string, string>;
     assert.equal(personal.Authorization, 'Bearer phone-token');
     assert.equal(personal['Content-Type'], undefined);
+  });
+});
+
+describe('recent games', () => {
+  const game = (extra: Record<string, unknown>) => ({
+    game_id: 7,
+    ended_at: '2026-10-30 12:00:00',
+    botDifficulty: null,
+    ...extra,
+  });
+
+  it('reads the server tie flag, which wins over `won`', () => {
+    const [tie] = parseHistory([game({ won: false, tied: true, myScore: 150, opponentScore: 150 })]);
+    assert.equal(tie.tied, true);
+    assert.equal(tie.won, false);
+    const [odd] = parseHistory([game({ won: true, tied: true, myScore: 150, opponentScore: 150 })]);
+    assert.equal(odd.tied, true);
+    assert.equal(odd.won, false);
+  });
+
+  it('keeps wins and losses that are not ties', () => {
+    const [win, loss] = parseHistory([
+      game({ won: true, tied: false, myScore: 520, opponentScore: 300 }),
+      game({ game_id: 8, won: false, tied: false, myScore: 300, opponentScore: 520 }),
+    ]);
+    assert.deepEqual([win.won, win.tied], [true, false]);
+    assert.deepEqual([loss.won, loss.tied], [false, false]);
+  });
+
+  it('falls back to equal scores when an older server sends no tie flag', () => {
+    const [tie, loss] = parseHistory([
+      game({ won: false, myScore: 100, opponentScore: 100 }),
+      game({ game_id: 8, won: false, myScore: 40, opponentScore: 60 }),
+    ]);
+    assert.equal(tie.tied, true);
+    assert.equal(tie.won, false);
+    assert.equal(loss.tied, false);
+  });
+
+  it('trusts an explicit tied: false even with equal scores', () => {
+    const [row] = parseHistory([game({ won: true, tied: false, myScore: 0, opponentScore: 0 })]);
+    assert.equal(row.tied, false);
+    assert.equal(row.won, true);
+  });
+
+  it('passes ties through loadLeaderboard', async () => {
+    const fetchImpl: typeof fetch = async (input) => {
+      const url = String(input);
+      const body = url.includes('/history')
+        ? [game({ won: false, tied: true, myScore: 75, opponentScore: 75 })]
+        : url.includes('/me')
+          ? { ...human, rank: 3 }
+          : [human];
+      return new Response(JSON.stringify(body), { status: 200, headers: { 'Content-Type': 'application/json' } });
+    };
+    const loaded = await loadLeaderboard({ baseUrl: 'http://localhost:3301', token: 't', signedIn: true, fetchImpl });
+    assert.equal(loaded.mine?.rank, 3);
+    assert.equal(loaded.history.length, 1);
+    assert.equal(loaded.history[0].tied, true);
+    assert.equal(loaded.history[0].won, false);
   });
 });

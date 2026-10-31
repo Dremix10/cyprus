@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import * as Haptics from 'expo-haptics';
 import type { ClientGameState, GameEvent, NormalRank, PlayerPosition, RoomState } from '@cyprus/shared';
-import { planFriendLobbyInvite, runFriendLobbyInvite } from '@cyprus/shared';
+import { MATCHMAKING_TARGET_SCORE, planFriendLobbyInvite, runFriendLobbyInvite } from '@cyprus/shared';
 import { socket } from './socket';
 import { useAuth } from './authStore';
 import { clearTicket, loadProfile, loadTicket, saveProfile, saveTicket } from './session';
@@ -297,14 +297,15 @@ export const useApp = create<AppStore>((set, get) => {
         'waiting',
       ),
     joinQueue: async () => {
-      const { nickname, targetScore } = get();
+      const { nickname } = get();
       if (!nickname.trim()) return notify('Enter a nickname', 'error');
       set({ busy: true });
       try { await ensureConnected(); } catch {
         set({ busy: false });
         return notify('Could not reach the server. Try again.', 'error');
       }
-      socket.emit('matchmaking:join', nickname.trim(), targetScore, (res) => {
+      // Matchmaking has one fixed length; the lobby's length picker is only for Create Room and Solo.
+      socket.emit('matchmaking:join', nickname.trim(), MATCHMAKING_TARGET_SCORE, (res) => {
         set({ busy: false });
         if ('error' in res) return notify(res.error, 'error');
         set({ view: 'queue', queue: { players: 1, elapsed: 0 } });

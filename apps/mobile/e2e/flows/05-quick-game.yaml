@@ -1,0 +1,162 @@
+# Online is fixed at 500: no length picker on the home panel, just a note under Play Online.
+# Create Room and Solo keep the picker; a quick-game room says so in the waiting room.
+# Then a guest "Quick game" solo played to the end:
+# "1 round" in the top bar, "See result" on the scoring screen, Victory/Defeat/Tie at the end.
+# Needs an app bundled with EXPO_PUBLIC_SERVER_URL pointing at a disposable local server.
+appId: dev.aegist.titsu
+---
+# Guest run: clearState keeps the keychain session, so drop it too.
+- clearKeychain
+- launchApp:
+    clearState: true
+- extendedWaitUntil:
+    visible: "TICHU"
+    timeout: 20000
+# Home panel: Play Online plus the fixed-length note, no picker.
+- assertVisible: "Play Online"
+- assertVisible:
+    id: "online-length"
+    text: "Online games go to 500 points"
+- assertNotVisible: "Game length"
+- assertNotVisible: "Quick game"
+- tapOn:
+    id: "nickname"
+- eraseText
+- inputText: "Maestro"
+- tapOn: "Done"
+- takeScreenshot: 50-home-online-500
+# Create Room panel has the picker.
+- tapOn: "Create Room"
+- assertVisible: "Game length"
+- assertVisible: "Bot Level"
+- assertVisible: "250"
+- assertVisible: "500"
+- assertVisible: "1000"
+- tapOn: "Quick game"
+- assertVisible:
+    text: "Quick game"
+    selected: true
+- takeScreenshot: 51-create-length-picker
+# A quick-game room shows its length under the room code.
+- tapOn: "Create Room"
+- extendedWaitUntil:
+    visible: "ROOM CODE"
+    timeout: 15000
+- extendedWaitUntil:
+    visible:
+      id: "waiting-length"
+      text: "Quick game · 1 round"
+    timeout: 10000
+- takeScreenshot: 52-waiting-quick-game
+- tapOn: "Leave"
+- extendedWaitUntil:
+    visible: "Play Online"
+    timeout: 15000
+# Solo panel keeps the choice.
+- tapOn: "Solo Game"
+- assertVisible: "Bot Level"
+- assertVisible:
+    text: "Quick game"
+    selected: true
+- takeScreenshot: 53-solo-length-picker
+- tapOn:
+    id: "play-solo"
+- extendedWaitUntil:
+    visible: "Grand Tichu?"
+    timeout: 20000
+- tapOn: "Pass"
+- extendedWaitUntil:
+    visible: "Pass three cards"
+    timeout: 30000
+- tapOn:
+    id: "hand-0"
+- tapOn:
+    id: "hand-1"
+- tapOn:
+    id: "hand-2"
+- tapOn: "Pass cards"
+- extendedWaitUntil:
+    visible: "Your turn.*|.*'s turn"
+    timeout: 60000
+# Quick game: the bar says "1 round", never "to N".
+- assertVisible: "1 round"
+- assertNotVisible: "to [0-9]+"
+- assertVisible: "Settings"
+- takeScreenshot: 54-quick-game-top-bar
+# Play the whole round with Hint, handling the wish / Dragon sheets, and skip once we are out.
+- repeat:
+    while:
+      notVisible: "Round over"
+    times: 200
+    commands:
+      - runFlow:
+          when:
+            visible: "You played the Mahjong"
+          commands:
+            - tapOn: "Wish 5"
+      - runFlow:
+          when:
+            visible: "You won with the Dragon"
+          commands:
+            - takeScreenshot: 55-dragon-sheet
+            - tapOn:
+                below: "Give the trick to an opponent."
+      - runFlow:
+          when:
+            visible: "Dog → lead passes to.*"
+          commands:
+            - takeScreenshot: 56-dog-lead
+      - runFlow:
+          when:
+            visible: "Skip round"
+          commands:
+            - tapOn: "Skip round"
+      - runFlow:
+          when:
+            visible:
+              id: "hint"
+          commands:
+            - tapOn:
+                id: "hint"
+            - extendedWaitUntil:
+                visible: "Play [0-9]+"
+                timeout: 10000
+                optional: true
+            # Pass branch first: after a play the Pass button lingers until game:state lands,
+            # so checking it second would also pass the (no longer ours) turn.
+            - runFlow:
+                when:
+                  notVisible: "Play [0-9]+"
+                  visible:
+                    id: "pass"
+                commands:
+                  - tapOn:
+                      id: "pass"
+            - runFlow:
+                when:
+                  visible: "Play [0-9]+"
+                commands:
+                  - tapOn:
+                      id: "play"
+      - extendedWaitUntil:
+          visible:
+            id: "hint"
+          timeout: 4000
+          optional: true
+# Scoring: a quick game has no next round.
+- extendedWaitUntil:
+    visible: "Round over"
+    timeout: 30000
+- assertVisible: "See result"
+- assertNotVisible: "Next round"
+- takeScreenshot: 57-scoring-see-result
+- tapOn: "See result"
+- extendedWaitUntil:
+    visible: "Victory!|Defeat|Tie"
+    timeout: 20000
+- assertVisible: "Your team wins!|Opponents win!|Both teams scored the same\\."
+- takeScreenshot: 58-game-over
+- tapOn: "Back to lobby"
+- extendedWaitUntil:
+    visible: "TICHU"
+    timeout: 20000

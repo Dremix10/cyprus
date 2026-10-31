@@ -4,17 +4,16 @@ import { GlassSurface } from './GlassSurface';
 import { color, radius } from '@/lib/theme';
 import { useApp } from '@/lib/store';
 
-/** Floating status: connection trouble, maintenance, and transient notices (toasts). */
-export function StatusOverlay() {
+/** Connection trouble, maintenance, and transient notices (toasts), as glass pills. */
+export function StatusPills() {
   const conn = useApp((s) => s.conn);
   const ready = useApp((s) => s.ready);
   const maintenance = useApp((s) => s.maintenance);
   const notice = useApp((s) => s.notice);
-  const insets = useSafeAreaInsets();
   const offline = conn !== 'connected' && ready;
   const label = maintenance ?? (offline ? 'Connection lost. Reconnecting…' : null);
   return (
-    <View pointerEvents="none" style={[styles.wrap, { top: insets.top + 66 }]}>
+    <>
       {label && (
         <GlassSurface style={styles.pill} tint={offline ? 'rgba(229,72,77,0.35)' : undefined}>
           <View style={styles.row}>
@@ -28,6 +27,20 @@ export function StatusOverlay() {
           <Text style={styles.text}>{notice.text}</Text>
         </GlassSurface>
       )}
+    </>
+  );
+}
+
+/**
+ * Floating status, centred below the table's top bar. `inline`: the screen lays out
+ * <StatusPills /> itself (the waiting room puts them beside Leave, clear of the room code).
+ */
+export function StatusOverlay({ inline }: { inline?: boolean }) {
+  const insets = useSafeAreaInsets();
+  if (inline) return null;
+  return (
+    <View pointerEvents="none" style={[styles.wrap, { top: insets.top + 66 }]}>
+      <StatusPills />
     </View>
   );
 }

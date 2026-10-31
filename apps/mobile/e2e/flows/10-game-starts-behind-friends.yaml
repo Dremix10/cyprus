@@ -1,0 +1,29 @@
+# Edge case for the waiting-room "Invite friend" sheet: any seated player may start the game.
+# If a friend starts it while the Friends screen is open over the room, the phone should go to
+# the table instead of leaving the game running behind the Friends screen.
+# Regression test: failed before app/index.tsx cleared the open sheet on every view change.
+# Requires a local QA server, qa-seed.mjs, and the friend helper in auto-start mode:
+#   START_AFTER_MS=8000 node e2e/helpers/qa-friend.mjs friend
+appId: dev.aegist.titsu
+---
+- runFlow: sub/sign-in-qa-host.yaml
+- tapOn: "Friends"
+- extendedWaitUntil:
+    visible: "QA Friend · Online"
+    timeout: 15000
+- tapOn:
+    text: "Invite"
+    rightOf: "QA Friend · Online"
+- extendedWaitUntil:
+    visible: "Seat [0-9], QA Friend"
+    timeout: 20000
+- tapOn: "Invite friend"
+- extendedWaitUntil:
+    visible: "QA Friend · Online"
+    timeout: 10000
+# The helper starts the game ~8 s after joining; the table (Grand Tichu) must take over.
+- extendedWaitUntil:
+    visible: "Grand Tichu\\?"
+    timeout: 25000
+- takeScreenshot: 100-game-started-from-friends
+- assertNotVisible: "QA Friend · Online"

@@ -134,7 +134,7 @@ function CardRow({ cards, width }: { cards: Card[]; width: number }) {
     <View style={{ flexDirection: 'row' }}>
       {cards.map((c, i) => (
         <View key={c.id} style={{ marginLeft: i === 0 ? 0 : -overlap }}>
-          <CardView card={c} width={width} />
+          <CardView card={c} width={width} peek={i === n - 1 ? width : width - overlap} />
         </View>
       ))}
     </View>

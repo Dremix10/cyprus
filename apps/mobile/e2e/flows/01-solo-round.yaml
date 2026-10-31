@@ -1,6 +1,9 @@
-# Guest solo game against the live server: Grand Tichu -> pass 3 -> first plays.
+# Guest solo game: Grand Tichu -> pass 3 -> first plays. Plays on whatever server the app was
+# bundled for (EXPO_PUBLIC_SERVER_URL; use the local QA server for simulator QA).
 appId: dev.aegist.titsu
 ---
+# Guest run: clearState keeps the keychain session from earlier flows, so drop it too.
+- clearKeychain
 - launchApp:
     clearState: true
 - extendedWaitUntil:

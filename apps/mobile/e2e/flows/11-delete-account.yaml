@@ -1,0 +1,107 @@
+# In-app account deletion (App Store guideline 5.1.1(v)): register a throwaway account on the local
+# QA server, open Profile -> Delete Account, see the confirmation, get a wrong password refused
+# (still signed in), delete it, and check the same login no longer works.
+# Local QA server only (qa-server.sh start). Never run against production.
+appId: dev.aegist.titsu
+---
+- clearKeychain
+- launchApp:
+    clearState: true
+- extendedWaitUntil:
+    visible: "TICHU"
+    timeout: 20000
+- evalScript: ${output.user = 'qadel_' + Math.floor(Math.random() * 100000000)}
+# Register.
+- tapOn:
+    id: "account-link"
+- tapOn: "Don't have an account.*"
+- tapOn:
+    id: "auth-email"
+- inputText: ${output.user + '@qa.invalid'}
+- tapOn:
+    id: "auth-username"
+- inputText: ${output.user}
+- tapOn:
+    id: "auth-display-name"
+- inputText: "QA Delete"
+- tapOn:
+    id: "auth-password"
+- inputText: "qa-password-123"
+- tapOn:
+    id: "auth-submit"
+- runFlow:
+    when:
+      visible: "Not Now"
+    commands:
+      - tapOn: "Not Now"
+- extendedWaitUntil:
+    visible:
+      id: "account-link"
+      text: "QA Delete"
+    timeout: 15000
+# Profile -> Delete Account -> confirmation sheet.
+- tapOn:
+    id: "account-link"
+- scrollUntilVisible:
+    element:
+      id: "delete-account"
+    direction: DOWN
+    timeout: 10000
+- tapOn:
+    id: "delete-account"
+- assertVisible: "Delete your account\\?"
+- assertVisible: "Your account, stats and friends will be removed permanently\\."
+- assertVisible:
+    id: "delete-password"
+- takeScreenshot: 110-delete-confirm
+# A wrong password is refused and the account stays signed in.
+- tapOn:
+    id: "delete-password"
+- inputText: "not-my-password"
+- tapOn:
+    id: "delete-confirm"
+- extendedWaitUntil:
+    visible: "Password is incorrect"
+    timeout: 10000
+- assertVisible: "Delete your account\\?"
+- takeScreenshot: 111-delete-wrong-password
+# The right password deletes it: back to the lobby, signed out.
+- tapOn:
+    id: "delete-password"
+- eraseText
+- inputText: "qa-password-123"
+- tapOn:
+    id: "delete-confirm"
+- extendedWaitUntil:
+    visible: "Account deleted"
+    timeout: 5000
+    optional: true
+- runFlow:
+    when:
+      visible: "Not Now"
+    commands:
+      - tapOn: "Not Now"
+# Signed out: the account link says Sign In again. (The "Account deleted" toast only lasts 2.5 s.)
+- extendedWaitUntil:
+    visible:
+      id: "account-link"
+      text: "Sign In"
+    timeout: 10000
+- takeScreenshot: 112-deleted-back-in-lobby
+# Signing in again with the same login fails.
+- tapOn:
+    id: "account-link"
+- tapOn:
+    id: "auth-username"
+- inputText: ${output.user}
+- tapOn:
+    id: "auth-password"
+- inputText: "qa-password-123"
+- tapOn:
+    id: "auth-submit"
+- extendedWaitUntil:
+    visible: "Invalid credentials"
+    timeout: 10000
+- assertVisible:
+    id: "auth-username"
+- takeScreenshot: 113-sign-in-fails

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { toGreekUpper } from '@cyprus/shared';
+import { MATCHMAKING_TARGET_SCORE, toGreekUpper } from '@cyprus/shared';
 import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Btn } from './Btn';
@@ -113,13 +113,6 @@ export function Lobby({
             />
             {panel === 'home' && (
               <View style={{ gap: 10 }}>
-                <Text style={styles.label}>{toGreekUpper(t('lobby.gameLength'))}</Text>
-                <Segmented
-                  options={SCORE_OPTIONS}
-                  value={targetScore as (typeof SCORE_OPTIONS)[number]}
-                  onChange={setTargetScore}
-                  label={(n) => (n === QUICK_GAME ? t('lobby.quickGame') : `${n}`)}
-                />
                 <Btn
                   label={t('lobby.playOnline')}
                   kind="gold"
@@ -128,6 +121,10 @@ export function Lobby({
                     void joinQueue();
                   }}
                 />
+                {/* Matchmaking always plays one length (the server ignores a requested one). */}
+                <Text testID="online-length" style={styles.note}>
+                  {t('lobby.onlineLength', { score: MATCHMAKING_TARGET_SCORE })}
+                </Text>
                 <View style={styles.roomActions}>
                   <Btn
                     label={t('lobby.createRoom')}
@@ -276,6 +273,7 @@ const styles = StyleSheet.create({
     letterSpacing: 0.8,
     textTransform: 'uppercase',
   },
+  note: { color: color.textDim, fontSize: 13, textAlign: 'center', marginTop: -2 },
   input: {
     minHeight: 48,
     borderRadius: radius.md,

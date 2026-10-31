@@ -52,7 +52,7 @@ export function Hand({
               style={[styles.slot, { left: i * slice, width: w, height: height + lift }]}
             >
               <View style={{ position: 'absolute', top: isSel ? 0 : lift, left: 0 }}>
-                <CardView card={card} width={cardWidth} selected={isSel} dim={dimmed?.has(card.id)} />
+                <CardView card={card} width={cardWidth} peek={w} selected={isSel} dim={dimmed?.has(card.id)} />
               </View>
             </Pressable>
           );

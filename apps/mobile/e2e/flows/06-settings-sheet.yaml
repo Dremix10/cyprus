@@ -1,0 +1,117 @@
+# Table gear -> Settings sheet: sound label flips, Score History opens, Report a bug row,
+# Close button and backdrop tap both dismiss it. Guest solo on a local QA server.
+appId: dev.aegist.titsu
+---
+# Guest run: clearState keeps the keychain session (a signed-in user's name refills the nickname field).
+- clearKeychain
+- launchApp:
+    clearState: true
+- extendedWaitUntil:
+    visible: "TICHU"
+    timeout: 20000
+- tapOn:
+    id: "nickname"
+- eraseText
+- inputText: "Maestro"
+- tapOn: "Done"
+- tapOn: "Solo Game"
+- tapOn: "500"
+- tapOn:
+    id: "play-solo"
+- extendedWaitUntil:
+    visible: "Grand Tichu?"
+    timeout: 20000
+- tapOn: "Pass"
+- extendedWaitUntil:
+    visible: "Pass three cards"
+    timeout: 30000
+- tapOn:
+    id: "hand-0"
+- tapOn:
+    id: "hand-1"
+- tapOn:
+    id: "hand-2"
+- tapOn: "Pass cards"
+- extendedWaitUntil:
+    visible: "Your turn.*|.*'s turn"
+    timeout: 60000
+# Top bar: centred score "to 500", gear on the right, no old icons.
+- assertVisible: "to 500"
+- assertVisible: "Leave game"
+- assertVisible: "Settings"
+- assertNotVisible: ".*[Mm]ute.*|.*[Rr]eport.*"
+- takeScreenshot: 60-top-bar-gear
+# Open the sheet.
+- tapOn: "Settings"
+- extendedWaitUntil:
+    visible: "Sound on|Sound off"
+    timeout: 5000
+- assertVisible: "Score History"
+- assertVisible: "Report a bug"
+- takeScreenshot: 61-settings-sheet
+# The backdrop is hidden from VoiceOver (Sheet.tsx accessible={false}): exactly one "Close".
+- assertVisible: "Close"
+- assertNotVisible:
+    text: "Close"
+    index: 1
+# Sound toggles and the label flips both ways.
+- runFlow:
+    when:
+      visible: "Sound on"
+    commands:
+      - tapOn: "Sound on"
+      - assertVisible: "Sound off"
+      - tapOn: "Sound off"
+      - assertVisible: "Sound on"
+- runFlow:
+    when:
+      visible: "Sound off"
+    commands:
+      - tapOn: "Sound off"
+      - assertVisible: "Sound on"
+# Close button (the gold one under the rows).
+- tapOn:
+    text: "Close"
+    below: "Report a bug"
+- assertNotVisible: "Sound on|Sound off"
+- assertVisible: "Settings"
+# Score History opens from the sheet and closes back to the table.
+- tapOn: "Settings"
+- tapOn: "Score History"
+- extendedWaitUntil:
+    visible: "No rounds played yet\\.|Round [0-9]+:.*"
+    timeout: 5000
+- assertNotVisible: "Sound on|Sound off"
+- takeScreenshot: 62-score-history
+# Solid sheet (Sheet.tsx): one Close, and it closes back to the table.
+- assertVisible: "Close"
+- assertNotVisible:
+    text: "Close"
+    index: 1
+- tapOn: "Close"
+- assertNotVisible: "No rounds played yet\\."
+- assertVisible: "Settings"
+# Its dimmed backdrop closes it too.
+- tapOn: "Settings"
+- tapOn: "Score History"
+- extendedWaitUntil:
+    visible: "No rounds played yet\\.|Round [0-9]+:.*"
+    timeout: 5000
+- tapOn:
+    point: "50%,12%"
+- assertNotVisible: "No rounds played yet\\.|Round [0-9]+:.*"
+- assertVisible: "Settings"
+# Backdrop tap (top of the screen, above the sheet) closes it.
+- tapOn: "Settings"
+- assertVisible: "Score History"
+- tapOn:
+    point: "50%,12%"
+- assertNotVisible: "Sound on|Sound off"
+- assertVisible: "Settings"
+- takeScreenshot: 63-after-backdrop-close
+# Leave the game cleanly (keep-awake must release without a crash).
+- tapOn: "Leave game"
+- tapOn: "Leave"
+- extendedWaitUntil:
+    visible: "TICHU"
+    timeout: 20000

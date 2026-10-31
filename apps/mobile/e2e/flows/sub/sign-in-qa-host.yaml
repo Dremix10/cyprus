@@ -1,0 +1,30 @@
+# Sub-flow: fresh launch, sign in as the seeded local QA account qa_host ("QA Host").
+# Seed first with e2e/helpers/qa-seed.mjs. Local QA server only.
+appId: dev.aegist.titsu
+---
+# clearState does not wipe the keychain, where the session token lives.
+- clearKeychain
+- launchApp:
+    clearState: true
+- extendedWaitUntil:
+    visible: "TICHU"
+    timeout: 20000
+- tapOn:
+    id: "account-link"
+- tapOn:
+    id: "auth-username"
+- inputText: "qa_host"
+- tapOn:
+    id: "auth-password"
+- inputText: "qa-password-123"
+- tapOn:
+    id: "auth-submit"
+# iOS may offer to save the password.
+- runFlow:
+    when:
+      visible: "Not Now"
+    commands:
+      - tapOn: "Not Now"
+- extendedWaitUntil:
+    visible: "QA Host"
+    timeout: 15000

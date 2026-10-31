@@ -1,0 +1,39 @@
+# Friends -> Invite while not in a room: the app creates a waiting room, drops you in it and
+# sends the invite; the scripted friend (QA Friend) accepts and appears in a seat.
+# Requires a local QA server, `node e2e/helpers/qa-seed.mjs`, and
+# `node e2e/helpers/qa-friend.mjs friend` running so QA Friend is online and auto-accepts.
+appId: dev.aegist.titsu
+---
+- runFlow: sub/sign-in-qa-host.yaml
+- tapOn: "Friends"
+- extendedWaitUntil:
+    visible: "QA Friend · Online"
+    timeout: 15000
+- takeScreenshot: 80-friends-online
+- tapOn:
+    text: "Invite"
+    rightOf: "QA Friend · Online"
+- extendedWaitUntil:
+    visible: "ROOM CODE"
+    timeout: 15000
+# The toast sits top-right beside Leave (ConnectionBar `corner`), clear of ROOM CODE.
+- extendedWaitUntil:
+    visible: "Invite sent"
+    timeout: 5000
+    optional: true
+- takeScreenshot: 81a-invite-sent-toast
+- assertVisible: "Seat [0-9], QA Host"
+# Room created from the lobby at the default length (1000), shown under the code.
+- assertVisible:
+    id: "waiting-length"
+    text: "Game to 1000"
+- extendedWaitUntil:
+    visible: "Seat [0-9], QA Friend"
+    timeout: 20000
+- takeScreenshot: 81-waiting-room-friend-joined
+# Exactly one room: the Friends sheet closed straight into this waiting room.
+- assertNotVisible: "QA Friend · Online"
+- tapOn: "Leave"
+- extendedWaitUntil:
+    visible: "TICHU"
+    timeout: 15000

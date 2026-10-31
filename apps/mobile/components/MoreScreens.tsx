@@ -1,10 +1,11 @@
 import { useEffect, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, TextInput, View, useWindowDimensions } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { Friend, FriendRequest, RoundHistoryEntry } from '@cyprus/shared';
 import { Btn } from './Btn';
 import { GlassCard, GoldTitle, Hall } from './Olympus';
-import { color } from '@/lib/theme';
+import { Sheet } from './Sheet';
+import { color, greekFont } from '@/lib/theme';
 import { api } from '@/lib/api';
 import { useAuth } from '@/lib/authStore';
 import { t as tr, useT } from '@/lib/i18n';
@@ -177,6 +178,7 @@ export function ProfileScreen({ onClose }: { onClose: () => void }) {
   const logout = useAuth((s) => s.logout);
   const [name, setName] = useState(user?.displayName ?? '');
   const [msg, setMsg] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState(false);
   if (!user) return null;
   return (
     <Hall>
@@ -200,9 +202,72 @@ export function ProfileScreen({ onClose }: { onClose: () => void }) {
           {msg ? <Text style={styles.p}>{msg}</Text> : null}
           <Btn label={t('profile.signOut')} kind="ghost" onPress={() => { void logout().then(onClose); }} />
         </GlassCard>
+        <Btn testID="delete-account" label={t('profile.deleteAccount')} kind="danger" onPress={() => setDeleting(true)} />
         <Back label={t('profile.back')} onPress={onClose} />
       </ScrollView>
+      {deleting && <DeleteAccountSheet onCancel={() => setDeleting(false)} onDeleted={onClose} />}
     </Hall>
+  );
+}
+
+/**
+ * Delete account (App Store guideline 5.1.1(v)): a confirmation step that says what goes.
+ * Only accounts with a password type it. Apple/Google-only accounts send an empty one, which
+ * the server accepts for them. On success the store has already signed out locally.
+ */
+function DeleteAccountSheet({ onCancel, onDeleted }: { onCancel: () => void; onDeleted: () => void }) {
+  const t = useT();
+  const user = useAuth((s) => s.user);
+  const deleteAccount = useAuth((s) => s.deleteAccount);
+  const notify = useApp((s) => s.notify);
+  const [password, setPassword] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const needsPassword = user?.hasPassword === true;
+
+  const confirm = async () => {
+    if (busy) return;
+    setBusy(true);
+    setError(null);
+    const res = await deleteAccount(needsPassword ? password : '');
+    setBusy(false);
+    if (!res.success) {
+      setError(res.error ?? t('error.failed'));
+      return;
+    }
+    notify(t('profile.accountDeleted'));
+    onDeleted();
+  };
+
+  return (
+    <Sheet onClose={busy ? undefined : onCancel} avoidKeyboard>
+      <Text style={styles.sheetTitle}>{t('profile.deleteTitle')}</Text>
+      <Text style={styles.warn}>{t('profile.deleteExplain')}</Text>
+      <Text style={styles.warn}>{t('profile.deleteWarning')}</Text>
+      {needsPassword && (
+        <TextInput
+          testID="delete-password"
+          value={password}
+          onChangeText={setPassword}
+          placeholder={t('profile.enterPasswordConfirm')}
+          placeholderTextColor={color.textFaint}
+          secureTextEntry
+          autoCapitalize="none"
+          autoCorrect={false}
+          textContentType="password"
+          style={styles.input}
+        />
+      )}
+      {error ? <Text style={styles.error}>{error}</Text> : null}
+      <Btn
+        testID="delete-confirm"
+        label={busy ? t('profile.deleting') : t('profile.yesDeleteAccount')}
+        kind="danger"
+        disabled={busy || (needsPassword && !password)}
+        onPress={() => { void confirm(); }}
+      />
+      <Btn label={t('profile.cancel')} kind="ghost" disabled={busy} onPress={onCancel} />
+    </Sheet>
   );
 }
 
@@ -229,21 +294,26 @@ export function QueueScreen() {
   );
 }
 
+/**
+ * Solid sheet with a dimmed backdrop, like Settings. A glass card here let the hand and
+ * table show through on iOS 26 and made the rows and Close hard to read.
+ */
 export function ScoreHistorySheet({ history, myTeam, onClose }: { history: RoundHistoryEntry[]; myTeam: number; onClose: () => void }) {
   const t = useT();
+  const { height } = useWindowDimensions();
   return (
-    <View style={styles.sheet}>
-      <GlassCard>
-        <Text style={styles.h}>{t('score.scoreHistory')}</Text>
-        {history.length === 0 && <Text style={styles.p}>{t('score.noRounds')}</Text>}
+    <Sheet onClose={onClose}>
+      <Text style={styles.sheetTitle}>{t('score.scoreHistory')}</Text>
+      <ScrollView style={{ maxHeight: height * 0.45 }} contentContainerStyle={styles.rounds}>
+        {history.length === 0 && <Text style={styles.empty}>{t('score.noRounds')}</Text>}
         {history.map((entry) => (
           <Text key={entry.round} style={styles.p}>
             {t('score.round')} {entry.round}: {entry.teamScores[myTeam]} – {entry.teamScores[1 - myTeam]}
           </Text>
         ))}
-        <Btn label={t('score.close')} kind="ghost" onPress={onClose} />
-      </GlassCard>
-    </View>
+      </ScrollView>
+      <Btn label={t('score.close')} kind="gold" onPress={onClose} />
+    </Sheet>
   );
 }
 
@@ -280,4 +350,9 @@ const styles = StyleSheet.create({
   avatarOn: { borderWidth: 1, borderColor: color.gold },
   emoji: { fontSize: 22 },
   sheet: { position: 'absolute', left: 16, right: 16, bottom: 40 },
+  sheetTitle: { color: color.gold, fontFamily: greekFont, fontSize: 22, textAlign: 'center' },
+  rounds: { gap: 4, paddingVertical: 4 },
+  empty: { color: color.textDim, fontSize: 16, textAlign: 'center' },
+  warn: { color: color.text, fontSize: 15, lineHeight: 21, textAlign: 'center' },
+  error: { color: color.danger, fontSize: 15, textAlign: 'center', fontWeight: '600' },
 });

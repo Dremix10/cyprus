@@ -8,7 +8,7 @@ import { CardView } from './CardView';
 import { Sheet } from './Sheet';
 import { color, radius } from '@/lib/theme';
 import { useApp } from '@/lib/store';
-import { useT } from '@/lib/i18n';
+import { t as translate, useT } from '@/lib/i18n';
 
 const myTeamOf = (g: ClientGameState) => (g.myPosition % 2) as 0 | 1;
 
@@ -18,13 +18,11 @@ function names(g: ClientGameState, pred: (i: ClientGameState['players'][number])
 
 export function confirmTichu(grand: boolean, onYes: () => void) {
   Alert.alert(
-    grand ? 'Call Grand Tichu?' : 'Call Tichu?',
-    grand
-      ? 'Win +200 if you go out first, lose 200 if you do not.'
-      : 'Win +100 if you go out first, lose 100 if you do not.',
+    translate(grand ? 'phase.callGrandTichu' : 'phase.callTichuQuestion'),
+    translate(grand ? 'phase.grandTichuRule' : 'phase.tichuRule'),
     [
-      { text: 'Cancel', style: 'cancel' },
-      { text: grand ? 'Grand Tichu' : 'Call Tichu', style: 'destructive', onPress: onYes },
+      { text: translate('game.cancel'), style: 'cancel' },
+      { text: translate(grand ? 'game.grandTichu' : 'phase.callTichuAction'), style: 'destructive', onPress: onYes },
     ],
   );
 }
@@ -33,20 +31,21 @@ export function confirmTichu(grand: boolean, onYes: () => void) {
 export function GrandTichuView({ g }: { g: ClientGameState }) {
   const insets = useSafeAreaInsets();
   const decide = useApp((s) => s.grandTichu);
+  const t = useT();
   return (
     <View style={[styles.phase, { paddingTop: insets.top + 24, paddingBottom: insets.bottom + 20 }]}>
-      <Text style={styles.h1}>Grand Tichu?</Text>
-      <Text style={styles.p}>These are your first 8 cards. Call only if you expect to go out first.</Text>
+      <Text style={styles.h1}>{t('phase.grandTichuQuestion')}</Text>
+      <Text style={styles.p}>{t('phase.first8Cards')}</Text>
       <View style={{ flex: 1, justifyContent: 'center' }}>
         <Hand cards={sortCards(g.myHand)} selected={[]} onToggle={() => {}} disabled cardWidth={62} />
       </View>
       {g.grandTichuPending ? (
         <View style={{ gap: 10 }}>
-          <Btn label="Call Grand Tichu" kind="gold" haptic="medium" onPress={() => confirmTichu(true, () => decide(true))} />
-          <Btn label="Pass" kind="ghost" onPress={() => decide(false)} />
+          <Btn label={t('phase.callGrandTichuAction')} kind="gold" haptic="medium" onPress={() => confirmTichu(true, () => decide(true))} />
+          <Btn label={t('phase.pass')} kind="ghost" onPress={() => decide(false)} />
         </View>
       ) : (
-        <Text style={styles.p}>Waiting for {names(g, (p) => !p.grandTichuDecided) || 'the others'}…</Text>
+        <Text style={styles.p}>{t('phase.waitingFor', { names: names(g, (p) => !p.grandTichuDecided) || t('phase.theOthers') })}</Text>
       )}
     </View>
   );
@@ -61,6 +60,7 @@ export function PassingView({ g }: { g: ClientGameState }) {
   const passCards = useApp((s) => s.passCards);
   const undoPass = useApp((s) => s.undoPass);
   const callTichu = useApp((s) => s.callTichu);
+  const t = useT();
   const me = g.players[g.myPosition];
   const [assign, setAssign] = useState<Record<Slot, string | null>>({ left: null, across: null, right: null });
   const [active, setActive] = useState<Slot>('left');
@@ -76,11 +76,13 @@ export function PassingView({ g }: { g: ClientGameState }) {
   if (me.hasPassed) {
     return (
       <View style={[styles.phase, { paddingTop: insets.top + 24, paddingBottom: insets.bottom + 20 }]}>
-        <Text style={styles.h1}>Cards passed</Text>
-        <Text style={styles.p}>{ready}/4 ready · waiting for {names(g, (p) => !p.hasPassed) || 'the others'}…</Text>
+        <Text style={styles.h1}>{t('phase.cardsPassed')}</Text>
+        <Text style={styles.p}>
+          {t('phase.readyWaiting', { ready, names: names(g, (p) => !p.hasPassed) || t('phase.theOthers') })}
+        </Text>
         <View style={{ flex: 1 }} />
         <Btn
-          label="Change cards"
+          label={t('phase.changeCards')}
           kind="ghost"
           onPress={() => {
             undoPass();
@@ -113,8 +115,8 @@ export function PassingView({ g }: { g: ClientGameState }) {
 
   return (
     <View style={[styles.phase, { paddingTop: insets.top + 16, paddingBottom: insets.bottom + 16 }]}>
-      <Text style={styles.h1}>Pass three cards</Text>
-      <Text style={styles.p}>Pick a slot, then tap a card. {ready}/4 ready.</Text>
+      <Text style={styles.h1}>{t('phase.passThree')}</Text>
+      <Text style={styles.p}>{t('phase.pickSlot', { ready })}</Text>
       <View style={styles.slots}>
         {SLOTS.map((s) => {
           const p = g.players[target[s]];
@@ -124,7 +126,7 @@ export function PassingView({ g }: { g: ClientGameState }) {
             <Pressable
               key={s}
               accessibilityRole="button"
-              accessibilityLabel={`Pass to ${p.nickname}${card ? ', card chosen' : ', empty'}`}
+              accessibilityLabel={t(card ? 'phase.passToChosen' : 'phase.passToEmpty', { name: p.nickname })}
               onPress={() => {
                 if (card) setAssign((a) => ({ ...a, [s]: null }));
                 setActive(s);
@@ -132,7 +134,7 @@ export function PassingView({ g }: { g: ClientGameState }) {
               style={[styles.slot, active === s && styles.slotActive, mate && styles.slotMate]}
             >
               <Text style={styles.slotName} numberOfLines={1}>
-                {mate ? 'Partner' : s === 'left' ? 'Left' : 'Right'}
+                {t(mate ? 'phase.partner' : s === 'left' ? 'phase.left' : 'phase.right')}
               </Text>
               <Text style={styles.slotSub} numberOfLines={1}>
                 {p.nickname}
@@ -149,13 +151,13 @@ export function PassingView({ g }: { g: ClientGameState }) {
       </View>
       <View style={{ gap: 10, marginTop: 14 }}>
         <Btn
-          label="Pass cards"
+          label={t('phase.passCards')}
           kind="gold"
           disabled={!complete}
           haptic="medium"
           onPress={() => passCards({ left: assign.left!, across: assign.across!, right: assign.right! })}
         />
-        {canTichu && <Btn label="Call Tichu" kind="ghost" small onPress={() => confirmTichu(false, callTichu)} />}
+        {canTichu && <Btn label={t('phase.callTichuAction')} kind="ghost" small onPress={() => confirmTichu(false, callTichu)} />}
       </View>
     </View>
   );
@@ -204,12 +206,12 @@ export function ScoringView({ g }: { g: ClientGameState }) {
   const t = myTeamOf(g);
   const b = g.roundBreakdown;
   const teams = [
-    { label: 'Your team', idx: t },
-    { label: 'Opponents', idx: (1 - t) as 0 | 1 },
+    { label: tr('phase.yourTeam'), idx: t },
+    { label: tr('phase.opponents'), idx: (1 - t) as 0 | 1 },
   ];
   return (
     <View style={[styles.phase, { paddingTop: insets.top + 20, paddingBottom: insets.bottom + 16 }]}>
-      <Text style={styles.h1}>Round over</Text>
+      <Text style={styles.h1}>{tr('phase.roundOver')}</Text>
       <ScrollView contentContainerStyle={{ gap: 12, paddingVertical: 8 }}>
         {teams.map(({ label, idx }) => (
           <View key={idx} style={styles.scoreCard}>
@@ -219,8 +221,8 @@ export function ScoringView({ g }: { g: ClientGameState }) {
                 +{g.roundScores[idx]} <Text style={styles.dim}>→ {g.scores[idx]}</Text>
               </Text>
             </View>
-            {b && <Text style={styles.line}>Card points: {b.cardPoints[idx]}</Text>}
-            {b?.doubleVictory === idx && <Text style={[styles.line, { color: color.gold }]}>Double victory +200</Text>}
+            {b && <Text style={styles.line}>{tr('phase.cardPoints', { points: b.cardPoints[idx] })}</Text>}
+            {b?.doubleVictory === idx && <Text style={[styles.line, { color: color.gold }]}>{tr('phase.doubleVictory')}</Text>}
             {b?.tichuResults
               .filter((r) => r.team === idx)
               .map((r, i) => (
@@ -232,8 +234,7 @@ export function ScoringView({ g }: { g: ClientGameState }) {
               ))}
             {g.roundTrickCards && (
               <Text style={styles.line}>
-                Point cards won:{' '}
-                {g.roundTrickCards[idx].filter((c) => getCardPoints(c) !== 0).length}
+                {tr('phase.pointCardsWon', { count: g.roundTrickCards[idx].filter((c) => getCardPoints(c) !== 0).length })}
               </Text>
             )}
           </View>
@@ -261,16 +262,16 @@ export function GameOverView({ g }: { g: ClientGameState }) {
       <Text style={styles.p}>{tied ? tr('phase.tied') : won ? tr('phase.yourTeamWins') : tr('phase.opponentsWin')}</Text>
       <View style={styles.scoreCard}>
         <View style={styles.rowBetween}>
-          <Text style={[styles.teamLabel, { color: color.teamUs }]}>Your team</Text>
+          <Text style={[styles.teamLabel, { color: color.teamUs }]}>{tr('phase.yourTeam')}</Text>
           <Text style={styles.big}>{g.scores[t]}</Text>
         </View>
         <View style={styles.rowBetween}>
-          <Text style={[styles.teamLabel, { color: color.teamThem }]}>Opponents</Text>
+          <Text style={[styles.teamLabel, { color: color.teamThem }]}>{tr('phase.opponents')}</Text>
           <Text style={styles.big}>{g.scores[1 - t]}</Text>
         </View>
       </View>
       <View style={{ flex: 1 }} />
-      <Btn label="Back to lobby" kind="gold" haptic="medium" onPress={leave} />
+      <Btn label={tr('phase.backToLobby')} kind="gold" haptic="medium" onPress={leave} />
     </View>
   );
 }

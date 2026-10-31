@@ -26,10 +26,15 @@ const SPECIAL: Record<SpecialCardType, { corner: string; name: string; glyph: st
 
 export const CARD_ASPECT = 1.42;
 
-type Props = { card: Card; width: number; selected?: boolean; dim?: boolean };
+type Props = { card: Card; width: number; selected?: boolean; dim?: boolean; peek?: number };
 
-/** A solid playing card. Never glass. Width drives everything. */
-export const CardView = memo(function CardView({ card, width, selected, dim }: Props) {
+/**
+ * A solid playing card. Never glass. Width drives everything.
+ * `peek` is how much of the left edge stays uncovered when cards overlap (the hand, a played
+ * run). When the next card covers part of it, a special card's name runs down that left strip
+ * instead of across the bottom, where only "Σκ" of "Σκύλος" was left showing.
+ */
+export const CardView = memo(function CardView({ card, width, selected, dim, peek }: Props) {
   const height = Math.round(width * CARD_ASPECT);
   const rankSize = Math.round(width * 0.36);
   const suitSize = Math.round(width * 0.32);
@@ -56,6 +61,14 @@ export const CardView = memo(function CardView({ card, width, selected, dim }: P
   const cornerSize = card.type === 'normal' ? rankSize : Math.max(11, Math.round(width * 0.28));
   const showName = name !== null && width >= 40;
   const showCentre = card.type === 'normal' ? width >= 48 : width >= 36;
+  const covered = peek !== undefined && peek < width - 2;
+  // Side label: a box as long as the space under the corner glyph, turned 90° (reads top to
+  // bottom) and centred under that glyph, inside the visible strip.
+  const sideSize = Math.max(9, Math.min(12, width * 0.19));
+  const sideTop = 3 + cornerSize + 4;
+  const sideLen = height - sideTop - 4;
+  const sideThick = Math.round(sideSize * 1.3);
+  const sideMid = Math.min(3 + cornerSize / 2, (peek ?? width) - sideThick / 2 - 2);
   return (
     <View
       accessibilityLabel={name ?? `${corner}${sub}`}
@@ -82,9 +95,29 @@ export const CardView = memo(function CardView({ card, width, selected, dim }: P
           </Text>
         </View>
       )}
-      {showName && (
+      {showName && !covered && (
         <Text
           style={[styles.specialName, { color: ink, fontSize: Math.max(8, Math.min(11, width * 0.16)) }]}
+          numberOfLines={1}
+          adjustsFontSizeToFit
+          minimumFontScale={0.6}
+        >
+          {name}
+        </Text>
+      )}
+      {showName && covered && (
+        <Text
+          style={[
+            styles.sideName,
+            {
+              color: ink,
+              fontSize: sideSize,
+              width: sideLen,
+              height: sideThick,
+              left: sideMid - sideLen / 2,
+              top: sideTop + sideLen / 2 - sideThick / 2,
+            },
+          ]}
           numberOfLines={1}
           adjustsFontSizeToFit
           minimumFontScale={0.6}
@@ -120,6 +153,12 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     letterSpacing: -0.4,
     textTransform: 'none',
+  },
+  sideName: {
+    position: 'absolute',
+    fontWeight: '800',
+    letterSpacing: -0.2,
+    transform: [{ rotate: '90deg' }],
   },
   selected: { borderColor: color.gold, borderWidth: 2.5 },
   dim: { opacity: 0.45 },

@@ -1,0 +1,68 @@
+# Leaderboard: "Back to Lobby" sits in a fixed header above the scrolling list.
+# Seed >= 12 ranked players first (QA_DB=... node e2e/helpers/qa-seed.mjs) so the list scrolls.
+appId: dev.aegist.titsu
+---
+# Guest view: public rows only. (clearState keeps the keychain session; drop it too.)
+- clearKeychain
+- launchApp:
+    clearState: true
+- extendedWaitUntil:
+    visible: "TICHU"
+    timeout: 20000
+- tapOn: "Leaderboard"
+- assertVisible: "Back to Lobby"
+- assertVisible: "Hall of Champions"
+- extendedWaitUntil:
+    visible: "Ranked 01.*"
+    timeout: 15000
+- assertNotVisible: "Your Stats"
+- takeScreenshot: 70-leaderboard-top
+- scrollUntilVisible:
+    element: "Ranked 14.*"
+    direction: DOWN
+    timeout: 15000
+- assertNotVisible: "Ranked 01.*"
+- assertVisible: "Back to Lobby"
+- takeScreenshot: 71-leaderboard-scrolled
+# Expand a row for full stats.
+- tapOn: "Ranked 14.*"
+- assertVisible: "Peak"
+- tapOn: "Back to Lobby"
+- extendedWaitUntil:
+    visible: "TICHU"
+    timeout: 10000
+# Signed in: personal stats card loads too (lib/leaderboard.ts /me + /history).
+- runFlow: sub/sign-in-qa-host.yaml
+- tapOn: "Leaderboard"
+- assertVisible: "Back to Lobby"
+- extendedWaitUntil:
+    visible: "Your Stats"
+    timeout: 15000
+- assertVisible: "Ranked 01.*"
+- takeScreenshot: 72-leaderboard-signed-in
+- scrollUntilVisible:
+    element: "Tap a player for all stats"
+    direction: DOWN
+    timeout: 15000
+- assertVisible: "Back to Lobby"
+- tapOn: "Back to Lobby"
+- extendedWaitUntil:
+    visible: "TICHU"
+    timeout: 10000
+# Signed in, the nickname starts as the account name. Erasing it must not refill it
+# (it used to, so erase + type gave "QA HosMaestro"); app/index.tsx prefills once per user.
+- assertVisible:
+    id: "nickname"
+    text: "QA Host"
+- tapOn:
+    id: "nickname"
+- eraseText
+- inputText: "Maestro"
+- assertVisible:
+    id: "nickname"
+    text: "Maestro"
+- assertNotVisible:
+    id: "nickname"
+    text: ".*QA Hos.*"
+- tapOn: "Done"
+- takeScreenshot: 73-nickname-cleared

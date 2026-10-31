@@ -103,8 +103,13 @@ export function LeaderboardScreen({ onClose }: { onClose: () => void }) {
                 <Text style={styles.section}>{t('leaderboard.recent')}</Text>
                 {games.map((game) => (
                   <View key={game.game_id} style={styles.result}>
-                    <Text style={[styles.resultBadge, { color: game.won ? color.ok : color.danger }]}>
-                      {t(game.won ? 'leaderboard.win' : 'leaderboard.loss')}
+                    <Text
+                      style={[
+                        styles.resultBadge,
+                        { color: game.tied ? color.textDim : game.won ? color.ok : color.danger },
+                      ]}
+                    >
+                      {t(game.tied ? 'leaderboard.tie' : game.won ? 'leaderboard.win' : 'leaderboard.loss')}
                     </Text>
                     <Text style={styles.resultScore}>
                       {game.myScore} – {game.opponentScore}
@@ -250,6 +255,7 @@ const styles = StyleSheet.create({
     gap: 12,
     paddingVertical: 6,
   },
-  resultBadge: { fontSize: 12, fontWeight: '800', width: 48 },
+  // Wide enough for the Greek "Ισοπαλία" (Tie) on one line.
+  resultBadge: { fontSize: 12, fontWeight: '800', width: 60 },
   resultScore: { color: color.text, flex: 1, fontWeight: '600' },
 });

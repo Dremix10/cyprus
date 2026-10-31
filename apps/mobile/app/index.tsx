@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, AppState, StyleSheet, View } from 'react-native';
 import { useKeepAwake } from 'expo-keep-awake';
 import { Lobby } from '@/components/Lobby';
@@ -25,12 +25,20 @@ export default function Home() {
   const ready = useApp((s) => s.ready);
   const user = useAuth((s) => s.user);
   const setNickname = useApp((s) => s.setNickname);
-  const nickname = useApp((s) => s.nickname);
   const [sheet, setSheet] = useState<Sheet>(null);
 
+  // Prefill the nickname with the account name once per signed-in user, and only if the
+  // field is empty at that moment. Never while typing: erasing the field must not refill it.
+  const prefilledFor = useRef<number | null>(null);
   useEffect(() => {
-    if (user && !nickname.trim()) setNickname(user.displayName.slice(0, 20));
-  }, [user, nickname, setNickname]);
+    if (!user) {
+      prefilledFor.current = null;
+      return;
+    }
+    if (prefilledFor.current === user.id) return;
+    prefilledFor.current = user.id;
+    if (!useApp.getState().nickname.trim()) setNickname(user.displayName.slice(0, 20));
+  }, [user, setNickname]);
 
   useEffect(() => {
     const sub = AppState.addEventListener('change', (st) => {
@@ -40,6 +48,12 @@ export default function Home() {
     });
     return () => sub.remove();
   }, []);
+
+  // A game can start (or a room open) while a screen is over the table, e.g. a
+  // friend taps Start while Friends is open. Always show the new view.
+  useEffect(() => {
+    setSheet(null);
+  }, [view]);
 
   const close = () => setSheet(null);
   let body = <Lobby
@@ -59,7 +73,7 @@ export default function Home() {
   else if (sheet === 'live') body = <LiveGamesScreen onClose={close} />;
   else if (sheet === 'profile') body = <ProfileScreen onClose={close} />;
   else if (view === 'queue') body = <QueueScreen />;
-  else if (view === 'waiting') body = <WaitingRoom />;
+  else if (view === 'waiting') body = <WaitingRoom onInviteFriends={() => setSheet('friends')} />;
   else if (view === 'game') body = <Table />;
 
   return (
@@ -67,7 +81,7 @@ export default function Home() {
       {view === 'game' && <KeepGameAwake />}
       {body}
       <InvitePopup />
-      <StatusOverlay />
+      <StatusOverlay inline={view === 'waiting' && !sheet} />
     </View>
   );
 }

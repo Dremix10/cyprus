@@ -1,7 +1,9 @@
-# Guest solo vs the live server: illegal play -> game:error toast, Hint -> Play a trick,
+# Guest solo vs the bundled server (local QA server for simulator QA): illegal play -> game:error toast, Hint -> Play a trick,
 # then kill the app mid-game and reopen: the table ticket must put us back at the table.
 appId: dev.aegist.titsu
 ---
+# Guest run: clearState keeps the keychain session from earlier flows, so drop it too.
+- clearKeychain
 - launchApp:
     clearState: true
 - extendedWaitUntil:

@@ -33,6 +33,8 @@ export type LeaderboardHistoryEntry = {
   game_id: number;
   ended_at: string;
   won: boolean;
+  /** Equal final scores (possible in a quick game). Never also `won`. */
+  tied: boolean;
   myScore: number;
   opponentScore: number;
   botDifficulty: string | null;
@@ -122,12 +124,17 @@ export function parseHistory(payload: unknown): LeaderboardHistoryEntry[] {
     const row = item as Record<string, unknown>;
     const gameId = num(row.game_id, NaN);
     if (!Number.isFinite(gameId)) continue;
+    const myScore = num(row.myScore);
+    const opponentScore = num(row.opponentScore);
+    // Older servers don't send `tied`; equal scores are a tie there too.
+    const tied = typeof row.tied === 'boolean' ? row.tied : myScore === opponentScore;
     games.push({
       game_id: gameId,
       ended_at: typeof row.ended_at === 'string' ? row.ended_at : '',
-      won: Boolean(row.won),
-      myScore: num(row.myScore),
-      opponentScore: num(row.opponentScore),
+      won: !tied && Boolean(row.won),
+      tied,
+      myScore,
+      opponentScore,
       botDifficulty: typeof row.botDifficulty === 'string' ? row.botDifficulty : null,
     });
   }
