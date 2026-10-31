@@ -18,12 +18,28 @@
       "env": {
         "EXPO_PUBLIC_SERVER_URL": "https://aegist.dev"
       }
+    },
+    "production": {
+      "distribution": "store",
+      "channel": "production",
+      "ios": {
+        "autoIncrement": true
+      },
+      "env": {
+        "EXPO_PUBLIC_SERVER_URL": "https://aegist.dev"
+      }
     }
   },
   "submit": {
     "testflight": {
       "ios": {
         "ascAppId": "6819067929"
+      }
+    },
+    "production": {
+      "ios": {
+        "ascAppId": "6819067929",
+        "metadataPath": "./app-store/store.config.js"
       }
     }
   }

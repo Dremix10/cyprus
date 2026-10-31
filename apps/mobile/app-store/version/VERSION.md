@@ -1,6 +1,16 @@
-# Marketing version: recommendation
+# Marketing version
 
-**Ship the first public release as `1.0.0`.**
+**Decision (2026-10-30): ship as `1.0`.** It matches the version App Store Connect already
+prepared, so nothing has to change there. `app.json` is now `"version": "1.0"`, and the store
+build uses the new `production` profile in `eas.json` (OTA channel `production`, so updates to
+`preview` never reach App Store users). Next versions: `1.0.1`, `1.1`, and so on.
+
+The original recommendation below (1.0.0) is kept for context. Either works; `1.0` saves an
+App Store Connect edit.
+
+---
+
+**Earlier recommendation: ship the first public release as `1.0.0`.**
 
 ## What exists today (checked 2026-10-30)
 
