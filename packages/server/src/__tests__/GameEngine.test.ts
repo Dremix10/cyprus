@@ -702,6 +702,129 @@ describe('GameEngine', () => {
       expect(engine.state.dogLead).toBeNull();
     });
 
+    it('passes the lead to the partner when the Dog is the last card', () => {
+      setupControlledPlaying(engine, [
+        [sc(SpecialCardType.DOG)],
+        [nc(Suit.JADE, NormalRank.THREE)],
+        [nc(Suit.STAR, NormalRank.FOUR)],
+        [nc(Suit.SWORD, NormalRank.FIVE)],
+      ]);
+      engine.state.currentPlayer = 0;
+      engine.playCards(0, [SpecialCardType.DOG]);
+
+      expect(engine.state.players[0].isOut).toBe(true);
+      expect(engine.state.roundEndPending).toBe(false);
+      expect(engine.state.dogLead).toMatchObject({ from: 0, to: 2 });
+
+      engine.resolveDog();
+      expect(engine.state.currentPlayer).toBe(2);
+      expect(engine.state.dogLead).toMatchObject({ from: 0, to: 2 });
+    });
+
+    it('shows no Dog notice when the Dog is the last card and ends the round', () => {
+      // Partner went out first, so the Dog as the last card is a 1-2 finish.
+      setupControlledPlaying(engine, [
+        [sc(SpecialCardType.DOG)],
+        [nc(Suit.JADE, NormalRank.THREE)],
+        [],
+        [nc(Suit.SWORD, NormalRank.FIVE)],
+      ]);
+      engine.state.players[2].isOut = true;
+      engine.state.players[2].finishOrder = 1;
+      engine.state.finishOrder = [2];
+      engine.state.currentPlayer = 0;
+
+      engine.playCards(0, [SpecialCardType.DOG]);
+      expect(engine.state.roundEndPending).toBe(true);
+      expect(engine.state.dogLead).toBeNull();
+      expect(engine.getClientState(1, 'TEST').dogLead).toBeUndefined();
+
+      engine.resolveDog();
+      expect(engine.state.dogLead).toBeNull();
+
+      engine.completeRoundEnd();
+      expect(engine.state.phase).toBe(GamePhase.ROUND_SCORING);
+      expect(engine.state.dogLead).toBeNull();
+      expect(engine.getRoundHistory().at(-1)?.doubleVictory).toBe(0);
+    });
+
+    it('shows the Dog notice to every seat and to spectators', () => {
+      setupControlledPlaying(engine, [
+        [sc(SpecialCardType.DOG), nc(Suit.JADE, NormalRank.TWO)],
+        [nc(Suit.JADE, NormalRank.THREE)],
+        [nc(Suit.STAR, NormalRank.FOUR)],
+        [nc(Suit.SWORD, NormalRank.FIVE)],
+      ]);
+      engine.state.currentPlayer = 0;
+      engine.playCards(0, [SpecialCardType.DOG]);
+      engine.resolveDog();
+
+      for (const pos of [0, 1, 2, 3] as PlayerPosition[]) {
+        expect(engine.getClientState(pos, 'TEST').dogLead).toMatchObject({ from: 0, to: 2 });
+      }
+      expect(engine.getSpectatorState('TEST').dogLead).toMatchObject({ from: 0, to: 2 });
+      // While the notice is up, only the receiver may lead.
+      expect(() => engine.playCards(1, [`${Suit.JADE}_${NormalRank.THREE}`])).toThrow('Not your turn');
+      expect(() => engine.passTurn(2)).toThrow();
+    });
+
+    it('keeps the Dog notice through serialize/restore, and old snapshots restore without one', () => {
+      setupControlledPlaying(engine, [
+        [sc(SpecialCardType.DOG), nc(Suit.JADE, NormalRank.TWO)],
+        [nc(Suit.JADE, NormalRank.THREE)],
+        [nc(Suit.STAR, NormalRank.FOUR)],
+        [nc(Suit.SWORD, NormalRank.FIVE)],
+      ]);
+      engine.state.currentPlayer = 0;
+      engine.playCards(0, [SpecialCardType.DOG]);
+      engine.resolveDog();
+
+      const saved = JSON.parse(engine.serialize());
+      const restored = GameEngine.restore(JSON.stringify(saved));
+      expect(restored.state.dogLead).toEqual(engine.state.dogLead);
+      restored.playCards(2, [`${Suit.STAR}_${NormalRank.FOUR}`]);
+      expect(restored.state.dogLead).toBeNull();
+
+      delete saved.state.dogLead;
+      expect(GameEngine.restore(JSON.stringify(saved)).state.dogLead).toBeNull();
+    });
+
+    it('resolves a Dog that was pending in a snapshot saved before the notice existed', () => {
+      setupControlledPlaying(engine, [
+        [sc(SpecialCardType.DOG), nc(Suit.JADE, NormalRank.TWO)],
+        [nc(Suit.JADE, NormalRank.THREE)],
+        [nc(Suit.STAR, NormalRank.FOUR)],
+        [nc(Suit.SWORD, NormalRank.FIVE)],
+      ]);
+      engine.state.currentPlayer = 0;
+      engine.playCards(0, [SpecialCardType.DOG]);
+      const saved = JSON.parse(engine.serialize());
+      delete saved.state.dogLead;
+
+      const restored = GameEngine.restore(JSON.stringify(saved));
+      restored.resolveDog();
+      expect(restored.state.currentPlayer).toBe(2);
+      expect(restored.state.dogLead).toMatchObject({ from: 0, to: 2 });
+    });
+
+    it('clone copies the Dog notice without sharing it', () => {
+      setupControlledPlaying(engine, [
+        [sc(SpecialCardType.DOG), nc(Suit.JADE, NormalRank.TWO)],
+        [nc(Suit.JADE, NormalRank.THREE)],
+        [nc(Suit.STAR, NormalRank.FOUR)],
+        [nc(Suit.SWORD, NormalRank.FIVE)],
+      ]);
+      engine.state.currentPlayer = 0;
+      engine.playCards(0, [SpecialCardType.DOG]);
+      engine.resolveDog();
+
+      const copy = engine.clone();
+      expect(copy.state.dogLead).toEqual(engine.state.dogLead);
+      copy.playCards(2, [`${Suit.STAR}_${NormalRank.FOUR}`]);
+      expect(copy.state.dogLead).toBeNull();
+      expect(engine.state.dogLead).toMatchObject({ from: 0, to: 2 });
+    });
+
     it('Dog cannot be played on an existing trick', () => {
       setupControlledPlaying(engine, [
         [nc(Suit.JADE, NormalRank.KING), nc(Suit.STAR, NormalRank.ACE)],

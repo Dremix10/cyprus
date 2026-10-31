@@ -31,7 +31,7 @@ const USERNAME_MIN_LENGTH = 3;
 const USERNAME_MAX_LENGTH = 20;
 const DISPLAY_NAME_MAX_LENGTH = 20;
 const USERNAME_REGEX = /^[a-zA-Z0-9_]+$/;
-const DISPLAY_NAME_REGEX = /^[\w\s\-\u00C0-\u024F]+$/;
+const DISPLAY_NAME_REGEX = /^[\w\s\-\u00C0-\u024F\p{Script=Greek}]+$/u;
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const RESET_TOKEN_EXPIRY_MINUTES = 60;
 

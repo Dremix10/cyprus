@@ -358,6 +358,10 @@ describe('AuthService', () => {
       expect(result).toHaveProperty('error');
     });
 
+    it('accepts a Greek display name', () => {
+      expect(auth.changeDisplayName(userId, 'Γιώργος Π')).not.toHaveProperty('error');
+    });
+
     it('rejects nonexistent user', () => {
       const result = auth.changeDisplayName(999999, 'New Name');
       expect(result).toHaveProperty('error', 'User not found');

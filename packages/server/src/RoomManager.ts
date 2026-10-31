@@ -469,6 +469,7 @@ export class RoomManager {
         avatar: p.avatar,
       })),
       isStartable: room.players.size >= 2 && !room.engine,
+      targetScore: room.targetScore,
     };
   }
 
@@ -528,7 +529,7 @@ export class RoomManager {
     if (!nickname || typeof nickname !== 'string') return 'Invalid nickname';
     const trimmed = nickname.trim();
     if (trimmed.length < 1 || trimmed.length > 20) return 'Nickname must be 1-20 characters';
-    if (!/^[\w\s\-\u00C0-\u024F]+$/u.test(trimmed)) return 'Nickname contains invalid characters';
+    if (!/^[\w\s\-\u00C0-\u024F\p{Script=Greek}]+$/u.test(trimmed)) return 'Nickname contains invalid characters';
     // Warning flag for potentially offensive content (returned as part of success, not blocking)
     return null;
   }

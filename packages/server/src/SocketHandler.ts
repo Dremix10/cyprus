@@ -5,7 +5,7 @@ import type {
   PlayerPosition,
   GameEvent,
 } from '@cyprus/shared';
-import { GamePhase, findPlayableFromHand } from '@cyprus/shared';
+import { GamePhase, findPlayableFromHand, isQuickGame, QUICK_GAME_ELO_WEIGHT } from '@cyprus/shared';
 import { RoomManager } from './RoomManager.js';
 import type { GameEngine } from './GameEngine.js';
 import type { BotDifficulty, MonteCarloAdvisorOptions } from './BotAI.js';
@@ -335,6 +335,9 @@ export class SocketHandler {
       this.db?.updateConnectionNickname(socket.id, nickname, null);
       this.db?.getOrCreatePlayer(nickname, ip);
       callback({ success: true });
+      // Match only after the reply: otherwise the reply lands after game:state
+      // and sends the player who filled the table back to the queue screen.
+      this.matchmaking.processQueue();
     });
 
     socket.on('matchmaking:leave', (callback) => {
@@ -519,6 +522,9 @@ export class SocketHandler {
       const room = info.room;
       if (room.engine) return callback({ error: 'Game already started' });
       if (room.players.size >= 4) return callback({ error: 'Room is full' });
+      if ([...room.players.values()].some((p) => p.userId === friendUserId)) {
+        return callback({ error: 'Already in your room' });
+      }
 
       const roomCode = room.code;
       const existing = pendingInvites.get(friendUserId);
@@ -1099,6 +1105,7 @@ export class SocketHandler {
 
       this.db!.updateUserStats(userId, {
         won,
+        tied: winTeam === -1,
         firstOut,
         tichuCalls: playerTichus.filter((r) => r.call === 'tichu').length,
         tichuSuccesses: playerTichus.filter((r) => r.call === 'tichu' && r.success).length,
@@ -1161,9 +1168,10 @@ export class SocketHandler {
 
     const kFor = (games: number) => (games < 20 ? 40 : games < 100 ? 20 : 10);
     const winTeam = score0 > score1 ? 0 : 1;
+    const weight = isQuickGame(room.targetScore) ? QUICK_GAME_ELO_WEIGHT : 1;
 
     const apply = (p: Entry, expected: number, actual: number, team: 0 | 1) => {
-      let k = kFor(p.elo_games);
+      let k = kFor(p.elo_games) * weight;
       if (p.kind === 'human' && p.disconnected) k = k / 2;
       const delta = k * (actual - expected);
       const newElo = Math.max(100, Math.round(p.elo + delta));

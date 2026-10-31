@@ -358,13 +358,13 @@ export class GameEngine {
         combination,
       });
       this.state.dogPending = true;
-      this.state.dogLead = {
-        from: position,
-        to: this.dogLeadTarget(position),
-        card: cards[0],
-      };
 
       this.checkPlayerOut(player);
+      // Pick the receiver after the Dog player may have gone out. If that ended
+      // the round, there is no lead to pass and no notice to show.
+      this.state.dogLead = this.state.roundEndPending
+        ? null
+        : { from: position, to: this.dogLeadTarget(position), card: cards[0] };
       return this.events;
     }
 
@@ -556,7 +556,8 @@ export class GameEngine {
     // The Dog is not a card to beat. The trick is empty, but dogLead keeps the card visible.
     this.state.currentTrick = { plays: [], currentWinner: null, passCount: 0, passedPlayers: [] };
     this.state.dogPending = false;
-    this.state.currentPlayer = this.state.dogLead.to;
+    this.state.currentPlayer = to;
+    if (this.state.roundEndPending) this.state.dogLead = null;
 
     return this.events;
   }
@@ -837,6 +838,7 @@ export class GameEngine {
       })),
     });
 
+    this.state.dogLead = null;
     this.state.phase = GamePhase.ROUND_SCORING;
     this.emit({
       type: 'ROUND_END',

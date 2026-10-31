@@ -5,6 +5,12 @@ export const TARGET_PRESETS = [250, 500, 1000] as const;
 
 export const GAME_LENGTHS = [QUICK_GAME, ...TARGET_PRESETS] as const;
 
+/** Online matchmaking plays to one length for now, so the small player pool isn't split. */
+export const MATCHMAKING_TARGET_SCORE = 500;
+
+/** A quick game moves ELO by a third of a full game. */
+export const QUICK_GAME_ELO_WEIGHT = 1 / 3;
+
 export type GameLength = (typeof GAME_LENGTHS)[number];
 
 export function isQuickGame(targetScore: number): boolean {

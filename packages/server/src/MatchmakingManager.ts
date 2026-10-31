@@ -1,6 +1,6 @@
 import type { Server } from 'socket.io';
 import type { ClientToServerEvents, ServerToClientEvents } from '@cyprus/shared';
-import { normalizeTargetScore } from '@cyprus/shared';
+import { MATCHMAKING_TARGET_SCORE, normalizeTargetScore } from '@cyprus/shared';
 import type { RoomManager } from './RoomManager.js';
 
 type MatchSocket = Server<ClientToServerEvents, ServerToClientEvents>;
@@ -36,7 +36,7 @@ export class MatchmakingManager {
     clearInterval(this.updateInterval);
   }
 
-  enqueue(socketId: string, nickname: string, targetScore: number, userId?: number): { success: true } | { error: string } {
+  enqueue(socketId: string, nickname: string, _targetScore: number, userId?: number): { success: true } | { error: string } {
     // Check if already in queue
     if (this.queue.some((e) => e.socketId === socketId)) {
       return { error: 'Already in queue' };
@@ -45,14 +45,15 @@ export class MatchmakingManager {
     this.queue.push({
       socketId,
       nickname,
-      targetScore: normalizeTargetScore(targetScore),
+      // The requested length is ignored for now: everyone online plays to 500.
+      // Old apps still send their picker value.
+      targetScore: MATCHMAKING_TARGET_SCORE,
       joinedAt: Date.now(),
       userId,
     });
 
-    // Immediate check — might already have enough players
-    this.processQueue();
-
+    // The caller runs processQueue() after replying, so the player who fills
+    // a table gets "queued" before the game state, not after it.
     return { success: true };
   }
 
@@ -73,7 +74,7 @@ export class MatchmakingManager {
     return this.queue.length;
   }
 
-  private processQueue(): void {
+  processQueue(): void {
     if (this.queue.length === 0) return;
 
     const groups = takeMatchGroups(this.queue, Date.now());

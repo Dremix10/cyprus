@@ -1438,6 +1438,8 @@ export class TrackerDB {
     userId: number,
     data: {
       won: boolean;
+      /** A tie (quick games can end level) is neither a win nor a loss. */
+      tied?: boolean;
       firstOut: boolean;
       tichuCalls: number;
       tichuSuccesses: number;
@@ -1468,7 +1470,7 @@ export class TrackerDB {
       WHERE user_id = ?
     `).run(
       data.won ? 1 : 0,
-      data.won ? 0 : 1,
+      data.won || data.tied ? 0 : 1,
       data.firstOut ? 1 : 0,
       data.tichuCalls,
       data.tichuSuccesses,

@@ -100,6 +100,19 @@ describe('sortCards', () => {
   });
 });
 
+describe('full deck order', () => {
+  it('sorts the whole deck Dog, Mahjong, 2–A, Phoenix, Dragon with no ties out of place', () => {
+    const shuffled = [...FULL_DECK].reverse();
+    const labels = sortCards(shuffled).map((c) => (c.type === 'special' ? c.specialType : String(c.rank)));
+    expect(labels[0]).toBe(SpecialCardType.DOG);
+    expect(labels[1]).toBe(SpecialCardType.MAHJONG);
+    expect(labels.slice(2, 54)).toEqual(
+      Array.from({ length: 13 }, (_, i) => Array(4).fill(String(i + 2))).flat(),
+    );
+    expect(labels.slice(54)).toEqual([SpecialCardType.PHOENIX, SpecialCardType.DRAGON]);
+  });
+});
+
 describe('getLedSingleRank', () => {
   it('keeps a led Phoenix at 1.5 even though the hand sorts it next to the Dragon', () => {
     expect(getLedSingleRank(sc(SpecialCardType.PHOENIX))).toBe(1.5);

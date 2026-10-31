@@ -48,6 +48,18 @@ describe('RoomManager', () => {
       expect(result).toHaveProperty('error');
     });
 
+    it('tells the waiting room how long the game is', () => {
+      const quick = rm.createRoom('socket1', 'Alice', 0) as { roomCode: string };
+      const long = rm.createRoom('socket2', 'Bob', 1000) as { roomCode: string };
+      expect(rm.getRoomState(quick.roomCode)?.targetScore).toBe(0);
+      expect(rm.getRoomState(long.roomCode)?.targetScore).toBe(1000);
+    });
+
+    it('accepts a Greek nickname, accents included', () => {
+      expect(rm.createRoom('socket1', 'Δημήτρης')).toHaveProperty('roomCode');
+      expect(rm.createRoom('socket2', 'ΆΝΝΑ ϊΰ')).toHaveProperty('roomCode');
+    });
+
     it('caps target score below 250 to 250', () => {
       const result = rm.createRoom('socket1', 'Alice', 100) as { roomCode: string };
       const room = rm.getRoom(result.roomCode);
@@ -674,6 +686,24 @@ describe('RoomManager', () => {
         expect(room).toBeDefined();
         expect(room!.engine).not.toBeNull();
         expect(room!.players.size).toBe(4);
+      } finally {
+        rm2.destroy();
+      }
+    });
+
+    it('restores a quick game as a quick game, even through JSON on disk', () => {
+      const created = rm.createSoloRoom('socket1', 'Alice', 0) as { roomCode: string; sessionId: string };
+      rm.startGame('socket1');
+
+      const data = JSON.parse(JSON.stringify(rm.serializeRooms()));
+      const rm2 = new RoomManager();
+      try {
+        expect(rm2.restoreRooms(data)).toBe(1);
+        const room = rm2.getRoom(created.roomCode)!;
+        // 0 is falsy; a `|| 1000` default anywhere would turn this into a long game.
+        expect(room.targetScore).toBe(0);
+        expect(room.engine!.getTargetScore()).toBe(0);
+        expect(room.engine!.getClientState(0, room.code).targetScore).toBe(0);
       } finally {
         rm2.destroy();
       }
