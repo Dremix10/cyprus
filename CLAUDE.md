@@ -34,6 +34,10 @@ npm run clean        # Remove all dist/ folders
 
 ## Deployment
 
+> **Current reality (2026-10-30):** auto-deploy is broken and the droplet is not a git checkout,
+> so pushing `main` does not deploy. Deploy manually; see "2026-10-30 release status" at the top of
+> `PROJECT_HANDOFF.md`. The bullets below describe the original setup.
+
 - **Auto-deploy**: pushes to `main` trigger GitHub Actions → SSH → pull + build + restart
 - **Server**: Digital Ocean droplet at `104.131.94.154`
 - **User**: `dev` (no sudo — need root for process management)

@@ -7,6 +7,29 @@
 > Repo: https://github.com/Dremix10/cyprus.git
 > Primary working dir: `/Users/christos/Documents/GitHub/cyprus`
 
+## 2026-10-30 release status (read this first; it supersedes older notes below)
+
+- **Deploys are manual.** The droplet's `/home/dev/cyprus` is a plain copy, not a git checkout,
+  and the GitHub "Deploy to Server" action is broken, so pushing `main` deploys nothing. Recipe:
+  build locally, tar source + dist (no `packages/server/data`), back up the live dir to
+  `/home/dev/cyprus-backup-<ts>.tgz`, extract with sudo, `systemctl restart cyprus.service`, check
+  `/health` and `activeConnections` = 0 first. Last deploys: 2026-10-30 (release-audit fixes +
+  account-deletion fix). Since then `main` only has lint cleanup on the server (no behaviour change).
+- **Online play** is fixed at 500 points (`MATCHMAKING_TARGET_SCORE`). Quick games move ELO by a
+  third (`QUICK_GAME_ELO_WEIGHT`). Ties are recorded and shown.
+- **Tests:** shared 111, server 340, client 8 (Vitest); web Playwright suite in `e2e/web` (35);
+  iPhone `npm test` in `apps/mobile` (20) + Maestro flows 01–11 (`apps/mobile/e2e`, README there).
+  `npm run lint` works (flat config, 0 errors).
+- **iPhone app (Titsu)**, `apps/mobile`: version **1.0 (build 11)** uploaded to TestFlight
+  2026-10-30 from a local EAS build (the free EAS plan ran out of cloud iOS builds). Store builds use
+  the `production` EAS profile. In-app account deletion and full Greek UI are in.
+- **App Store package:** `apps/mobile/app-store/` (README is the step-by-step checklist): listing
+  text EN/EL, privacy answers, age rating, review notes, screenshots. The reviewer password is only
+  in the gitignored `review/demo-account.local.md`.
+- **Before "Submit for Review"** (owner decisions): support email, operator name on the privacy
+  page (the Apple seller is the individual account), final app name, art ownership, review phone,
+  EU trader status in App Store Connect; then update the web privacy/contact pages and redeploy.
+
 ## Companion docs (read alongside this file)
 
 - [`docs/FIRST_30_MINUTES.md`](docs/FIRST_30_MINUTES.md) — concrete onboarding sequence.
