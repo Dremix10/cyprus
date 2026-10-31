@@ -7,16 +7,16 @@ privacy, age rating and version. Phase 2 (2026-10-31) captured the screenshots f
 
 ## Status 2026-10-31: what's left (all in the App Store Connect website)
 
-Already done: build **1.0 (11)** uploaded; `eas metadata:push` filled in name, subtitle, description,
+Already done: build **1.0 (12)** (new navy-and-gold icon) uploaded after 1.0 (11); `eas metadata:push` filled in name, subtitle, description,
 keywords, URLs and promotional text for en-US, en-GB and el, plus categories, copyright, release
 setting and the App Review contact, demo account and notes. aegist.dev privacy and contact pages are live.
 
-1. **Spaceship:** turn on email forwarding `support@aegist.dev` → your inbox (the Spaceship API can't do this).
-2. **Business → Digital Services Act:** declare trader / non-trader status (needed for EU storefronts, including Greece and Cyprus).
-3. **App → Age Rating:** answer per `age-rating/AGE_RATING.md`. EAS can't send Apple's new `socialMedia` question, so this one is manual.
-4. **App → App Privacy:** answer per `privacy/APP_PRIVACY.md` (not available through any API).
-5. **iOS App 1.0 → Previews and Screenshots:** drag in `screenshots/final/en-US/6.9` and `6.3` (also for English (U.K.)), and `final/el/6.9` and `6.3` for Greek.
-6. **iOS App 1.0 → Build:** pick 1.0 (11). **Pricing and Availability:** Free, all countries.
+1. ~~Spaceship email forwarding~~ done 2026-10-31 (MX records live).
+2. **[Business](https://appstoreconnect.apple.com/business) → Digital Services Act:** choose **"not a trader"** (personal project). You still have to declare it, or the app won't appear in EU storefronts, including Greece and Cyprus.
+3. **[App Information](https://appstoreconnect.apple.com/apps/6819067929/distribution/info) → Age Rating:** answer per `age-rating/AGE_RATING.md`. EAS can't send Apple's new `socialMedia` question, so this one is manual.
+4. **[App Privacy](https://appstoreconnect.apple.com/apps/6819067929/distribution/privacy):** answer per `privacy/APP_PRIVACY.md` (not available through any API).
+5. **[iOS App 1.0](https://appstoreconnect.apple.com/apps/6819067929/distribution) → Previews and Screenshots:** drag in `screenshots/final/en-US/6.9` and `6.3` (also for English (U.K.)), and `final/el/6.9` and `6.3` for Greek.
+6. **iOS App 1.0 → Build:** pick **1.0 (12)** (the newest; it has the new icon). **Pricing and Availability:** Free, all countries.
 7. **Submit for Review.**
 
 **Legend:** ✅ done · 🧑 **OWNER** (you, in App Store Connect or a decision) · 🤖 **AGENT**
