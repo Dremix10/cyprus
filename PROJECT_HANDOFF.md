@@ -20,8 +20,8 @@
 - **Tests:** shared 111, server 340, client 8 (Vitest); web Playwright suite in `e2e/web` (35);
   iPhone `npm test` in `apps/mobile` (20) + Maestro flows 01–11 (`apps/mobile/e2e`, README there).
   `npm run lint` works (flat config, 0 errors).
-- **iPhone app (Titsu)**, `apps/mobile`: version **1.0 (build 11)** uploaded to TestFlight
-  2026-10-30 from a local EAS build (the free EAS plan ran out of cloud iOS builds). Store builds use
+- **iPhone app (Titsu)**, `apps/mobile`: version **1.0 (build 12)**, with the navy-and-gold icon, uploaded to
+  TestFlight 2026-10-31 from a local EAS build (the free EAS plan ran out of cloud iOS builds). Store builds use
   the `production` EAS profile. In-app account deletion and full Greek UI are in.
 - **App Store package:** `apps/mobile/app-store/` (README is the step-by-step checklist): listing
   text EN/EL, privacy answers, age rating, review notes, screenshots. The reviewer password is only
