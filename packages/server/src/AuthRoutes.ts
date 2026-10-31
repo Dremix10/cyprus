@@ -407,7 +407,15 @@ export function createAuthRouter(auth: AuthService, isProduction: boolean, monit
     if (!session) { clearAuthCookie(res); res.status(401).json({ error: 'Session expired' }); return; }
 
     const { password } = req.body || {};
-    const result = await auth.deleteAccount(session.userId, password);
+    let result: Awaited<ReturnType<typeof auth.deleteAccount>>;
+    try {
+      result = await auth.deleteAccount(session.userId, password);
+    } catch (err) {
+      // An unanswered request leaves the app spinning; say it failed instead.
+      console.error('delete-account failed:', err);
+      res.status(500).json({ error: 'Could not delete the account. Please try again.' });
+      return;
+    }
     if ('error' in result) { res.status(400).json(result); return; }
 
     clearAuthCookie(res);

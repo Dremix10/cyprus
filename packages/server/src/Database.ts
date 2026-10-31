@@ -1351,7 +1351,12 @@ export class TrackerDB {
   }
 
   deleteUser(userId: number): void {
-    this.db.prepare(`DELETE FROM users WHERE id = ?`).run(userId);
+    // bot_play_reports points at users without ON DELETE CASCADE (and SQLite can't
+    // add one to an existing table), so a user's reports go first or the delete fails.
+    this.db.transaction(() => {
+      this.db.prepare(`DELETE FROM bot_play_reports WHERE reporter_user_id = ?`).run(userId);
+      this.db.prepare(`DELETE FROM users WHERE id = ?`).run(userId);
+    })();
   }
 
   // ─── Password Reset Tokens ─────────────────────────────────────────

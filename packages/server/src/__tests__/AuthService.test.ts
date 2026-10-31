@@ -436,6 +436,19 @@ describe('AuthService', () => {
       expect((result as { error: string }).error).toContain('Password is incorrect');
     });
 
+    it('deletes an account that has reported a bot play', async () => {
+      const eventId = db.logGameEvent(null, 'ROOM', 'play', 1);
+      expect(db.recordBotPlayReport(eventId, userId, null, 'hard')).toBe(true);
+      expect(await auth.deleteAccount(userId, 'password123')).toEqual({ success: true });
+      expect(db.getUserByUsername('deluser')).toBeUndefined();
+    });
+
+    it('deletes a passwordless (Apple / Google) account without a password', async () => {
+      const appleUserId = db.createUser('apple_only', 'Apple User', null);
+      expect(await auth.deleteAccount(appleUserId, '')).toEqual({ success: true });
+      expect(db.getUserByUsername('apple_only')).toBeUndefined();
+    });
+
     it('invalidates sessions on deletion', async () => {
       const loginResult = await auth.login('deluser', 'password123', null, null);
       const token = (loginResult as { token: string }).token;
