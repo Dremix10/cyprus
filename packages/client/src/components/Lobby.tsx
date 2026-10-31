@@ -3,7 +3,7 @@ import { useRoomStore } from '../stores/roomStore.js';
 import { useAuthStore } from '../stores/authStore.js';
 import { AuthForms, UserBadge } from './AuthForms.js';
 import { FriendsPanel } from './Friends.js';
-import { QUICK_GAME } from '@cyprus/shared';
+import { MATCHMAKING_TARGET_SCORE, QUICK_GAME } from '@cyprus/shared';
 import { useT } from '../i18n.js';
 import type { LegalPageType } from './LegalPages.js';
 
@@ -97,7 +97,6 @@ export function Lobby({ onTutorial, onLeaderboard, onProfile, onLiveGames, onLeg
   const t = useT();
   const [roomCode, setRoomCode] = useState('');
   const [difficulty, setDifficulty] = useState('medium');
-  const [guestMode, setGuestMode] = useState(false);
   const [subView, setSubView] = useState<'none' | 'create' | 'join' | 'solo'>('none');
   const nickname = useRoomStore((s) => s.nickname);
   const setNickname = useRoomStore((s) => s.setNickname);
@@ -111,6 +110,9 @@ export function Lobby({ onTutorial, onLeaderboard, onProfile, onLiveGames, onLeg
   const staleSession = useRoomStore((s) => s.staleSession);
   const trySessionReconnect = useRoomStore((s) => s.trySessionReconnect);
   const dismissStaleSession = useRoomStore((s) => s.dismissStaleSession);
+  // Kept in the store so a guest who leaves a game comes back to this form, not the sign-in card.
+  const guestMode = useRoomStore((s) => s.guestMode);
+  const setGuestMode = useRoomStore((s) => s.setGuestMode);
 
   const authUser = useAuthStore((s) => s.user);
   const authLoading = useAuthStore((s) => s.loading);
@@ -199,13 +201,13 @@ export function Lobby({ onTutorial, onLeaderboard, onProfile, onLiveGames, onLeg
 
                 {subView === 'none' && (
                   <>
-                    <LengthPicker />
                     <button
                       className="btn btn-olympus btn-play-online"
                       onClick={joinMatchmaking}
                     >
                       {t('lobby.playOnline')}
                     </button>
+                    <p className="play-online-note">{t('lobby.onlineLength', { score: MATCHMAKING_TARGET_SCORE })}</p>
 
                     <div className="lobby-room-row">
                       <button

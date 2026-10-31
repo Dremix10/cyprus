@@ -1,17 +1,16 @@
 import { useState, useEffect } from 'react';
+import type { Socket } from 'socket.io-client';
 import { socket } from '../socket.js';
 import { useT } from '../i18n.js';
 
 export function ConnectionStatus() {
-  const [connected, setConnected] = useState(socket.connected);
-  const [wasConnected, setWasConnected] = useState(false);
+  const [lost, setLost] = useState(false);
 
   useEffect(() => {
-    const onConnect = () => {
-      setConnected(true);
-      setWasConnected(true);
-    };
-    const onDisconnect = () => setConnected(false);
+    const onConnect = () => setLost(false);
+    // Leaving a room or signing in closes the socket on purpose ("io client disconnect").
+    // That is not a dropped connection, so it gets no banner.
+    const onDisconnect = (reason: Socket.DisconnectReason) => setLost(reason !== 'io client disconnect');
 
     socket.on('connect', onConnect);
     socket.on('disconnect', onDisconnect);
@@ -24,8 +23,8 @@ export function ConnectionStatus() {
 
   const t = useT();
 
-  // Only show banner if we were connected before and lost connection
-  if (connected || !wasConnected) return null;
+  // Only show banner after a connection we had was lost
+  if (!lost) return null;
 
   return (
     <div className="connection-banner">

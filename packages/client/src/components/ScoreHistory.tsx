@@ -55,19 +55,21 @@ export function ScoreHistory({ history, myTeam = 0, onClose }: ScoreHistoryProps
                 <span className="score-total">{entry.runningTotals[1 - myTeam]}</span>
               </td>
               <td className="score-notes">
-                {entry.doubleVictory !== null && (
-                  <span className={`score-badge ${entry.doubleVictory === myTeam ? 'badge-team-a' : 'badge-team-b'}`}>
-                    1-2
-                  </span>
-                )}
-                {entry.tichuResults.map((t, i) => (
-                  <span
-                    key={i}
-                    className={`score-badge ${t.success ? 'badge-success' : 'badge-fail'}`}
-                  >
-                    {t.call === 'grand_tichu' ? 'GT' : 'T'} {t.success ? '\u2713' : '\u2717'}
-                  </span>
-                ))}
+                <div className="score-notes-list">
+                  {entry.doubleVictory !== null && (
+                    <span className={`score-badge ${entry.doubleVictory === myTeam ? 'badge-team-a' : 'badge-team-b'}`}>
+                      1-2
+                    </span>
+                  )}
+                  {entry.tichuResults.map((t, i) => (
+                    <span
+                      key={i}
+                      className={`score-badge ${t.success ? 'badge-success' : 'badge-fail'}`}
+                    >
+                      {t.call === 'grand_tichu' ? 'GT' : 'T'} {t.success ? '\u2713' : '\u2717'}
+                    </span>
+                  ))}
+                </div>
               </td>
             </tr>
           ))}

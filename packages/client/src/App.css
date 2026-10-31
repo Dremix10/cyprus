@@ -1024,6 +1024,15 @@ body {
   transform: translateY(-2px);
 }
 
+/* Online games have one fixed length; say so right under the button. */
+.play-online-note {
+  margin: -0.45rem 0 0;
+  text-align: center;
+  color: rgba(201, 168, 76, 0.6);
+  font-size: 0.78rem;
+  letter-spacing: 0.02em;
+}
+
 /* ─── Matchmaking Queue ──────────────────────────────────── */
 .queue-fullscreen {
   position: fixed;
@@ -1068,6 +1077,13 @@ body {
   letter-spacing: 0.06em;
   text-transform: uppercase;
   margin: 0 0 2rem;
+}
+
+/* Collapses with the title's margin to sit just under it. */
+.queue-length {
+  margin: -1.5rem 0 1.5rem;
+  font-size: 0.85rem;
+  color: rgba(224, 214, 192, 0.7);
 }
 
 .queue-spinner {
@@ -1185,6 +1201,13 @@ body {
 .btn-copy:hover {
   color: var(--text);
   border-color: var(--text-muted);
+}
+
+.room-length {
+  color: var(--text);
+  font-size: 0.9rem;
+  font-weight: 600;
+  margin-bottom: 0.35rem;
 }
 
 .room-code-hint {
@@ -1444,6 +1467,12 @@ body {
   background: rgba(244, 67, 54, 0.25);
   color: #f44336;
   border: 1px solid rgba(244, 67, 54, 0.4);
+}
+
+.game-dot-tie {
+  background: rgba(255, 255, 255, 0.08);
+  color: rgba(255, 255, 255, 0.75);
+  border: 1px solid rgba(255, 255, 255, 0.25);
 }
 
 .lobby-game-history {
@@ -2311,6 +2340,9 @@ body {
 
 .leaderboard-table-wrapper {
   width: 100%;
+  /* overflow-x makes this a scroll box; without this it shrinks to fit and
+     scrolls the rows itself instead of .leaderboard-scroll. */
+  flex-shrink: 0;
   overflow-x: auto;
 }
 
@@ -4187,19 +4219,15 @@ span.pass-zone-avatar {
   font-size: 0.75rem;
 }
 
-.score-cell {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 0.1rem;
-}
-
 .score-cell .score-delta {
+  display: block;
   font-weight: 600;
   font-size: 0.8rem;
 }
 
 .score-cell .score-total {
+  display: block;
+  margin-top: 0.1rem;
   font-size: 0.65rem;
   color: var(--text-muted);
 }
@@ -4212,7 +4240,8 @@ span.pass-zone-avatar {
   color: var(--primary);
 }
 
-.score-notes {
+/* The flex row sits inside the cell; a flex <td> drops out of the table grid. */
+.score-notes-list {
   display: flex;
   gap: 0.25rem;
   justify-content: center;
@@ -6329,6 +6358,22 @@ span.pass-zone-avatar {
   .game-settings-btn:focus-visible {
     background: rgba(201, 168, 76, 0.16);
   }
+}
+
+/* Narrow phones: the room code, phase, and buttons fill the row, so the team
+   scores get a row of their own instead of being squeezed to nothing. */
+@media (max-width: 640px) {
+  .game-board .game-info {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    grid-template-areas:
+      "phase phase"
+      "us them";
+    row-gap: 0.15rem;
+  }
+
+  .game-board .game-info > .phase-label { grid-area: phase; }
+  .game-board .game-info > .name-teammate { grid-area: us; }
+  .game-board .game-info > .name-opponent { grid-area: them; }
 }
 
 .game-settings-overlay {

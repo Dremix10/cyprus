@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import type { RoomState, PlayerPosition } from '@cyprus/shared';
+import { MATCHMAKING_TARGET_SCORE, type RoomState, type PlayerPosition } from '@cyprus/shared';
 import { socket } from '../socket.js';
 
 const SESSION_KEY = 'cyprus-session';
@@ -51,6 +51,8 @@ function loadSession(): { sessionId: string; roomCode: string; nickname: string 
 interface RoomStore {
   view: RoomView;
   nickname: string;
+  /** Picked "Play as guest". Lives here, not in the Lobby, so it survives leaving a game. */
+  guestMode: boolean;
   targetScore: number;
   botDifficulty: string;
   roomCode: string | null;
@@ -63,6 +65,7 @@ interface RoomStore {
 
   setMaintenanceMessage: (msg: string | null) => void;
   setNickname: (name: string) => void;
+  setGuestMode: (guest: boolean) => void;
   setTargetScore: (score: number) => void;
   setBotDifficulty: (difficulty: string) => void;
   spectateRoom: (code: string) => Promise<void>;
@@ -86,6 +89,7 @@ interface RoomStore {
 export const useRoomStore = create<RoomStore>((set, get) => ({
   view: 'lobby',
   nickname: '',
+  guestMode: false,
   targetScore: 1000,
   botDifficulty: 'medium',
   roomCode: null,
@@ -97,6 +101,7 @@ export const useRoomStore = create<RoomStore>((set, get) => ({
   maintenanceMessage: null,
 
   setNickname: (name) => set({ nickname: name }),
+  setGuestMode: (guest) => set({ guestMode: guest }),
   setTargetScore: (score) => set({ targetScore: score }),
   setBotDifficulty: (difficulty) => set({ botDifficulty: difficulty }),
 
@@ -210,7 +215,7 @@ export const useRoomStore = create<RoomStore>((set, get) => ({
 
   joinMatchmaking: () => {
     return new Promise<void>(async (resolve) => {
-      const { nickname, targetScore } = get();
+      const { nickname } = get();
       if (!nickname.trim()) {
         set({ error: 'Enter a nickname' });
         resolve();
@@ -223,7 +228,8 @@ export const useRoomStore = create<RoomStore>((set, get) => ({
         return;
       }
 
-      socket.emit('matchmaking:join', nickname.trim(), targetScore, (response) => {
+      // Online games always go to the same length; the lobby has no picker for it.
+      socket.emit('matchmaking:join', nickname.trim(), MATCHMAKING_TARGET_SCORE, (response) => {
         if ('error' in response) {
           set({ error: response.error });
         } else {
@@ -354,7 +360,10 @@ export const useRoomStore = create<RoomStore>((set, get) => ({
 
   reset: () => {
     clearSession();
+    // The server takes the player out of the room when this socket goes away,
+    // so drop it, then open a fresh one for the lobby (friend invites, presence).
     socket.disconnect();
+    socket.connect();
     set({
       view: 'lobby',
       roomCode: null,
