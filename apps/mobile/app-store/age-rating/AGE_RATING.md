@@ -16,6 +16,8 @@ answers as `advisory`, so `eas metadata:push` would set them too.
 | Unrestricted Web Access | **No** | No in-app browser or free web navigation. `expo-web-browser` is only for the Google OAuth sheet, which is hidden on iOS. |
 | User-Generated Content | **No** (judgment call, see below) | The only user-written text is a nickname or display name (max 20 chars, restricted characters) shown at the table, in friends and on the leaderboard. There are no posts, messages, photos, audio or feeds. |
 | Messaging and Chat | **No** | Checked: there is no chat in the app or server. Friend requests and table invites are fixed system actions ("X invited you"), with no free text. |
+| Social Media | **No** | No feed or discovery surface spreads user content. Names appear only at the table, in friends and on the leaderboard. |
+| Social Media Disabled for Users Under 13 | **No** | Not applicable: there are no social media features to disable. |
 | Advertising | **No** | No ad SDKs. |
 
 **User-Generated Content, the honest view:** Apple defines it as "broad distribution of content
