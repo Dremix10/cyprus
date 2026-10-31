@@ -1,0 +1,44 @@
+# Play the human seat with the solo Hint button until the round (or game) ends.
+# Handles the Mahjong wish and the Dragon give sheets. Solo games only (Hint is solo-only).
+appId: dev.aegist.titsu
+---
+- repeat:
+    while:
+      notVisible: "Round over|Victory!|Defeat|Tie|Νίκη!|Ήττα|Ισοπαλία"
+    commands:
+      - runFlow:
+          when:
+            visible: "You played the Mahjong"
+          commands:
+            - tapOn: "Wish A"
+      - runFlow:
+          when:
+            visible: "You won with the Dragon"
+          commands:
+            - tapOn: "Bot (Zeus|Apollo|Athena)"
+      - runFlow:
+          when:
+            visible:
+              id: "hint"
+          commands:
+            - tapOn:
+                id: "hint"
+            - waitForAnimationToEnd:
+                timeout: 1500
+            - runFlow:
+                when:
+                  visible:
+                    id: "play"
+                    enabled: true
+                commands:
+                  - tapOn:
+                      id: "play"
+            - runFlow:
+                when:
+                  visible:
+                    id: "pass"
+                commands:
+                  - tapOn:
+                      id: "pass"
+      - waitForAnimationToEnd:
+          timeout: 1500

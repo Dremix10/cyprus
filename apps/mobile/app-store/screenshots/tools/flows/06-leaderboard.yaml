@@ -1,0 +1,14 @@
+# Scene 06: leaderboard with Andreas's stats, recent games and the ranked list.
+# Seed with --reset-bots right before, so bot rows from earlier solo games stay hidden.
+appId: dev.aegist.titsu
+---
+- runFlow: sub/sign-in-showcase.yaml
+- runFlow: sub/set-language.yaml
+- tapOn: "Leaderboard|Κατάταξη"
+- extendedWaitUntil:
+    visible: "Hall of Champions|Αίθουσα των Πρωταθλητών"
+    timeout: 15000
+- extendedWaitUntil:
+    visible: "Στέλιος Κ.*"
+    timeout: 15000
+- waitForAnimationToEnd

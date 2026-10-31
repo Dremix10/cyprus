@@ -1,0 +1,19 @@
+# Switch the UI language from the lobby. Env LOCALE: el -> ΕΛ, anything else -> EN.
+appId: dev.aegist.titsu
+---
+- runFlow:
+    when:
+      true: ${LOCALE == 'el'}
+    commands:
+      - tapOn: "ΕΛ"
+      - extendedWaitUntil:
+          visible: "Παίξε Online"
+          timeout: 5000
+- runFlow:
+    when:
+      true: ${LOCALE != 'el'}
+    commands:
+      - tapOn: "EN"
+      - extendedWaitUntil:
+          visible: "Play Online"
+          timeout: 5000

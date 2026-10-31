@@ -1,0 +1,49 @@
+# Scene 07: "Victory!" game-over screen. Solo Quick game vs Easy bots, autoplayed with Hint.
+# Retries up to 6 games until the human team wins.
+appId: dev.aegist.titsu
+---
+- runFlow: sub/sign-in-showcase.yaml
+- runFlow: sub/set-language.yaml
+- repeat:
+    times: 6
+    while:
+      notVisible: "Victory!|Νίκη!"
+    commands:
+      - runFlow:
+          when:
+            visible: "Back to lobby"
+          commands:
+            - tapOn: "Back to lobby"
+      - extendedWaitUntil:
+          visible: "Solo Game|Παιχνίδι Μόνος"
+          timeout: 15000
+      - tapOn: "Solo Game|Παιχνίδι Μόνος"
+      - tapOn: "Quick game|Γρήγορο"
+      - tapOn: "Easy|Εύκολο"
+      - tapOn:
+          id: "play-solo"
+      - extendedWaitUntil:
+          visible: "Grand Tichu?"
+          timeout: 20000
+      - tapOn: "Pass"
+      - extendedWaitUntil:
+          visible: "Pass three cards"
+          timeout: 30000
+      - tapOn:
+          id: "hand-0"
+      - tapOn:
+          id: "hand-1"
+      - tapOn:
+          id: "hand-2"
+      - tapOn: "Pass cards"
+      - runFlow: sub/autoplay-until-round-over.yaml
+      - runFlow:
+          when:
+            visible: "See result|Αποτέλεσμα"
+          commands:
+            - tapOn: "See result|Αποτέλεσμα"
+      - extendedWaitUntil:
+          visible: "Victory!|Defeat|Tie|Νίκη!|Ήττα|Ισοπαλία"
+          timeout: 20000
+- assertVisible: "Victory!|Νίκη!"
+- waitForAnimationToEnd

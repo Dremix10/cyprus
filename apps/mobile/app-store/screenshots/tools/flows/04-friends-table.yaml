@@ -1,0 +1,38 @@
+# Scene 04: waiting room with friends joining. Needs `shots-server.sh friends` running
+# (Μαρία, Kostas Lim, Panikos online, auto-accepting invites).
+# Friends > Invite Μαρία (creates the room) > Invite friend > Invite Kostas Lim > back to the room.
+# Do NOT start the game: the friend bots never play a card. Tap Leave after capturing.
+appId: dev.aegist.titsu
+---
+- runFlow: sub/sign-in-showcase.yaml
+- runFlow: sub/set-language.yaml
+- tapOn: "Friends|Φίλοι"
+- extendedWaitUntil:
+    visible: "Μαρία · Online"
+    timeout: 15000
+- tapOn:
+    text: "Invite|Πρόσκληση"
+    rightOf: "Μαρία · Online"
+- extendedWaitUntil:
+    visible: "ROOM CODE"
+    timeout: 15000
+- extendedWaitUntil:
+    visible: "Seat [0-9], Μαρία"
+    timeout: 20000
+- tapOn: "Invite friend|Πρόσκληση φίλου"
+- extendedWaitUntil:
+    visible: "Kostas Lim · Online"
+    timeout: 15000
+- tapOn:
+    text: "Invite|Πρόσκληση"
+    rightOf: "Kostas Lim · Online"
+# The friends sheet closes itself if the room view changes; otherwise go back to the room.
+- runFlow:
+    when:
+      visible: "Back|Πίσω"
+    commands:
+      - tapOn: "Back|Πίσω"
+- extendedWaitUntil:
+    visible: "Seat [0-9], Kostas Lim"
+    timeout: 20000
+- waitForAnimationToEnd

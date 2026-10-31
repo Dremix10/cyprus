@@ -1,0 +1,8 @@
+{
+  "_comment": "Copy to contact.local.json (gitignored) and fill in. store.config.js reads it for the App Review contact block and the copyright line (use the App Store seller name, e.g. \"2026 Jane Doe\"). Apple shows the contact only to App Review.",
+  "firstName": "FIRST",
+  "lastName": "LAST",
+  "email": "you@example.com",
+  "phone": "+357 99 000000",
+  "copyright": "2026 FIRST LAST"
+}

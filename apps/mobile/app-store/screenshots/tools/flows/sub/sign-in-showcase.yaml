@@ -1,0 +1,31 @@
+# Fresh launch, sign in as the seeded showcase account (andreas_cy / "Andreas") on the
+# screenshot server (port 3321). Seed first: shots-server.sh seed. Local server only.
+# Env: SHOTS_PASSWORD (default below matches shots-common.mjs).
+appId: dev.aegist.titsu
+env:
+  SHOTS_PASSWORD: showcase-pass-123
+---
+- clearKeychain           # clearState does not wipe the keychain, where the session token lives
+- launchApp:
+    clearState: true
+- extendedWaitUntil:
+    visible: "TICHU"
+    timeout: 20000
+- tapOn:
+    id: "account-link"
+- tapOn:
+    id: "auth-username"
+- inputText: "andreas_cy"
+- tapOn:
+    id: "auth-password"
+- inputText: ${SHOTS_PASSWORD}
+- tapOn:
+    id: "auth-submit"
+- runFlow:
+    when:
+      visible: "Not Now"
+    commands:
+      - tapOn: "Not Now"
+- extendedWaitUntil:
+    visible: "Andreas"
+    timeout: 15000

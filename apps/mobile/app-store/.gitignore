@@ -1,0 +1,10 @@
+# Reviewer credentials: never commit.
+*.local.md
+*.local.json
+review/demo-account.local.md
+
+# Phase-2 screenshot output (raw captures are large; keep the finals only if you want them in git)
+screenshots/raw/
+screenshots/tools/.qa-*
+screenshots/tools/*.db
+screenshots/tools/*.log

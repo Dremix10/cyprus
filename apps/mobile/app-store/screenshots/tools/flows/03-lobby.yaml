@@ -1,0 +1,8 @@
+# Scene 03 "Play your way": signed-in lobby, Quick game chip selected, all three ways to play visible.
+appId: dev.aegist.titsu
+---
+- runFlow: sub/sign-in-showcase.yaml
+- runFlow: sub/set-language.yaml
+- tapOn: "Quick game|Γρήγορο"
+- hideKeyboard
+- waitForAnimationToEnd

@@ -1,0 +1,9 @@
+# Scene 08 (el set): How to Play, step 3 "The Cards: Special Cards".
+appId: dev.aegist.titsu
+---
+- runFlow: sub/sign-in-showcase.yaml
+- runFlow: sub/set-language.yaml
+- tapOn: "How to Play|Πώς να Παίξεις"
+- tapOn: "Next|Επόμενο"
+- tapOn: "Next|Επόμενο"
+- waitForAnimationToEnd
