@@ -5,6 +5,20 @@ Everything needed to submit **Titsu** (`dev.aegist.titsu`, ASC app id `681906792
 privacy, age rating and version. Phase 2 (2026-10-31) captured the screenshots from the final app
 (commit `a77e099`).
 
+## Status 2026-10-31: what's left (all in the App Store Connect website)
+
+Already done: build **1.0 (11)** uploaded; `eas metadata:push` filled in name, subtitle, description,
+keywords, URLs and promotional text for en-US, en-GB and el, plus categories, copyright, release
+setting and the App Review contact, demo account and notes. aegist.dev privacy and contact pages are live.
+
+1. **Spaceship:** turn on email forwarding `support@aegist.dev` → your inbox (the Spaceship API can't do this).
+2. **Business → Digital Services Act:** declare trader / non-trader status (needed for EU storefronts, including Greece and Cyprus).
+3. **App → Age Rating:** answer per `age-rating/AGE_RATING.md`. EAS can't send Apple's new `socialMedia` question, so this one is manual.
+4. **App → App Privacy:** answer per `privacy/APP_PRIVACY.md` (not available through any API).
+5. **iOS App 1.0 → Previews and Screenshots:** drag in `screenshots/final/en-US/6.9` and `6.3` (also for English (U.K.)), and `final/el/6.9` and `6.3` for Greek.
+6. **iOS App 1.0 → Build:** pick 1.0 (11). **Pricing and Availability:** Free, all countries.
+7. **Submit for Review.**
+
 **Legend:** ✅ done · 🧑 **OWNER** (you, in App Store Connect or a decision) · 🤖 **AGENT**
 (I'll do it when you say go) · 🛠 **DEV** (code or server change in the app repo, outside this folder)
 
@@ -14,7 +28,7 @@ privacy, age rating and version. Phase 2 (2026-10-31) captured the screenshots f
 |---|---|
 | `metadata/en-US/`, `metadata/el/`, `metadata/en-GB/` | Paste-ready text: `name`, `subtitle`, `promotional_text`, `description`, `keywords` (+ `el/keywords_extended`), `release_notes`, `support_url`, `marketing_url`, `privacy_url` (fastlane-style file names) |
 | `metadata/COUNTS.md` | Verified character counts (`node scripts/check-limits.mjs --write`) |
-| `store.config.js` | EAS Metadata config built from the files above (validated against eas-cli's schema). Wired to `eas.json` `submit.production`. **Not pushed.** |
+| `store.config.js` | EAS Metadata config built from the files above (validated against eas-cli's schema). Wired to `eas.json` `submit.production`. **Pushed 2026-10-31** with eas-cli 27.2.0 (everything except age rating). |
 | `review/` | `notes.txt` (paste into ASC), `REVIEW.md` (demo account, deletion, risks), `contact.example.json`, `demo-account.local.md` (**gitignored**, has the password) |
 | `privacy/` | `APP_PRIVACY.md` (nutrition-label answers), `privacy-policy-update.md` (fixes for aegist.dev/privacy) |
 | `age-rating/AGE_RATING.md` | Questionnaire answers. Expected rating **4+** |

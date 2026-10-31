@@ -76,7 +76,8 @@ for (const k of Object.keys(review)) if (review[k] === undefined) delete review[
 const config = {
   configVersion: 0,
   apple: {
-    // No `version`: EAS updates the version that is currently editable in App Store Connect.
+    // App Store Connect now requires versionString when EAS updates the release info.
+    version: '1.0',
     ...(owner.copyright ? { copyright: owner.copyright } : {}),
     categories: [['GAMES', 'GAMES_CARD', 'GAMES_BOARD']],
     release: { automaticRelease: false, phasedRelease: false },
