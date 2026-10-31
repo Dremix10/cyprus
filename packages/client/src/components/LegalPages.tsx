@@ -1,5 +1,7 @@
 import { useT } from '../i18n.js';
 
+const SUPPORT_EMAIL = 'support@aegist.dev';
+
 export type LegalPageType = 'privacy' | 'terms' | 'contact';
 
 type LegalPagesProps = {
@@ -39,6 +41,8 @@ function PrivacyPolicy() {
         <li>{t('legal.privacy.collect.1')}</li>
         <li>{t('legal.privacy.collect.2')}</li>
         <li>{t('legal.privacy.collect.3')}</li>
+        <li>{t('legal.privacy.collect.4')}</li>
+        <li>{t('legal.privacy.collect.5')}</li>
       </ul>
 
       <h2>{t('legal.privacy.useTitle')}</h2>
@@ -51,8 +55,13 @@ function PrivacyPolicy() {
       <h2>{t('legal.privacy.deletionTitle')}</h2>
       <p>{t('legal.privacy.deletion')}</p>
 
+      <h2>{t('legal.privacy.retentionTitle')}</h2>
+      <p>{t('legal.privacy.retention')}</p>
+
       <h2>{t('legal.privacy.thirdTitle')}</h2>
       <p>{t('legal.privacy.third')}</p>
+
+      <p>{t('legal.privacy.contact')}</p>
     </div>
   );
 }
@@ -89,6 +98,11 @@ function ContactSupport() {
       <p>{t('legal.contact.intro')}</p>
 
       <p>
+        <a href={`mailto:${SUPPORT_EMAIL}`}>{SUPPORT_EMAIL}</a>
+      </p>
+
+      <p>
+        {t('legal.contact.github')}{' '}
         <a href="https://github.com/Dremix10/cyprus" target="_blank" rel="noreferrer">
           github.com/Dremix10/cyprus
         </a>

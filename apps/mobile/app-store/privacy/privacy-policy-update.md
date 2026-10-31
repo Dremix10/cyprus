@@ -1,3 +1,5 @@
+> **Applied 2026-10-31** to `packages/client/src/i18n.ts` and `LegalPages.tsx` (operator Demetris Chrysostomou, support@aegist.dev, 12-month retention). Kept below for reference.
+
 # Privacy policy: what to change before App Review
 
 Live page: https://aegist.dev/privacy (from `packages/client/src/components/LegalPages.tsx` and the

@@ -31,13 +31,13 @@ privacy, age rating and version. Phase 2 (2026-10-31) captured the screenshots f
 | ✅ | In-app account deletion (5.1.1(v)) | Done: Profile > Delete Account > confirmation sheet (password only for password accounts). Commit `7d67861`. |
 | ✅ | Server: deleting a user who reported a bot play | Fixed in `7781dc4` (reports removed in the same transaction; 500 instead of a hang). |
 | ✅ / 🧑 | Production server up to date | `aegist.dev/health` shows `startedAt 2026-10-31T02:26Z`, after `7781dc4`. Confirm that deploy included the current `main` (Quick game, deletion fix). |
-| 🧑 | **Support contact:** `aegist.dev/contact` only links the GitHub repo. Add a support email (for example `support@aegist.dev` via Spaceship forwarding). | Still open (live page checked 2026-10-31) |
-| 🧑 | **Privacy policy gaps:** no mention of Titsu, Sign in with Apple, Expo, Keychain, retention or operator name. | Still open: live page still says "Last updated: May 11, 2026". Drop-in EN + EL text in `privacy/privacy-policy-update.md`. |
+| 🧑 | **Support contact:** `support@aegist.dev` is on the contact and privacy pages (2026-10-31). The owner turns on Spaceship email forwarding to their inbox; until then mail to it bounces. | Forwarding: owner |
+| ✅ | **Privacy policy:** names Titsu and the operator (Demetris Chrysostomou), Sign in with Apple, Expo, DigitalOcean, Keychain, 12-month log retention (enforced by `pruneOldPersonalData`) and the support email. | Done 2026-10-31 (EN + EL). |
 | ✅ | Greek in-game screens, tutorial "a bold call" | Done in `a77e099` / `7d67861`. |
 
 ## Decisions for you
 
-1. **Name: does it include "Tichu"?** Proposed `Titsu: Tichu Card Game` (best for search). Tichu is
+1. **Name (decided 2026-10-31): `Titsu: Greek Card Game`** in en-US/en-GB, `Titsu: Τίτσου Online` in el. The hero caption no longer says "Real Tichu". Keywords leave out `tichu` (Guideline 2.3.7: no trademarked terms in keywords). The name can change with any later version. Original note: proposed `Titsu: Tichu Card Game` (best for search). Tichu is
    Fata Morgana's game, and a licensed "Tichu" app is already on the store, so the name carries some
    trademark-complaint risk. The description ends with a "not affiliated" line. Safer alternatives:
    `Titsu: Greek Card Game` (en) and `Titsu: Τίτσου Online` (el, already proposed). With the safer

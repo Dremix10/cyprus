@@ -37,6 +37,11 @@ const sessionCleanupInterval = setInterval(() => {
   db.cleanExpiredSessions();
   const closed = db.closeAbandonedGames(120);
   if (closed > 0) console.log(`Closed ${closed} abandoned game(s)`);
+  // Privacy policy retention: IP-bearing logs older than 12 months.
+  const pruned = db.pruneOldPersonalData(12);
+  if (pruned.connections + pruned.requests + pruned.anonymized > 0) {
+    console.log(`Retention: removed ${pruned.connections} connection and ${pruned.requests} request log(s), cleared ${pruned.anonymized} old IP(s)`);
+  }
 }, 60 * 60_000);
 sessionCleanupInterval.unref();
 

@@ -1094,6 +1094,27 @@ export class TrackerDB {
     this.db.prepare(`DELETE FROM server_logs WHERE created_at < datetime('now', '-' || ? || ' days')`).run(daysToKeep);
   }
 
+  /**
+   * Retention promised in the privacy policy: connection and request logs (which hold IP
+   * addresses) are deleted after `months`, and IP addresses on older player and game records
+   * are cleared. Game results themselves stay for the leaderboard and statistics.
+   */
+  pruneOldPersonalData(months: number = 12): { connections: number; requests: number; anonymized: number } {
+    const age = `-${Math.max(1, Math.floor(months))} months`;
+    return this.db.transaction(() => {
+      const connections = this.db.prepare(`DELETE FROM connections WHERE connected_at < datetime('now', ?)`).run(age).changes;
+      const requests = this.db.prepare(`DELETE FROM http_requests WHERE created_at < datetime('now', ?)`).run(age).changes;
+      const players = this.db.prepare(
+        `UPDATE players SET ip = NULL WHERE ip IS NOT NULL AND last_seen < datetime('now', ?)`
+      ).run(age).changes;
+      const gamePlayers = this.db.prepare(
+        `UPDATE game_players SET ip = NULL WHERE ip IS NOT NULL
+           AND game_id IN (SELECT id FROM games WHERE started_at < datetime('now', ?))`
+      ).run(age).changes;
+      return { connections, requests, anonymized: players + gamePlayers };
+    })();
+  }
+
   closeAbandonedGames(inactiveMinutes: number = 120): number {
     const result = this.db.prepare(`
       UPDATE games SET ended_at = datetime('now'), winner_team = 'Abandoned'

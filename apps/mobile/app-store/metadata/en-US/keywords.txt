@@ -1,1 +1,1 @@
-multiplayer,partner,team,trick,taking,bridge,spades,greek,cyprus,bomb,dragon,phoenix,ranked,elo,solo
+multiplayer,partner,team,trick,taking,bridge,spades,zeus,cyprus,bomb,dragon,phoenix,ranked,elo,solo
