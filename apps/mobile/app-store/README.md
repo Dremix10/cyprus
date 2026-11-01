@@ -28,7 +28,7 @@ setting and the App Review contact, demo account and notes. aegist.dev privacy a
 |---|---|
 | `metadata/en-US/`, `metadata/el/`, `metadata/en-GB/` | Paste-ready text: `name`, `subtitle`, `promotional_text`, `description`, `keywords` (+ `el/keywords_extended`), `release_notes`, `support_url`, `marketing_url`, `privacy_url` (fastlane-style file names) |
 | `metadata/COUNTS.md` | Verified character counts (`node scripts/check-limits.mjs --write`) |
-| `store.config.js` | EAS Metadata config built from the files above (validated against eas-cli's schema). Wired to `eas.json` `submit.production`. **Pushed 2026-10-31** with eas-cli 27.2.0 (everything except age rating). |
+| `store.config.js` | EAS Metadata config built from the files above (validated against eas-cli's schema). Wired to `eas.json` `submit.production`. **Pushed 2026-10-31** with eas-cli 27.2.0. Re-push with `TITSU_SKIP_AGE_RATING=1 npx eas-cli@latest metadata:push --profile production` so the hand-entered age rating is left alone. A language EAS just created needs a second push to get its text. |
 | `review/` | `notes.txt` (paste into ASC), `REVIEW.md` (demo account, deletion, risks), `contact.example.json`, `demo-account.local.md` (**gitignored**, has the password) |
 | `privacy/` | `APP_PRIVACY.md` (nutrition-label answers), `privacy-policy-update.md` (fixes for aegist.dev/privacy) |
 | `age-rating/AGE_RATING.md` | Questionnaire answers. Expected rating **4+** |

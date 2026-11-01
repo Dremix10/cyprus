@@ -82,6 +82,9 @@ const config = {
     categories: [['GAMES', 'GAMES_CARD', 'GAMES_BOARD']],
     release: { automaticRelease: false, phasedRelease: false },
     info: Object.fromEntries(locales.map((l) => [l, localeInfo(l)])),
+    // TITSU_SKIP_AGE_RATING=1 leaves the age rating alone (it is answered in the ASC website,
+    // because EAS can't send Apple's newer questions such as socialMedia).
+    ...(process.env.TITSU_SKIP_AGE_RATING === '1' ? {} : {
     advisory: {
       alcoholTobaccoOrDrugUseOrReferences: 'NONE',
       contests: 'INFREQUENT_OR_MILD',
@@ -111,6 +114,7 @@ const config = {
       koreaAgeRatingOverride: 'NONE',
       developerAgeRatingInfoUrl: null,
     },
+    }),
     review,
   },
 };
